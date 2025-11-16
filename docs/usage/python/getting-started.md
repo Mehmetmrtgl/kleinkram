@@ -27,9 +27,8 @@ klein --help
 
 ## Authentication
 
-If you want to use the CL or the python package you need to authenticate yourself.
-
-Eitherway you need to do this using the CLI:
+If you want to use the CLI or the python package you need to authenticate yourself.
+Either way, you need to do this using the CLI:
 
 ```bash
 klein login
@@ -55,10 +54,9 @@ By default the CLI uses Google as OAuth provider. If you want to use another pro
 klein login --oauth-provider <provider>
 ```
 
-where `<provider>` is one of `google`, `github`, or `fake-oauth`. Where the `fake-oauth` provider is only available on
-development instances of kleinkram.
-
-```
+Where `<provider>` is one of `google`, `github`, or `fake-oauth`. Where the `fake-oauth` provider is only available on
+development instances of kleinkram. By default the `google` provider is used. If the endpoint is set to `locale`,
+i.e. to a dev version, the default provider is `fake-oauth`.
 
 :::
 
@@ -67,9 +65,7 @@ When running the CLI inside a kleinkram action, the action will expose an enviro
 `APIKEY` which can be used to authenticate the CLI. In this case you need to use the following command:
 
 ```
-
 klein login --key $APIKEY
-
 ```
 
 :::
@@ -78,4 +74,3 @@ klein login --key $APIKEY
 
 - [using the CLI](./cli.md)
 - [using the python package](./package.md)
-```
