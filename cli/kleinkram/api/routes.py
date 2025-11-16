@@ -14,19 +14,25 @@ from typing import Tuple
 from uuid import UUID
 
 import httpx
+import typer
 
 import kleinkram.errors
 from kleinkram._version import __version__
-from kleinkram.api.client import CLI_VERSION_HEADER
 from kleinkram.api.client import AuthenticatedClient
-from kleinkram.api.deser import FileObject
+from kleinkram.api.client import CLI_VERSION_HEADER
+from kleinkram.api.deser import (
+    FileObject,
+    _parse_run,
+    RunObject,
+    _parse_action_template,
+)
 from kleinkram.api.deser import MissionObject
 from kleinkram.api.deser import ProjectObject
 from kleinkram.api.deser import _parse_file
 from kleinkram.api.deser import _parse_mission
 from kleinkram.api.deser import _parse_project
 from kleinkram.api.pagination import paginated_request
-from kleinkram.api.query import FileQuery
+from kleinkram.api.query import FileQuery, RunQuery
 from kleinkram.api.query import MissionQuery
 from kleinkram.api.query import ProjectQuery
 from kleinkram.api.query import file_query_is_unique
@@ -44,7 +50,7 @@ from kleinkram.errors import MissionValidationError
 from kleinkram.errors import ProjectExists
 from kleinkram.errors import ProjectNotFound
 from kleinkram.errors import ProjectValidationError
-from kleinkram.models import File
+from kleinkram.models import File, Run, ActionTemplate
 from kleinkram.models import Mission
 from kleinkram.models import Project
 from kleinkram.utils import is_valid_uuid4
@@ -83,6 +89,8 @@ MISSION_ENDPOINT = "/missions"
 PROJECT_ENDPOINT = "/projects"
 
 TAG_TYPE_BY_NAME = "/tag/filtered"
+
+ACTION_ENDPOINT = "/action"
 
 
 class Params(str, Enum):
@@ -177,6 +185,36 @@ def get_projects(
     yield from map(lambda p: _parse_project(ProjectObject(p)), response_stream)
 
 
+LIST_ACTIONS_ENDPOINT = "/action/listActions"
+
+
+def get_runs(
+    client: AuthenticatedClient,
+    query: RunQuery,
+) -> Generator[Run, None, None]:
+
+    response_stream = paginated_request(client, LIST_ACTIONS_ENDPOINT)
+    yield from map(lambda p: _parse_run(RunObject(p)), response_stream)
+
+
+def get_run(
+    client: AuthenticatedClient,
+    run_id: str,
+) -> Run:
+    resp = client.get(f"{ACTION_ENDPOINT}/details", params={"uuid": run_id})
+    if resp.status_code == 404:
+        raise kleinkram.errors.RunNotFound(f"Run not found: {run_id}")
+    resp.raise_for_status()
+    return _parse_run(RunObject(resp.json()))
+
+
+def get_action_templates(
+    client: AuthenticatedClient,
+) -> Generator[ActionTemplate, None, None]:
+    response_stream = paginated_request(client, "/action/listTemplates")
+    yield from map(lambda p: _parse_action_template(RunObject(p)), response_stream)
+
+
 def get_project(
     client: AuthenticatedClient, query: ProjectQuery, exact_match: bool = False
 ) -> Project:
@@ -191,6 +229,34 @@ def get_project(
         return next(get_projects(client, query, exact_match=exact_match))
     except StopIteration:
         raise ProjectNotFound(f"Project not found: {query}")
+
+
+def submit_action(
+    client: AuthenticatedClient, mission_uuid: UUID, template_uuid: UUID
+) -> str:
+    """
+    Submits a new action to the API and returns the action UUID.
+
+    Raises:
+        httpx.HTTPStatusError: If the API returns an error.
+        KeyError: If the response is missing 'actionUUID'.
+    """
+    submit_payload = {
+        "missionUUID": str(mission_uuid),
+        "templateUUID": str(template_uuid),
+    }
+
+    typer.echo("Submitting action...")
+    resp = client.post(f"{ACTION_ENDPOINT}/submit", json=submit_payload)
+    resp.raise_for_status()  # Raises on 4xx/5xx responses
+
+    response_data = resp.json()
+    action_uuid_str = response_data.get("actionUUID")
+
+    if not action_uuid_str:
+        raise KeyError("API response missing 'actionUUID'")
+
+    return action_uuid_str
 
 
 def get_mission(client: AuthenticatedClient, query: MissionQuery) -> Mission:
