@@ -239,63 +239,26 @@ export class ActionService {
         const user = await this.userRepository.findOneOrFail({
             where: { uuid: userUUID },
         });
-        if (user.role === UserRole.ADMIN) {
-            const query = this.actionRepository
-                .createQueryBuilder('action')
-                .leftJoinAndSelect('action.mission', 'mission')
-                .leftJoinAndSelect('mission.project', 'project')
-                .leftJoinAndSelect('action.createdBy', 'createdBy')
-                .leftJoinAndSelect('action.template', 'template')
-                .andWhere('project.uuid = :projectUuid', { projectUuid })
-                .orderBy(`action.${sortBy}`, sortDirection)
-                .skip(skip)
-                .take(take);
-            if (search) {
-                query.andWhere(
-                    new Brackets((qb) => {
-                        qb.where('template.name ILIKE :searchTerm', {
-                            searchTerm: `%${search}%`,
-                        })
-                            .orWhere('action.state_cause ILIKE :searchTerm', {
-                                searchTerm: `%${search}%`,
-                            })
-                            .orWhere('template.image_name ILIKE :searchTerm', {
-                                searchTerm: `%${search}%`,
-                            });
-                    }),
-                );
-            }
-            if (missionUuid) {
-                query.andWhere('mission.uuid = :missionUuid', { missionUuid });
-            }
-
-            const [actions, count] = await query.getManyAndCount();
-            return {
-                count,
-                data: actions.map((element) => actionEntityToDto(element)),
-                skip,
-                take,
-            };
-        }
 
         const baseQuery = this.actionRepository
             .createQueryBuilder('action')
             .leftJoinAndSelect('action.mission', 'mission')
             .leftJoinAndSelect('mission.project', 'project')
             .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.createdBy', 'createdBy')
-            .andWhere('project.uuid = :projectUuid', {
-                projectUuid: projectUuid,
-            })
-            .skip(skip)
-            .take(take)
-            .orderBy(`action.${sortBy}`, sortDirection);
+            .leftJoinAndSelect('action.createdBy', 'createdBy');
 
-        if (missionUuid) {
+        if (projectUuid !== undefined) {
+            baseQuery.andWhere('project.uuid = :projectUuid', {
+                projectUuid,
+            });
+        }
+
+        if (missionUuid !== undefined) {
             baseQuery.andWhere('mission.uuid = :missionUuid', {
                 missionUuid: missionUuid,
             });
         }
+
         if (search) {
             baseQuery.andWhere(
                 new Brackets((qb) => {
@@ -311,6 +274,28 @@ export class ActionService {
                 }),
             );
         }
+
+        if (
+            sortBy !== undefined &&
+            sortBy !== '' &&
+            sortDirection in ['ASC', 'DESC']
+        ) {
+            baseQuery.orderBy(`action.${sortBy}`, sortDirection);
+        }
+
+        if (user.role === UserRole.ADMIN) {
+            const query = baseQuery.skip(skip).take(take);
+
+            const [actions, count] = await query.getManyAndCount();
+            return {
+                count,
+                data: actions.map((element) => actionEntityToDto(element)),
+                skip,
+                take,
+            };
+        }
+
+        baseQuery.skip(skip).take(take);
 
         const [actions, count] = await addAccessConstraints(
             baseQuery,
