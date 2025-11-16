@@ -14,8 +14,17 @@ from kleinkram.config import get_shared_state
 from kleinkram.printing import print_run_info, print_action_templates_table
 from kleinkram.utils import is_valid_uuid4, split_args
 
+HELP = """\
+Launch kleinkram actions from predefined templates.
+
+You can list available action templates, launch new actions on specific missions, and optionally
+follow their logs in real-time.
+"""
+
 action_typer = typer.Typer(
-    no_args_is_help=True, context_settings={"help_option_names": ["-h", "--help"]}
+    no_args_is_help=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    help=HELP,
 )
 
 LIST_HELP = "Lists action templates (definitions). To list individual runs, use `klein run list`."

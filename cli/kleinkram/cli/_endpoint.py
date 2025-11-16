@@ -18,7 +18,7 @@ from kleinkram.config import get_config
 from kleinkram.config import select_endpoint
 
 HELP = """\
-Get or set the current endpoint.
+Switch between different Kleinkram hosting.
 
 The endpoint is used to determine the API server to connect to\
 (default is the API server of https://datasets.leggedrobotics.com).

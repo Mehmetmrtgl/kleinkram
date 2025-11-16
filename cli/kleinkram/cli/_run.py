@@ -14,8 +14,17 @@ from kleinkram.models import Run, LogEntry
 from kleinkram.printing import print_runs_table, print_run_info, print_run_logs
 from kleinkram.utils import split_args
 
+HELP = """\
+Manage and inspect action runs.
+
+You can list action runs, get detailed information about specific runs, stream their logs,
+cancel runs in progress, and retry failed runs.
+"""
+
 run_typer = typer.Typer(
-    no_args_is_help=True, context_settings={"help_option_names": ["-h", "--help"]}
+    no_args_is_help=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    help=HELP,
 )
 
 LIST_HELP = "List action runs. Optionally filter by mission or project."
