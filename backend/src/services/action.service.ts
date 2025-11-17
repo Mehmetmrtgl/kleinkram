@@ -4,7 +4,13 @@ import User from '@common/entities/user/user.entity';
 import { ActionState, UserRole } from '@common/frontend_shared/enum';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import {
+    Brackets,
+    EntityManager,
+    FindOptionsWhere,
+    ILike,
+    Repository,
+} from 'typeorm';
 import { actionEntityToDto, actionTemplateEntityToDto } from '../serialization';
 import { QueueService } from './queue.service';
 
@@ -358,30 +364,34 @@ export class ActionService {
         return { data: data as unknown as ActionDto[], count, skip, take };
     }
 
+    /**
+     * Writes an audit log entry for the action associated with the given API key.
+     * Uses a transaction to ensure data integrity.
+     *
+     * @param apiKey - The API key associated with the action.
+     * @param auditLog - The audit log entry containing method and URL.
+     */
     async writeAuditLog(
         apiKey: string,
         auditLog: {
             method: string;
             url: string;
         },
-    ) {
-        await this.apikeyRepository.manager.transaction(async (manager) => {
-            const key: Apikey = await manager.findOneOrFail(Apikey, {
-                where: { apikey: apiKey },
-                relations: ['action'],
-            });
+    ): Promise<void> {
+        await this.apikeyRepository.manager.transaction(
+            async (manager: EntityManager): Promise<void> => {
+                const key: Apikey = await manager.findOneOrFail(Apikey, {
+                    where: { apikey: apiKey },
+                    relations: ['action'],
+                });
 
-            const action: Action | undefined = key.action;
-            if (!action) {
-                return;
-            }
+                const action: Action | undefined = key.action;
+                if (action === undefined) return;
 
-            if (!action.auditLogs) {
-                action.auditLogs = [];
-            }
-
-            action.auditLogs.push(auditLog);
-            await manager.save(action);
-        });
+                action.auditLogs ??= [];
+                action.auditLogs.push(auditLog);
+                await manager.save(action);
+            },
+        );
     }
 }

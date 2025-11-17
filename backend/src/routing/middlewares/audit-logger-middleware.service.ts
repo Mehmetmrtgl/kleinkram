@@ -7,7 +7,7 @@ import { ActionService } from '../../services/action.service';
 /**
  *
  * Logger middleware for audit logging.
- * Logs every authenticated request made to the application.*
+ * Logs every authenticated request made to the application.
  *
  */
 @Injectable()
@@ -30,6 +30,10 @@ export class AuditLoggerMiddleware implements NestMiddleware {
             return;
         }
 
+        // Pass control to the next function immediately.
+        // The request will continue to the controller and return a response.
+        next();
+
         const auditLog = {
             method: request.method,
             url: request.originalUrl,
@@ -39,11 +43,13 @@ export class AuditLoggerMiddleware implements NestMiddleware {
             `AuditLoggerMiddleware: ${JSON.stringify(auditLog, undefined, 2)}`,
         );
 
-        await this.actionService.writeAuditLog(key, auditLog).then(() => {
-            logger.debug('Audit log written');
-        });
-
-        // pass on to the next middleware function
-        next();
+        this.actionService
+            .writeAuditLog(key, auditLog)
+            .then(() => {
+                logger.debug(`Audit log written for ${auditLog.url}`);
+            })
+            .catch((error: unknown) => {
+                logger.error('Failed to write audit log', error);
+            });
     }
 }
