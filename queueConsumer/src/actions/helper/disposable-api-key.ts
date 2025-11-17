@@ -25,7 +25,7 @@ export class DisposableAPIKey implements AsyncDisposable {
      * Disposes the API key by setting the deletedAt field to the current date.
      * This will make the API key unusable.
      */
-    async [Symbol.asyncDispose]() {
+    async [Symbol.asyncDispose](): Promise<void> {
         logger.info(`Disposing API key ${this.uuid}`);
         await this.apikeyRepository.update(
             { uuid: this.uuid },
