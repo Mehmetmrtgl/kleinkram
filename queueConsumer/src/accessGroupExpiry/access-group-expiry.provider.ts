@@ -38,7 +38,7 @@ export class AccessGroupExpiryProvider implements OnModuleInit {
         await this.redlock.using(
             [LOCK_KEY],
             LOCK_TTL,
-            this._performExpirySoftDelete,
+            this._performExpirySoftDelete.bind(this),
         );
     }
 
