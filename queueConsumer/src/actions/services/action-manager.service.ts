@@ -55,7 +55,7 @@ export class ActionManagerService {
             throw new Error('Template is undefined');
         }
 
-        if (action.createdBy === undefined) {
+        if (action.creator === undefined) {
             throw new Error('User is undefined');
         }
 
@@ -64,7 +64,7 @@ export class ActionManagerService {
             rights: action.template.accessRights,
             key_type: KeyTypes.CONTAINER,
             action: action,
-            user: action.createdBy,
+            user: action.creator,
         });
         return new DisposableAPIKey(
             await this.apikeyRepository.save(apiKey),
@@ -96,7 +96,7 @@ export class ActionManagerService {
         if (action.template === undefined) {
             throw new Error('Template is undefined');
         }
-        if (action.createdBy === undefined) {
+        if (action.creator === undefined) {
             throw new Error('User is undefined');
         }
         if (action.mission.project === undefined) {

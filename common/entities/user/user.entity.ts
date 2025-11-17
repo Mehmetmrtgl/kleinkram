@@ -97,7 +97,7 @@ export default class UserEntity extends BaseEntity {
 
     @OneToMany(
         () => ActionTemplateEntity,
-        (actionTemplate) => actionTemplate.createdBy,
+        (actionTemplate) => actionTemplate.creator,
     )
     templates?: ActionTemplateEntity[];
 

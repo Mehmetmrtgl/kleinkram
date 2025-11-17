@@ -43,7 +43,7 @@ export default class ActionEntity extends BaseEntity {
     @ManyToOne(() => UserEntity, (user) => user.submittedActions, {
         nullable: false,
     })
-    createdBy?: UserEntity;
+    creator?: UserEntity;
 
     @Column({ nullable: true })
     state_cause?: string;

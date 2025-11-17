@@ -116,7 +116,7 @@ export const actionTemplateEntityToDto = (
 };
 
 export const actionEntityToDto = (action: ActionEntity): ActionDto => {
-    if (action.createdBy === undefined) {
+    if (action.creator === undefined) {
         throw new Error('Action must have a creator');
     }
 
@@ -133,7 +133,7 @@ export const actionEntityToDto = (action: ActionEntity): ActionDto => {
         artifacts: action.artifacts,
         auditLogs: (action.auditLogs as unknown as AuditLogDto[]) ?? [],
         createdAt: action.createdAt,
-        creator: userEntityToDto(action.createdBy),
+        creator: userEntityToDto(action.creator),
         image: (action.image as DockerImageDto) ?? { repoDigests: [] },
         logs: (action.logs as unknown as LogsDto[]) ?? [],
         mission: missionEntityToDto(action.mission),

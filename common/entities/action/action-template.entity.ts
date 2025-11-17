@@ -15,7 +15,7 @@ export default class ActionTemplateEntity extends BaseEntity {
     name!: string;
 
     @ManyToOne(() => UserEntity, (user) => user.templates)
-    createdBy!: UserEntity;
+    creator!: UserEntity;
 
     @Column({ nullable: true })
     command?: string;

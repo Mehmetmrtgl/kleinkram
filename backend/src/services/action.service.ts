@@ -128,7 +128,7 @@ export class ActionService {
         }
 
         const template = this.actionTemplateRepository.create({
-            createdBy: { uuid: auth.user.uuid },
+            creator: { uuid: auth.user.uuid },
             name: data.name,
             cpuCores: data.cpuCores,
             cpuMemory: data.cpuMemory,
@@ -191,7 +191,7 @@ export class ActionService {
         template.cpuMemory = data.cpuMemory;
         template.gpuMemory = data.gpuMemory;
         template.image_name = data.dockerImage;
-        template.createdBy = dbuser;
+        template.creator = dbuser;
         template.command = data.command ?? '';
         template.version = previousVersions[0]?.version ?? 0 + change;
         template.uuid = '';
