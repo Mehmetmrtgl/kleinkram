@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import logger from '../../logger';
 
 export class DisposableAPIKey implements AsyncDisposable {
-    apikeytype: KeyTypes;
+    apikeyType: KeyTypes;
     mission: Mission;
     uuid: string;
     apikey: string;
@@ -15,7 +15,7 @@ export class DisposableAPIKey implements AsyncDisposable {
         private apikeyRepository: Repository<Apikey>,
     ) {
         this.apikeyRepository = apikeyRepository;
-        this.apikeytype = _apikey.key_type;
+        this.apikeyType = _apikey.key_type;
         this.mission = _apikey.mission;
         this.uuid = _apikey.uuid;
         this.apikey = _apikey.apikey;
