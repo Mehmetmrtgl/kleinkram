@@ -5,7 +5,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
 import Redlock from 'redlock';
-import { LessThan, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { LessThan } from 'typeorm';
+import logger from '../logger';
+
+const LOCK_KEY = 'groupMembershipExpiry';
+const LOCK_TTL = 10_000; // 10 second
 
 @Injectable()
 export class AccessGroupExpiryProvider implements OnModuleInit {
@@ -26,12 +31,31 @@ export class AccessGroupExpiryProvider implements OnModuleInit {
 
     @Cron(CronExpression.EVERY_4_HOURS)
     async removeExpiredAccessGroups(): Promise<void> {
-        if (!this.redlock) throw new Error('RedLock not initialized');
+        if (!this.redlock) {
+            throw new Error('RedLock not initialized');
+        }
 
-        await this.redlock.using([`accessGroupExpiry`], 10_000, async () => {
-            await this.groupMembershipRepository.softDelete({
-                expirationDate: LessThan(new Date()),
-            });
+        await this.redlock.using(
+            [LOCK_KEY],
+            LOCK_TTL,
+            this._performExpirySoftDelete,
+        );
+    }
+
+    /**
+     *
+     * Performs the soft-delete operation for expired group memberships.
+     * This method assumes it is being run within a distributed lock.
+     *
+     */
+    private async _performExpirySoftDelete(): Promise<void> {
+        const result = await this.groupMembershipRepository.softDelete({
+            expirationDate: LessThan(new Date()),
         });
+
+        const affectedRows = result.affected ?? 0;
+        logger.debug(
+            `Successfully soft-deleted ${affectedRows} expired group memberships.`,
+        );
     }
 }
