@@ -442,8 +442,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         }
         return await this.missionAccessView.exists({
             where: {
-                missionUUID,
-                userUUID,
+                missionUuid: missionUUID,
+                userUuid: userUUID,
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
             },
         });

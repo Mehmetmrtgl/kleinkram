@@ -163,8 +163,8 @@ export class MissionGuardService {
         }
         return this.missionAccessView.exists({
             where: {
-                missionUUID,
-                userUUID: user.uuid,
+                missionUuid: missionUUID,
+                userUuid: user.uuid,
                 rights: MoreThanOrEqual(rights),
             },
         });
