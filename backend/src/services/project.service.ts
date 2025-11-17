@@ -304,10 +304,7 @@ export class ProjectService {
             .map((ag) => ag.accessGroup)
             .filter((ag) => ag !== undefined);
 
-        if (!project.requiredTags) {
-            project.requiredTags = [];
-        }
-
+        project.requiredTags ??= [];
         const tagTypes = await Promise.all(
             project.requiredTags.map((tag) => {
                 return this.tagTypeRepository.findOneOrFail({
@@ -466,7 +463,7 @@ export class ProjectService {
         accessGroups: AccessGroup[],
         project: Project,
         removedDefaultGroups?: string[],
-    ) {
+    ): Promise<(ProjectAccess | undefined)[]> {
         if (!removedDefaultGroups) {
             removedDefaultGroups = [];
         }
@@ -509,7 +506,7 @@ export class ProjectService {
             | { userUUID: string; rights: AccessGroupRights }
         )[],
         project: Project,
-    ) {
+    ): Promise<Awaited<ProjectAccess>[]> {
         return await Promise.all(
             accessGroups.map(async (accessGroup) => {
                 let accessGroupDB: AccessGroup;
