@@ -1,8 +1,8 @@
 import { Column, Entity, ManyToOne } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
-import Mission from '../mission/mission.entity';
-import TagType from '../tagType/tag-type.entity';
-import User from '../user/user.entity';
+import MissionEntity from '../mission/mission.entity';
+import TagTypeEntity from '../tagType/tag-type.entity';
+import UserEntity from '../user/user.entity';
 
 // TODO: rename the SQL table from tag to metadata
 //   in some early version of kleinkram metadata were named
@@ -24,17 +24,17 @@ export default class MetadataEntity extends BaseEntity {
     @Column({ nullable: true, name: 'LOCATION' })
     value_location?: string;
 
-    @ManyToOne(() => Mission, (mission) => mission.tags, {
+    @ManyToOne(() => MissionEntity, (mission) => mission.tags, {
         onDelete: 'CASCADE',
     })
-    mission?: Mission;
+    mission?: MissionEntity;
 
-    @ManyToOne(() => TagType, (tagType) => tagType.tags, { eager: true })
-    tagType?: TagType;
+    @ManyToOne(() => TagTypeEntity, (tagType) => tagType.tags, { eager: true })
+    tagType?: TagTypeEntity;
 
-    @ManyToOne(() => User, (user) => user.tags, {
+    @ManyToOne(() => UserEntity, (user) => user.tags, {
         onDelete: 'SET NULL',
         nullable: true,
     })
-    creator?: User;
+    creator?: UserEntity;
 }

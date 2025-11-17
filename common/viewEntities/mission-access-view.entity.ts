@@ -1,12 +1,12 @@
 import type { DataSource } from 'typeorm';
 import { ViewColumn, ViewEntity } from 'typeorm';
-import Mission from '../entities/mission/mission.entity';
+import MissionEntity from '../entities/mission/mission.entity';
 import { AccessGroupRights } from '../frontend_shared/enum';
 
 @ViewEntity({
     expression: (datasource: DataSource) =>
         datasource
-            .createQueryBuilder(Mission, 'mission')
+            .createQueryBuilder(MissionEntity, 'mission')
             .innerJoin('mission.mission_accesses', 'missionAccesses')
             .innerJoin('missionAccesses.accessGroup', 'accessGroup')
             .innerJoin('accessGroup.memberships', 'memberships')

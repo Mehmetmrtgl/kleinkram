@@ -1,8 +1,8 @@
 import { SortOrder } from '@common/api/types/pagination';
 import { UpdateFile } from '@common/api/types/update-file.dto';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import env from '@common/environment';
 import {
     DataType,
@@ -49,10 +49,10 @@ import { FileWithTopicDto } from '@common/api/types/file/file.dto';
 import { FilesDto } from '@common/api/types/file/files.dto';
 import { StorageOverviewDto } from '@common/api/types/storage-overview.dto';
 import { redis } from '@common/consts';
-import Category from '@common/entities/category/category.entity';
+import CategoryEntity from '@common/entities/category/category.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
-import User from '@common/entities/user/user.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     addTagsToMinioObject,
     deleteFileMinio,
@@ -93,18 +93,19 @@ export class FileService implements OnModuleInit {
     constructor(
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
-        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
         private readonly dataSource: DataSource,
-        @InjectRepository(TagType)
-        private tagTypeRepository: Repository<TagType>,
+        @InjectRepository(TagTypeEntity)
+        private tagTypeRepository: Repository<TagTypeEntity>,
         @InjectRepository(QueueEntity)
         private queueRepository: Repository<QueueEntity>,
-        @InjectRepository(Category)
-        private categoryRepository: Repository<Category>,
+        @InjectRepository(CategoryEntity)
+        private categoryRepository: Repository<CategoryEntity>,
     ) {}
 
     onModuleInit(): void {
@@ -610,12 +611,12 @@ export class FileService implements OnModuleInit {
                 }
 
                 await transactionalEntityManager.save(
-                    Project,
+                    ProjectEntity,
                     databaseFile.mission.project,
                 );
 
                 await transactionalEntityManager.save(
-                    Mission,
+                    MissionEntity,
                     databaseFile.mission,
                 );
                 await transactionalEntityManager.save(FileEntity, databaseFile);
@@ -699,7 +700,7 @@ export class FileService implements OnModuleInit {
                     const file = await this.fileRepository.findOneOrFail({
                         where: { uuid },
                     });
-                    file.mission = { uuid: missionUUID } as Mission;
+                    file.mission = { uuid: missionUUID } as MissionEntity;
                     await this.fileRepository.save(file);
                     const newFile = await this.fileRepository.findOneOrFail({
                         where: { uuid },

@@ -2,8 +2,8 @@ import { AddTagDto, AddTagsDto } from '@common/api/types/tags/add-tags.dto';
 import { DeleteTagDto } from '@common/api/types/tags/delete-tag.dto';
 import { TagTypeDto, TagTypesDto } from '@common/api/types/tags/tags.dto';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import { DataType } from '@common/frontend_shared/enum';
 import {
     ConflictException,
@@ -18,10 +18,10 @@ export class TagService {
     constructor(
         @InjectRepository(MetadataEntity)
         private tagRepository: Repository<MetadataEntity>,
-        @InjectRepository(TagType)
-        private tagTypeRepository: Repository<TagType>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(TagTypeEntity)
+        private tagTypeRepository: Repository<TagTypeEntity>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
     ) {}
 
     async create(name: string, type: DataType): Promise<TagTypeDto> {
@@ -266,7 +266,7 @@ export class TagService {
 
         return {
             data: tags.map(
-                (tag: TagType): TagTypeDto => ({
+                (tag: TagTypeEntity): TagTypeDto => ({
                     uuid: tag.uuid,
                     updatedAt: tag.updatedAt,
                     createdAt: tag.createdAt,
@@ -287,7 +287,7 @@ export class TagService {
         skip: number,
         take: number,
     ): Promise<TagTypesDto> {
-        const where: FindOptionsWhere<TagType> = {};
+        const where: FindOptionsWhere<TagTypeEntity> = {};
         if (name !== '') {
             where.name = ILike(`%${name}%`);
         }
@@ -306,7 +306,7 @@ export class TagService {
 
         return {
             data: tags.map(
-                (tag: TagType): TagTypeDto => ({
+                (tag: TagTypeEntity): TagTypeDto => ({
                     uuid: tag.uuid,
                     updatedAt: tag.updatedAt,
                     createdAt: tag.createdAt,

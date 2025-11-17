@@ -1,6 +1,6 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights } from '@common/frontend_shared/enum';
 import { HeaderCreator } from '../../utils/api-calls';
 import { clearAllData, database } from '../../utils/database-utilities';
@@ -21,7 +21,7 @@ describe('Verify project user/admin access', () => {
 
         // Create internal user
         ({
-            user: globalThis.creator as User,
+            user: globalThis.creator as UserEntity,
             token: globalThis.creator.token,
             response: globalThis.creator.Response,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -29,7 +29,7 @@ describe('Verify project user/admin access', () => {
 
         // Create internal user
         ({
-            user: globalThis.user as User,
+            user: globalThis.user as UserEntity,
             token: globalThis.user.token,
             response: globalThis.user.Response,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -37,7 +37,7 @@ describe('Verify project user/admin access', () => {
 
         // Create external user
         ({
-            user: globalThis.externalUser as User,
+            user: globalThis.externalUser as UserEntity,
             token: globalThis.externalUser.token,
             response: globalThis.externalUser.response,
         } = await generateAndFetchDatabaseUser('external', 'user'));
@@ -47,7 +47,7 @@ describe('Verify project user/admin access', () => {
 
         // Create admin user
         ({
-            user: globalThis.admin as User,
+            user: globalThis.admin as UserEntity,
             token: globalThis.admin.token,
             response: globalThis.admin.response,
         } = await generateAndFetchDatabaseUser('internal', 'admin'));
@@ -57,7 +57,7 @@ describe('Verify project user/admin access', () => {
     beforeEach(async () => {
         // get access group for creator
         const accessGroupRepository =
-            database.getRepository<AccessGroup>('access_group');
+            database.getRepository<AccessGroupEntity>('access_group');
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -71,7 +71,8 @@ describe('Verify project user/admin access', () => {
         });
 
         // generate projects with creator
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         globalThis.projectUuids = await Promise.all(
             Array.from({ length: 10 }, async (_, index) => {
                 const project = await projectRepository.save(
@@ -105,7 +106,7 @@ describe('Verify project user/admin access', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<User>('User');
+        const userRepository = database.getRepository<UserEntity>('User');
         const users = await userRepository.find();
         expect(users.length).toBe(4);
 
@@ -128,7 +129,8 @@ describe('Verify project user/admin access', () => {
         console.log(`[DEBUG]: All Missions removed from database.`);
 
         // delete project
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const allProjects = await projectRepository.find();
         await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -193,14 +195,16 @@ describe('Verify project user/admin access', () => {
             });
             expect(response.status).toBe(200);
         }
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const projects = await projectRepository.find();
         expect(projects.length).toBe(0);
     });
 
     test('if user with admin role can delete any mission', async () => {
         const missionRepository = database.getRepository('Mission');
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const headerCreator = new HeaderCreator(globalThis.admin);
         headerCreator.addHeader('Content-Type', 'application/json');
 
@@ -281,7 +285,8 @@ describe('Verify project user/admin access', () => {
         // check if the request was successful
         expect(response.status).toBe(403);
 
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const projectCount = await projectRepository.count();
         expect(projectCount).toBe(10);
     });
@@ -297,7 +302,8 @@ describe('Verify project user/admin access', () => {
             });
             expect(response.status).toBe(403);
         }
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const projects = await projectRepository.find();
         expect(projects.length).toBe(10);
     });

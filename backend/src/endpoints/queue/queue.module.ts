@@ -1,12 +1,12 @@
-import Action from '@common/entities/action/action.entity';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Account from '@common/entities/auth/account.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
 import FileEntity from '@common/entities/file/file.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import Worker from '@common/entities/worker/worker.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { makeGaugeProvider } from '@willsoto/nestjs-prometheus';
@@ -17,14 +17,14 @@ import { QueueController } from './queue.controller';
     imports: [
         TypeOrmModule.forFeature([
             QueueEntity,
-            Mission,
-            Account,
-            AccessGroup,
-            Project,
+            MissionEntity,
+            AccountEntity,
+            AccessGroupEntity,
+            ProjectEntity,
             MetadataEntity,
             FileEntity,
-            Worker,
-            Action,
+            WorkerEntity,
+            ActionEntity,
         ]),
     ],
     providers: [

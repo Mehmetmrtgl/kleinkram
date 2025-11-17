@@ -1,7 +1,7 @@
 import File from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
@@ -58,7 +58,10 @@ export const getUserIsAdminSubQuery = (
     // would be nice if typeorm did this out of the box, but it doesnt
     if (tok === undefined) tok = uuidv4().replaceAll('-', '');
 
-    const subQuery = query.subQuery().select('user.role').from(User, 'user');
+    const subQuery = query
+        .subQuery()
+        .select('user.role')
+        .from(UserEntity, 'user');
     subQuery.where(`user.uuid = :userUUID_${tok}`, {
         [`userUUID_${tok}`]: userUUID,
     });
@@ -69,9 +72,9 @@ export const getUserIsAdminSubQuery = (
 };
 
 export const addAccessConstraintsToProjectQuery = (
-    query: SelectQueryBuilder<Project>,
+    query: SelectQueryBuilder<ProjectEntity>,
     userUUID: string,
-): SelectQueryBuilder<Project> => {
+): SelectQueryBuilder<ProjectEntity> => {
     const projectUUIDQuery = projectAccessUUIDQuery(query, userUUID);
     const userIsAdminSubQuery = getUserIsAdminSubQuery(query, userUUID);
 
@@ -89,9 +92,9 @@ export const addAccessConstraintsToProjectQuery = (
 };
 
 export const addAccessConstraintsToMissionQuery = (
-    query: SelectQueryBuilder<Mission>,
+    query: SelectQueryBuilder<MissionEntity>,
     userUUID: string,
-): SelectQueryBuilder<Mission> => {
+): SelectQueryBuilder<MissionEntity> => {
     const missionUUIDQuery = missionAccessUUIDQuery(query, userUUID);
     const projectUUIDQuery = projectAccessUUIDQuery(query, userUUID);
 

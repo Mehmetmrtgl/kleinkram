@@ -1,7 +1,7 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Account from '@common/entities/auth/account.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { Providers, UserRole } from '@common/frontend_shared/enum';
 import jwt from 'jsonwebtoken';
 import * as crypto from 'node:crypto';
@@ -57,12 +57,14 @@ export const mockDatabaseUser = async (
     // read config from access_config.json
 
     const config = JSON.parse(fs.readFileSync('access_config.json', 'utf8'));
-    const accessGroupRepository = database.getRepository(AccessGroup);
-    const groupMembershipRepository = database.getRepository(GroupMembership);
+    const accessGroupRepository = database.getRepository(AccessGroupEntity);
+    const groupMembershipRepository = database.getRepository(
+        GroupMembershipEntity,
+    );
     await createAccessGroups(accessGroupRepository, config);
 
-    const userRepository = database.getRepository(User);
-    const accountRepository = database.getRepository(Account);
+    const userRepository = database.getRepository(UserEntity);
+    const accountRepository = database.getRepository(AccountEntity);
 
     // hash the email to create a unique oauthID
     const hash = crypto.createHash('sha256');
@@ -99,7 +101,7 @@ export const mockDatabaseUser = async (
     return user.uuid;
 };
 
-export const getJwtToken = (user: User): string => {
+export const getJwtToken = (user: UserEntity): string => {
     const jwtSecret = process.env['JWT_SECRET'];
     if (!jwtSecret) {
         throw new Error(
@@ -110,7 +112,7 @@ export const getJwtToken = (user: User): string => {
 };
 
 export const getUserFromDatabase = async (uuid: string) => {
-    const userRepository = database.getRepository(User);
+    const userRepository = database.getRepository(UserEntity);
     return await userRepository.findOneOrFail({
         where: { uuid: uuid },
     });

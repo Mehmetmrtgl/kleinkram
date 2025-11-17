@@ -1,8 +1,8 @@
 import { redis, systemUser } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
     AccessGroupRights,
@@ -51,10 +51,10 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         private fileRepository: Repository<FileEntity>,
         @InjectRepository(QueueEntity)
         private queueRepository: Repository<QueueEntity>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
         @InjectRepository(ProjectAccessViewEntity)
         private projectAccessView: Repository<ProjectAccessViewEntity>,
         @InjectRepository(MissionAccessViewEntity)

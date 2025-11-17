@@ -1,21 +1,21 @@
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Account from '@common/entities/auth/account.entity';
-import Apikey from '@common/entities/auth/apikey.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import MissionAccess from '@common/entities/auth/mission-access.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import MissionAccessEntity from '@common/entities/auth/mission-access.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
 import CategoryEntity from '@common/entities/category/category.entity';
 import FileEntity from '@common/entities/file/file.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
-import Topic from '@common/entities/topic/topic.entity';
-import User from '@common/entities/user/user.entity';
-import Worker from '@common/entities/worker/worker.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
+import TopicEntity from '@common/entities/topic/topic.entity';
+import UserEntity from '@common/entities/user/user.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import env from '@common/environment';
 import configuration from '@common/typeorm-config';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
@@ -78,26 +78,26 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
                         configService.getOrThrow<string>('database.database'),
                     entities: [
                         QueueEntity,
-                        Mission,
+                        MissionEntity,
                         FileEntity,
-                        Project,
-                        Topic,
-                        Action,
-                        ActionTemplate,
-                        Project,
-                        User,
-                        Apikey,
-                        Account,
-                        AccessGroup,
-                        TagType,
+                        ProjectEntity,
+                        TopicEntity,
+                        ActionEntity,
+                        ActionTemplateEntity,
+                        ProjectEntity,
+                        UserEntity,
+                        ApikeyEntity,
+                        AccountEntity,
+                        AccessGroupEntity,
+                        TagTypeEntity,
                         MetadataEntity,
-                        ProjectAccess,
-                        MissionAccess,
+                        ProjectAccessEntity,
+                        MissionAccessEntity,
                         ProjectAccessViewEntity,
                         MissionAccessViewEntity,
-                        Worker,
+                        WorkerEntity,
                         CategoryEntity,
-                        GroupMembership,
+                        GroupMembershipEntity,
                     ],
                     synchronize: env.DEV,
                     logging: ['warn', 'error'],
@@ -106,23 +106,23 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
         }),
         TypeOrmModule.forFeature([
             QueueEntity,
-            Mission,
+            MissionEntity,
             FileEntity,
-            Topic,
-            Action,
-            ActionTemplate,
-            Project,
-            User,
-            Apikey,
-            TagType,
+            TopicEntity,
+            ActionEntity,
+            ActionTemplateEntity,
+            ProjectEntity,
+            UserEntity,
+            ApikeyEntity,
+            TagTypeEntity,
             MetadataEntity,
-            ProjectAccess,
-            MissionAccess,
+            ProjectAccessEntity,
+            MissionAccessEntity,
             ProjectAccessViewEntity,
             MissionAccessViewEntity,
-            Worker,
+            WorkerEntity,
             CategoryEntity,
-            GroupMembership,
+            GroupMembershipEntity,
         ]),
         ScheduleModule.forRoot(),
     ],

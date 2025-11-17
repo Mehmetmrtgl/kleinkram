@@ -1,12 +1,12 @@
 import { Column, Entity, Generated, ManyToOne, OneToOne } from 'typeorm';
 import { AccessGroupRights, KeyTypes } from '../../frontend_shared/enum';
-import Action from '../action/action.entity';
+import ActionEntity from '../action/action.entity';
 import BaseEntity from '../base-entity.entity';
-import Mission from '../mission/mission.entity';
-import User from '../user/user.entity';
+import MissionEntity from '../mission/mission.entity';
+import UserEntity from '../user/user.entity';
 
-@Entity()
-export default class Apikey extends BaseEntity {
+@Entity({ name: 'apikey' })
+export default class ApikeyEntity extends BaseEntity {
     @Column({ unique: true })
     @Generated('uuid')
     apikey!: string;
@@ -14,22 +14,22 @@ export default class Apikey extends BaseEntity {
     @Column()
     key_type!: KeyTypes;
 
-    @ManyToOne(() => Mission, (mission) => mission.api_keys, {
+    @ManyToOne(() => MissionEntity, (mission) => mission.api_keys, {
         onDelete: 'CASCADE',
         eager: true,
     })
-    mission!: Mission;
+    mission!: MissionEntity;
 
-    @OneToOne(() => Action, (action) => action.key, {
+    @OneToOne(() => ActionEntity, (action) => action.key, {
         onDelete: 'CASCADE',
         nullable: true,
     })
-    action?: Action;
+    action?: ActionEntity;
 
-    @ManyToOne(() => User, (user) => user.api_keys, {
+    @ManyToOne(() => UserEntity, (user) => user.api_keys, {
         onDelete: 'CASCADE',
     })
-    user?: User;
+    user?: UserEntity;
 
     @Column()
     rights!: AccessGroupRights;

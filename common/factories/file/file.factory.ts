@@ -1,13 +1,13 @@
 import { define } from 'typeorm-seeding';
 import FileEntity from '../../entities/file/file.entity';
-import Mission from '../../entities/mission/mission.entity';
-import User from '../../entities/user/user.entity';
+import MissionEntity from '../../entities/mission/mission.entity';
+import UserEntity from '../../entities/user/user.entity';
 import { extendedFaker } from '../../faker-extended';
 import { FileState } from '../../frontend_shared/enum';
 
 export interface FileContext {
-    mission: Mission;
-    user: User;
+    mission: MissionEntity;
+    user: UserEntity;
 }
 
 define(FileEntity, (_, context: Partial<FileContext> = {}) => {

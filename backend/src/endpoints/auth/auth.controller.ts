@@ -1,4 +1,4 @@
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import { CookieNames, Providers } from '@common/frontend_shared/enum';
 import {
@@ -76,7 +76,7 @@ export class AuthController {
         @Res() response: Response,
     ): void {
         const user = request.user;
-        const token = this.authService.login(user as User);
+        const token = this.authService.login(user as UserEntity);
         const state = request.query['state'];
 
         if (state === 'cli') {

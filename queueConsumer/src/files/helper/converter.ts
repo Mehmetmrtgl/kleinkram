@@ -1,7 +1,7 @@
 import { McapIndexedReader } from '@mcap/core';
 import { loadDecompressHandlers } from '@mcap/support';
 
-import Topic from '@common/entities/topic/topic.entity';
+import TopicEntity from '@common/entities/topic/topic.entity';
 import { FileHandleReadable } from '@mcap/nodejs';
 import { exec } from 'node:child_process';
 import { open } from 'node:fs/promises';
@@ -37,7 +37,7 @@ export const convert = (infile: string, outfile: string): Promise<boolean> =>
 
 export async function mcapMetaInfo(
     mcapTemporaryFileName: string,
-): Promise<{ topics: Partial<Topic>[]; date: Date; size: number }> {
+): Promise<{ topics: Partial<TopicEntity>[]; date: Date; size: number }> {
     const decompressHandlers = await loadDecompressHandlers();
     const fileHandle = await open(mcapTemporaryFileName, 'r');
 
@@ -49,7 +49,7 @@ export async function mcapMetaInfo(
 
     await fileHandle.close();
 
-    const topics: Partial<Topic>[] = [];
+    const topics: Partial<TopicEntity>[] = [];
     const stats = reader.statistics;
 
     if (stats === undefined) {
@@ -71,7 +71,7 @@ export async function mcapMetaInfo(
         if (schema === undefined) continue;
 
         const nrMessages = stats.channelMessageCounts.get(channel.id);
-        const topic: Partial<Topic> = {
+        const topic: Partial<TopicEntity> = {
             name: channel.topic,
             type: schema.name,
             nrMessages: nrMessages ?? 0n,

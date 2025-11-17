@@ -1,27 +1,27 @@
 import { Column, Entity, ManyToOne, OneToMany, Unique } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
-import User from '../user/user.entity';
-import Action from './action.entity';
+import UserEntity from '../user/user.entity';
+import ActionEntity from './action.entity';
 
 import { AccessGroupRights } from '../../frontend_shared/enum';
 
-@Entity()
+@Entity({ name: 'action_template' })
 @Unique('unique_versioned_action_name', ['name', 'version'])
-export default class ActionTemplate extends BaseEntity {
+export default class ActionTemplateEntity extends BaseEntity {
     @Column()
     image_name!: string;
 
     @Column()
     name!: string;
 
-    @ManyToOne(() => User, (user) => user.templates)
-    createdBy!: User;
+    @ManyToOne(() => UserEntity, (user) => user.templates)
+    createdBy!: UserEntity;
 
     @Column({ nullable: true })
     command?: string;
 
-    @OneToMany(() => Action, (action) => action.template)
-    actions?: Action[];
+    @OneToMany(() => ActionEntity, (action) => action.template)
+    actions?: ActionEntity[];
 
     @Column({ default: 1 })
     version!: number;

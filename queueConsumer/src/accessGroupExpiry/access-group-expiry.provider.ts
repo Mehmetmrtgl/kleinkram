@@ -1,5 +1,5 @@
 import { redis } from '@common/consts';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,8 +17,8 @@ export class AccessGroupExpiryProvider implements OnModuleInit {
     private redlock?: Redlock;
 
     constructor(
-        @InjectRepository(GroupMembership)
-        private groupMembershipRepository: Repository<GroupMembership>,
+        @InjectRepository(GroupMembershipEntity)
+        private groupMembershipRepository: Repository<GroupMembershipEntity>,
     ) {}
 
     onModuleInit(): void {

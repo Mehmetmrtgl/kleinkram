@@ -1,18 +1,18 @@
-import Apikey from '@common/entities/auth/apikey.entity';
-import Mission from '@common/entities/mission/mission.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import { KeyTypes } from '@common/frontend_shared/enum';
 import { Repository } from 'typeorm';
 import logger from '../../logger';
 
 export class DisposableAPIKey implements AsyncDisposable {
     apikeyType: KeyTypes;
-    mission: Mission;
+    mission: MissionEntity;
     uuid: string;
     apikey: string;
 
     constructor(
-        _apikey: Apikey,
-        private apikeyRepository: Repository<Apikey>,
+        _apikey: ApikeyEntity,
+        private apikeyRepository: Repository<ApikeyEntity>,
     ) {
         this.apikeyRepository = apikeyRepository;
         this.apikeyType = _apikey.key_type;

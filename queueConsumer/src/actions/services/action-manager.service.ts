@@ -1,5 +1,7 @@
-import Action, { ContainerLog } from '@common/entities/action/action.entity';
-import Apikey from '@common/entities/auth/apikey.entity';
+import ActionEntity, {
+    ContainerLog,
+} from '@common/entities/action/action.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import environment from '@common/environment';
 import {
     ActionState,
@@ -29,10 +31,10 @@ export class ActionManagerService {
 
     constructor(
         private containerDaemon: DockerDaemon,
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
-        @InjectRepository(Apikey)
-        private apikeyRepository: Repository<Apikey>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
+        @InjectRepository(ApikeyEntity)
+        private apikeyRepository: Repository<ApikeyEntity>,
     ) {}
 
     /**
@@ -44,7 +46,7 @@ export class ActionManagerService {
      * @param action
      */
     @tracing('create_apikey')
-    async createAPIkey(action: Action): Promise<DisposableAPIKey> {
+    async createAPIkey(action: ActionEntity): Promise<DisposableAPIKey> {
         if (action.mission === undefined) {
             throw new Error('Mission is undefined');
         }
@@ -71,7 +73,7 @@ export class ActionManagerService {
     }
 
     @tracing('processing_action')
-    async processAction(action: Readonly<Action>): Promise<boolean> {
+    async processAction(action: Readonly<ActionEntity>): Promise<boolean> {
         logger.info(`\n\nProcessing Action ${action.uuid}`);
 
         logger.info('Creating container.');
@@ -283,7 +285,7 @@ export class ActionManagerService {
                     await this.actionRepository.manager.transaction(
                         async (manager) => {
                             const _action = await manager.findOneOrFail(
-                                Action,
+                                ActionEntity,
                                 {
                                     where: { uuid: actionUuid },
                                 },
@@ -308,7 +310,7 @@ export class ActionManagerService {
      */
     private async setActionState(
         container: Dockerode.Container,
-        action: Readonly<Action>,
+        action: Readonly<ActionEntity>,
     ): Promise<void> {
         const containerDetailsAfter = await container.inspect();
 
@@ -419,7 +421,7 @@ export class ActionManagerService {
                 worker: { identifier: name },
             },
             relations: ['mission', 'mission.project'],
-        })) as Readonly<Action>[];
+        })) as Readonly<ActionEntity>[];
         logger.info(
             `Checking ${actionsInLocalProcess.length.toString()} pending Actions.`,
         );
@@ -459,7 +461,7 @@ export class ActionManagerService {
 
             const action = (await this.actionRepository.findOne({
                 where: { uuid },
-            })) as Readonly<Action> | null;
+            })) as Readonly<ActionEntity> | null;
 
             // kill action container if no corresponding action is found
             if (!action) {

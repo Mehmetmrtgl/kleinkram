@@ -1,13 +1,13 @@
 import { Connection, Not } from 'typeorm';
 import { Factory, Seeder } from 'typeorm-seeding';
-import AccessGroup from '../../entities/auth/accessgroup.entity';
-import ProjectAccess from '../../entities/auth/project-access.entity';
+import AccessGroupEntity from '../../entities/auth/accessgroup.entity';
+import ProjectAccessEntity from '../../entities/auth/project-access.entity';
 import FileEntity from '../../entities/file/file.entity';
-import Mission from '../../entities/mission/mission.entity';
-import Project from '../../entities/project/project.entity';
-import TagType from '../../entities/tagType/tag-type.entity';
-import Topic from '../../entities/topic/topic.entity';
-import User from '../../entities/user/user.entity';
+import MissionEntity from '../../entities/mission/mission.entity';
+import ProjectEntity from '../../entities/project/project.entity';
+import TagTypeEntity from '../../entities/tagType/tag-type.entity';
+import TopicEntity from '../../entities/topic/topic.entity';
+import UserEntity from '../../entities/user/user.entity';
 import { AccessGroupFactoryContext } from '../../factories/auth/accessgroup.factory';
 import { ProjectContext } from '../../factories/project/project.factory';
 import { UserContext } from '../../factories/user/user.factory';
@@ -28,7 +28,7 @@ export default class CreateUsers implements Seeder {
         // //////////////////////////////////////////
         // Abort Seeding if Users already exist
         // //////////////////////////////////////////
-        const usersCount = await conn.getRepository(User).count({
+        const usersCount = await conn.getRepository(UserEntity).count({
             where: { uuid: Not('10000000-0000-0000-0000-000000000000') },
         });
         if (usersCount > 0) {
@@ -44,7 +44,7 @@ export default class CreateUsers implements Seeder {
         // //////////////////////////////////////////
 
         // Generate Metadata...
-        const tagTypes = await factory(TagType)({}).createMany(
+        const tagTypes = await factory(TagTypeEntity)({}).createMany(
             this.TAG_TYPE_COUNT,
         );
 
@@ -56,7 +56,7 @@ export default class CreateUsers implements Seeder {
         const adminUsers =
             (await Promise.all(
                 adminMails.map((mail) =>
-                    factory(User)({
+                    factory(UserEntity)({
                         mail,
                         role: this.SEED_ADMINS ? UserRole.ADMIN : UserRole.USER,
                         defaultGroupIds: [
@@ -71,7 +71,7 @@ export default class CreateUsers implements Seeder {
         // generate remaining users
         const remainingUserCount = this.USER_COUNT - adminMails.length;
         const users =
-            (await factory(User)({
+            (await factory(UserEntity)({
                 role: UserRole.USER,
             })
                 .createMany(remainingUserCount)
@@ -83,7 +83,7 @@ export default class CreateUsers implements Seeder {
         // create personal access groups
         await Promise.all(
             allUsers.map((user) =>
-                factory(AccessGroup)({
+                factory(AccessGroupEntity)({
                     user: user,
                     isPersonal: true,
                 } as AccessGroupFactoryContext).create(),
@@ -93,14 +93,14 @@ export default class CreateUsers implements Seeder {
             .catch(console.error);
 
         // generate additional groups
-        const accessGroups = await factory(AccessGroup)({
+        const accessGroups = await factory(AccessGroupEntity)({
             allUsers: allUsers,
             isPersonal: false,
         } as AccessGroupFactoryContext).createMany(this.ACCESS_GROUP_COUNT);
 
         // Generate Projects, Missions, Files, and Topics...
         const projects =
-            (await factory(Project)({
+            (await factory(ProjectEntity)({
                 allAccessGroups: accessGroups,
                 allUsers: allUsers,
                 tagTypes,
@@ -110,14 +110,14 @@ export default class CreateUsers implements Seeder {
                 .catch(console.error)) ?? [];
 
         // set access rights for projects
-        await factory(ProjectAccess)({
+        await factory(ProjectAccessEntity)({
             projects: projects,
             accessGroups: accessGroups,
         }).createMany(this.GROUP_ACCESS_COUNT);
 
         for (const project of projects) {
             const missions =
-                (await factory(Mission)({
+                (await factory(MissionEntity)({
                     user: project.creator,
                     project,
                 })
@@ -147,7 +147,7 @@ export default class CreateUsers implements Seeder {
 
                 for (const file of files) {
                     if (file.type === FileType.BAG) continue; // only MCAP files have topics
-                    await factory(Topic)({ file })
+                    await factory(TopicEntity)({ file })
                         .createMany(
                             extendedFaker.number.int({ min: 0, max: 20 }),
                         )

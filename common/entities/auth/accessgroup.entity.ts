@@ -8,34 +8,38 @@ import {
 } from 'typeorm';
 import { AccessGroupType } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
-import User from '../user/user.entity';
-import GroupMembership from './group-membership.entity';
-import MissionAccess from './mission-access.entity';
-import ProjectAccess from './project-access.entity';
+import UserEntity from '../user/user.entity';
+import GroupMembershipEntity from './group-membership.entity';
+import MissionAccessEntity from './mission-access.entity';
+import ProjectAccessEntity from './project-access.entity';
 
 @Unique('unique_access_group_name', ['name'])
-@Entity()
-export default class AccessGroup extends BaseEntity {
+@Entity({ name: 'access_group' })
+export default class AccessGroupEntity extends BaseEntity {
     @Column()
     name!: string;
 
-    @OneToMany(() => GroupMembership, (membership) => membership.accessGroup, {
-        cascade: true,
-    })
-    memberships?: GroupMembership[];
+    @OneToMany(
+        () => GroupMembershipEntity,
+        (membership) => membership.accessGroup,
+        {
+            cascade: true,
+        },
+    )
+    memberships?: GroupMembershipEntity[];
 
     @OneToMany(
-        () => ProjectAccess,
+        () => ProjectAccessEntity,
         (projectAccess) => projectAccess.accessGroup,
     )
-    project_accesses?: ProjectAccess[];
+    project_accesses?: ProjectAccessEntity[];
 
     @OneToMany(
-        () => MissionAccess,
+        () => MissionAccessEntity,
         (missionAccess) => missionAccess.accessGroup,
     )
     @JoinTable()
-    mission_accesses?: MissionAccess[];
+    mission_accesses?: MissionAccessEntity[];
 
     @Column({
         type: 'enum',
@@ -44,8 +48,8 @@ export default class AccessGroup extends BaseEntity {
     })
     type!: AccessGroupType;
 
-    @ManyToOne(() => User, (user) => user.files, { nullable: true })
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.files, { nullable: true })
+    creator?: UserEntity;
 
     /**
      * A hidden access group is not returned in any search queries.

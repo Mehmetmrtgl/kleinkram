@@ -5,8 +5,8 @@ import {
     UsersDto,
 } from '@common/api/types/user.dto';
 import { systemUser } from '@common/consts';
-import Apikey from '@common/entities/auth/apikey.entity';
-import User from '@common/entities/user/user.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     AccessGroupRights,
     AccessGroupType,
@@ -21,19 +21,24 @@ import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 @Injectable()
 export class UserService implements OnModuleInit {
     constructor(
-        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
         @InjectRepository(ProjectAccessViewEntity)
         private projectAccessView: Repository<ProjectAccessViewEntity>,
-        @InjectRepository(Apikey) private apikeyRepository: Repository<Apikey>,
+        @InjectRepository(ApikeyEntity)
+        private apikeyRepository: Repository<ApikeyEntity>,
     ) {}
 
     async onModuleInit(): Promise<void> {
         await this.userRepository.manager.transaction(async (manager) => {
-            const existingSystemUser = await manager.findOne(User, {
+            const existingSystemUser = await manager.findOne(UserEntity, {
                 where: { uuid: systemUser.uuid },
             });
             if (!existingSystemUser) {
-                const createdSystemUser = manager.create(User, systemUser);
+                const createdSystemUser = manager.create(
+                    UserEntity,
+                    systemUser,
+                );
                 await manager.save(createdSystemUser);
             }
         });
@@ -48,8 +53,8 @@ export class UserService implements OnModuleInit {
      */
     async findOneByUUID(
         uuid: string,
-        select: FindOptionsSelect<User>,
-        relations: FindOptionsRelations<User>,
+        select: FindOptionsSelect<UserEntity>,
+        relations: FindOptionsRelations<UserEntity>,
     ) {
         return this.userRepository.findOneOrFail({
             where: { uuid },
@@ -221,7 +226,7 @@ export class UserService implements OnModuleInit {
      */
     async findUserByAPIKey(
         apikey: string,
-    ): Promise<{ apiKey: Apikey; user: User }> {
+    ): Promise<{ apiKey: ApikeyEntity; user: UserEntity }> {
         const user = await this.userRepository.findOneOrFail({
             where: { api_keys: { apikey } },
             relations: ['api_keys'],

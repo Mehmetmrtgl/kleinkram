@@ -1,20 +1,20 @@
 import { Column, Entity, ManyToOne, Unique } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
-import User from '../user/user.entity';
-import AccessGroup from './accessgroup.entity';
+import UserEntity from '../user/user.entity';
+import AccessGroupEntity from './accessgroup.entity';
 
 @Unique('no_duplicated_user_in_access_group', ['accessGroup', 'user'])
-@Entity()
-export default class GroupMembership extends BaseEntity {
-    @ManyToOne(() => AccessGroup, (group) => group.project_accesses, {
+@Entity({ name: 'group_membership' })
+export default class GroupMembershipEntity extends BaseEntity {
+    @ManyToOne(() => AccessGroupEntity, (group) => group.project_accesses, {
         onDelete: 'CASCADE',
     })
-    accessGroup?: AccessGroup;
+    accessGroup?: AccessGroupEntity;
 
-    @ManyToOne(() => User, (user) => user.memberships, {
+    @ManyToOne(() => UserEntity, (user) => user.memberships, {
         onDelete: 'CASCADE',
     })
-    user?: User;
+    user?: UserEntity;
 
     /**
      * The expiration date of the group membership.

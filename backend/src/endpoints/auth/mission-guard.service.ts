@@ -1,7 +1,7 @@
-import Apikey from '@common/entities/auth/apikey.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import User from '@common/entities/user/user.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights, UserRole } from '@common/frontend_shared/enum';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ConflictException, Injectable } from '@nestjs/common';
@@ -14,8 +14,8 @@ import { ProjectGuardService } from '../../services/project-guard.service';
 @Injectable()
 export class MissionGuardService {
     constructor(
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
         private projectGuardService: ProjectGuardService,
         @InjectRepository(MetadataEntity)
         private tagRepository: Repository<MetadataEntity>,
@@ -24,7 +24,7 @@ export class MissionGuardService {
     ) {}
 
     async canAccessMission(
-        user: User,
+        user: UserEntity,
         missionUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -45,7 +45,7 @@ export class MissionGuardService {
     }
 
     async canAccessMissionByName(
-        user: User,
+        user: UserEntity,
         missionName: string,
         projectUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
@@ -65,7 +65,7 @@ export class MissionGuardService {
     }
 
     async canTagMission(
-        user: User,
+        user: UserEntity,
         tagUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -95,7 +95,7 @@ export class MissionGuardService {
     }
 
     async canKeyTagMission(
-        apikey: Apikey,
+        apikey: ApikeyEntity,
         tagUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -112,7 +112,7 @@ export class MissionGuardService {
     }
 
     async canReadManyMissions(
-        user: User,
+        user: UserEntity,
         missionUUIDs: string[],
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -137,7 +137,7 @@ export class MissionGuardService {
     }
 
     async canUserAccessMission(
-        user: User,
+        user: UserEntity,
         missionUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -171,7 +171,7 @@ export class MissionGuardService {
     }
 
     canKeyAccessMission(
-        apikey: Apikey,
+        apikey: ApikeyEntity,
         missionUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): boolean {
@@ -179,7 +179,7 @@ export class MissionGuardService {
     }
 
     async canKeyAccessMissionByName(
-        apikey: Apikey,
+        apikey: ApikeyEntity,
         missionName: string,
         projectUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,

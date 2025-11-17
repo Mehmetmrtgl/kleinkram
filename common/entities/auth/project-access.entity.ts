@@ -1,25 +1,25 @@
 import { Column, Entity, ManyToOne, Unique } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
-import Project from '../project/project.entity';
-import AccessGroup from './accessgroup.entity';
+import ProjectEntity from '../project/project.entity';
+import AccessGroupEntity from './accessgroup.entity';
 
 import { AccessGroupRights } from '../../frontend_shared/enum';
 
 @Unique('no_duplicated_access_groups_per_project', ['accessGroup', 'project'])
-@Entity()
-export default class ProjectAccess extends BaseEntity {
+@Entity({ name: 'project_access' })
+export default class ProjectAccessEntity extends BaseEntity {
     @Column()
     rights!: AccessGroupRights;
 
-    @ManyToOne(() => AccessGroup, (group) => group.project_accesses, {
+    @ManyToOne(() => AccessGroupEntity, (group) => group.project_accesses, {
         nullable: false,
     })
-    accessGroup?: AccessGroup;
+    accessGroup?: AccessGroupEntity;
 
-    @ManyToOne(() => Project, (project) => project.project_accesses, {
+    @ManyToOne(() => ProjectEntity, (project) => project.project_accesses, {
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
         nullable: false,
     })
-    project?: Project;
+    project?: ProjectEntity;
 }

@@ -1,5 +1,5 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupType, UserRole } from '@common/frontend_shared/enum';
 import { HeaderCreator } from '../utils/api-calls';
 import {
@@ -14,7 +14,7 @@ export const DEFAULT_URL = 'http://localhost:3000';
 export const DEFAULT_GROUP_UUIDS: [string] = [
     '00000000-0000-0000-0000-000000000000',
 ] as const;
-export const getAllAccessGroups = async (): Promise<AccessGroup[]> => {
+export const getAllAccessGroups = async (): Promise<AccessGroupEntity[]> => {
     const accessGroupRepository = database.getRepository('AccessGroup');
     return (await accessGroupRepository.find({
         relations: ['members', 'members.user'],
@@ -29,7 +29,7 @@ export const getAllAccessGroups = async (): Promise<AccessGroup[]> => {
                 },
             },
         },
-    })) as AccessGroup[];
+    })) as AccessGroupEntity[];
 };
 
 /**
@@ -40,10 +40,10 @@ export const getAllAccessGroups = async (): Promise<AccessGroup[]> => {
  */
 export const verifyIfGroupWithUUIDExists = (
     uuid: string,
-    accessGroups: AccessGroup[],
+    accessGroups: AccessGroupEntity[],
 ) => {
     const group = accessGroups.filter(
-        (_group: AccessGroup) => _group.uuid === uuid,
+        (_group: AccessGroupEntity) => _group.uuid === uuid,
     );
     expect(group.length).toBe(1);
 };
@@ -57,10 +57,10 @@ export const verifyIfGroupWithUUIDExists = (
  */
 export const getAccessGroupForEmail = (
     email: string,
-    accessGroups: AccessGroup[],
-): AccessGroup => {
-    const group: AccessGroup[] =
-        accessGroups.filter((_group: AccessGroup) =>
+    accessGroups: AccessGroupEntity[],
+): AccessGroupEntity => {
+    const group: AccessGroupEntity[] =
+        accessGroups.filter((_group: AccessGroupEntity) =>
             _group.memberships?.some(
                 (accessGroupUser) =>
                     accessGroupUser.user?.email === email &&
@@ -71,7 +71,7 @@ export const getAccessGroupForEmail = (
     const thereIsOnlyOnePersonalGroup = group.length === 1;
     expect(thereIsOnlyOnePersonalGroup).toBe(true);
 
-    return group[0] as unknown as AccessGroup;
+    return group[0] as unknown as AccessGroupEntity;
 };
 
 /**
@@ -86,7 +86,7 @@ export const getAccessGroupForEmail = (
 export const generateAndFetchDatabaseUser = async (
     userType: 'internal' | 'external',
     userRole: 'user' | 'admin',
-): Promise<{ user: User; token: string; response: Response }> => {
+): Promise<{ user: UserEntity; token: string; response: Response }> => {
     try {
         const roleEnum = userRole === 'admin' ? UserRole.ADMIN : UserRole.USER;
 
@@ -100,7 +100,7 @@ export const generateAndFetchDatabaseUser = async (
         let username = baseEmail.split('@')[0]; // Extract name before '@'
 
         // get userRepo
-        const userRepository = database.getRepository(User);
+        const userRepository = database.getRepository(UserEntity);
 
         // Check if user already exists and find an available email and username
         while (true) {

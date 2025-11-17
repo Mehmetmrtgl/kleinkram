@@ -2,10 +2,10 @@ import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 import { DataType } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
 import MetadataEntity from '../metadata/metadata.entity';
-import Project from '../project/project.entity';
+import ProjectEntity from '../project/project.entity';
 
-@Entity()
-export default class TagType extends BaseEntity {
+@Entity({ name: 'tag_type' })
+export default class TagTypeEntity extends BaseEntity {
     @Column()
     name!: string;
 
@@ -15,9 +15,9 @@ export default class TagType extends BaseEntity {
     @Column()
     datatype!: DataType;
 
-    @ManyToMany(() => Project, (project) => project.requiredTags)
+    @ManyToMany(() => ProjectEntity, (project) => project.requiredTags)
     @JoinTable()
-    project?: Project;
+    project?: ProjectEntity;
 
     @OneToMany(() => MetadataEntity, (tag) => tag.tagType)
     tags?: MetadataEntity[];

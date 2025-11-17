@@ -1,6 +1,6 @@
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
-import User from '@common/entities/user/user.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { ActionState, UserRole } from '@common/frontend_shared/enum';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -28,7 +28,7 @@ import {
     SubmitActionDto,
 } from '@common/api/types/submit-action-response.dto';
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
-import Apikey from '@common/entities/auth/apikey.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import { RuntimeDescription } from '@common/types';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
@@ -36,14 +36,14 @@ import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 @Injectable()
 export class ActionService {
     constructor(
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(ActionTemplate)
-        private actionTemplateRepository: Repository<ActionTemplate>,
-        @InjectRepository(Apikey)
-        private apikeyRepository: Repository<Apikey>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(ActionTemplateEntity)
+        private actionTemplateRepository: Repository<ActionTemplateEntity>,
+        @InjectRepository(ApikeyEntity)
+        private apikeyRepository: Repository<ApikeyEntity>,
         private readonly queueService: QueueService,
     ) {}
 
@@ -210,7 +210,9 @@ export class ActionService {
         take: number,
         search: string,
     ): Promise<ActionTemplatesDto> {
-        const where: FindOptionsWhere<ActionTemplate> = { searchable: true };
+        const where: FindOptionsWhere<ActionTemplateEntity> = {
+            searchable: true,
+        };
         if (search !== '') {
             where.name = ILike(`%${search}%`);
         }
@@ -380,12 +382,15 @@ export class ActionService {
     ): Promise<void> {
         await this.apikeyRepository.manager.transaction(
             async (manager: EntityManager): Promise<void> => {
-                const key: Apikey = await manager.findOneOrFail(Apikey, {
-                    where: { apikey: apiKey },
-                    relations: ['action'],
-                });
+                const key: ApikeyEntity = await manager.findOneOrFail(
+                    ApikeyEntity,
+                    {
+                        where: { apikey: apiKey },
+                        relations: ['action'],
+                    },
+                );
 
-                const action: Action | undefined = key.action;
+                const action: ActionEntity | undefined = key.action;
                 if (action === undefined) return;
 
                 action.auditLogs ??= [];

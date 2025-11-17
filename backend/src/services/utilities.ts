@@ -1,7 +1,7 @@
 import { SortOrder } from '@common/api/types/pagination';
 import File from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import { MethodNotAllowedException } from '@nestjs/common';
 import { isValid, parseISO } from 'date-fns';
 import {
@@ -56,7 +56,7 @@ export const convertGlobToLikePattern = (glob: string): string => {
 };
 
 export const getFilteredProjectIdSubQuery = (
-    projectRepository: Repository<Project>,
+    projectRepository: Repository<ProjectEntity>,
     projectIds: string[],
     projectPatterns: string[],
     exactMatch: boolean,
@@ -141,7 +141,7 @@ const metadataMatchesKeyValuePair = (
 };
 
 export const getFilteredMissionIdSubQuery = (
-    missionRepository: Repository<Mission>,
+    missionRepository: Repository<MissionEntity>,
     missionIds: string[],
     missionPatterns: string[],
     missionMetadata: Record<string, string>,
@@ -212,8 +212,8 @@ export const addMissionCount = <T extends ObjectLiteral>(
 };
 
 export const addFileStats = (
-    query: SelectQueryBuilder<Mission>,
-): SelectQueryBuilder<Mission> => {
+    query: SelectQueryBuilder<MissionEntity>,
+): SelectQueryBuilder<MissionEntity> => {
     query
         .addSelect((subQuery) => {
             return subQuery
@@ -246,7 +246,7 @@ export const addProjectCreatorFilter = <T extends ObjectLiteral>(
 
 export const addProjectFilters = <T extends ObjectLiteral>(
     query: SelectQueryBuilder<T>,
-    projectRepository: Repository<Project>,
+    projectRepository: Repository<ProjectEntity>,
     projectIds: string[],
     projectPatterns: string[],
     exactMatch = false,
@@ -273,7 +273,7 @@ export const addProjectFilters = <T extends ObjectLiteral>(
 
 export const addMissionFilters = <T extends ObjectLiteral>(
     query: SelectQueryBuilder<T>,
-    missionRepository: Repository<Mission>,
+    missionRepository: Repository<MissionEntity>,
     missionIds: string[],
     missionPatterns: string[],
     missionMetadata: Record<string, string>,

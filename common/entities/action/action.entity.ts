@@ -1,12 +1,12 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 import { ActionState, ArtifactState } from '../../frontend_shared/enum';
 import { RuntimeDescription } from '../../types';
-import Apikey from '../auth/apikey.entity';
+import ApikeyEntity from '../auth/apikey.entity';
 import BaseEntity from '../base-entity.entity';
-import Mission from '../mission/mission.entity';
-import User from '../user/user.entity';
-import Worker from '../worker/worker.entity';
-import ActionTemplate from './action-template.entity';
+import MissionEntity from '../mission/mission.entity';
+import UserEntity from '../user/user.entity';
+import WorkerEntity from '../worker/worker.entity';
+import ActionTemplateEntity from './action-template.entity';
 
 export interface ContainerLog {
     timestamp: string;
@@ -32,16 +32,18 @@ export interface SubmittedAction {
     command: string;
 }
 
-@Entity()
-export default class Action extends BaseEntity {
+@Entity({ name: 'action' })
+export default class ActionEntity extends BaseEntity {
     @Column()
     state!: ActionState;
 
     @Column({ type: 'json', nullable: true })
     container?: Container;
 
-    @ManyToOne(() => User, (user) => user.submittedActions, { nullable: false })
-    createdBy?: User;
+    @ManyToOne(() => UserEntity, (user) => user.submittedActions, {
+        nullable: false,
+    })
+    createdBy?: UserEntity;
 
     @Column({ nullable: true })
     state_cause?: string;
@@ -52,11 +54,11 @@ export default class Action extends BaseEntity {
     @Column({ nullable: true })
     executionEndedAt?: Date;
 
-    @ManyToOne(() => Mission, (mission) => mission.actions, {
+    @ManyToOne(() => MissionEntity, (mission) => mission.actions, {
         onDelete: 'CASCADE',
         nullable: false,
     })
-    mission?: Mission;
+    mission?: MissionEntity;
 
     @Column({ type: 'json', nullable: true })
     logs?: ContainerLog[];
@@ -73,20 +75,22 @@ export default class Action extends BaseEntity {
     @Column({ nullable: false, default: ArtifactState.AWAITING_ACTION })
     artifacts!: ArtifactState;
 
-    @OneToOne(() => Apikey, (apikey) => apikey.action)
+    @OneToOne(() => ApikeyEntity, (apikey) => apikey.action)
     @JoinColumn()
-    key?: Apikey;
+    key?: ApikeyEntity;
 
     @ManyToOne(
-        () => ActionTemplate,
+        () => ActionTemplateEntity,
         (actionTemplate) => actionTemplate.actions,
         { nullable: false },
     )
-    template?: ActionTemplate;
+    template?: ActionTemplateEntity;
 
     @Column({ type: 'json', nullable: true })
     image?: Image;
 
-    @ManyToOne(() => Worker, (worker) => worker.actions, { nullable: true })
-    worker?: Worker;
+    @ManyToOne(() => WorkerEntity, (worker) => worker.actions, {
+        nullable: true,
+    })
+    worker?: WorkerEntity;
 }

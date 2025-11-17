@@ -1,6 +1,6 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     AccessGroupRights,
     AccessGroupType,
@@ -15,16 +15,16 @@ import logger from '../logger';
 @Injectable()
 export class ProjectGuardService {
     constructor(
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
         @InjectRepository(ProjectAccessViewEntity)
         private projectAccessView: Repository<ProjectAccessViewEntity>,
     ) {}
 
     async canAccessProject(
-        user: User,
+        user: UserEntity,
         projectUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -51,7 +51,7 @@ export class ProjectGuardService {
     }
 
     async canAccessProjectByName(
-        user: User,
+        user: UserEntity,
         projectName: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -67,7 +67,7 @@ export class ProjectGuardService {
         return this.canAccessProject(user, project.uuid, rights);
     }
 
-    async canCreate(user: User): Promise<boolean> {
+    async canCreate(user: UserEntity): Promise<boolean> {
         if (!user) {
             return false;
         }

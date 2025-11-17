@@ -1,13 +1,13 @@
 import { Column, Entity, ManyToMany, ManyToOne, OneToMany } from 'typeorm';
-import ProjectAccess from '../auth/project-access.entity';
+import ProjectAccessEntity from '../auth/project-access.entity';
 import BaseEntity from '../base-entity.entity';
 import CategoryEntity from '../category/category.entity';
-import Mission from '../mission/mission.entity';
-import TagType from '../tagType/tag-type.entity';
-import User from '../user/user.entity';
+import MissionEntity from '../mission/mission.entity';
+import TagTypeEntity from '../tagType/tag-type.entity';
+import UserEntity from '../user/user.entity';
 
-@Entity()
-export default class Project extends BaseEntity {
+@Entity({ name: 'project' })
+export default class ProjectEntity extends BaseEntity {
     /**
      * The name of the project. This is the name that will be displayed in the UI.
      * The name must be globally unique.
@@ -15,26 +15,30 @@ export default class Project extends BaseEntity {
     @Column({ unique: true })
     name!: string;
 
-    @OneToMany(() => Mission, (mission) => mission.project)
-    missions?: Mission[];
+    @OneToMany(() => MissionEntity, (mission) => mission.project)
+    missions?: MissionEntity[];
     readonly missionCount?: number;
 
-    @OneToMany(() => ProjectAccess, (projectAccess) => projectAccess.project, {
-        cascade: true,
-    })
-    project_accesses?: ProjectAccess[];
+    @OneToMany(
+        () => ProjectAccessEntity,
+        (projectAccess) => projectAccess.project,
+        {
+            cascade: true,
+        },
+    )
+    project_accesses?: ProjectAccessEntity[];
 
     @Column()
     description!: string;
 
-    @ManyToOne(() => User, (user) => user.projects, { nullable: false })
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.projects, { nullable: false })
+    creator?: UserEntity;
 
-    @ManyToMany(() => TagType, (tag) => tag.project, {
+    @ManyToMany(() => TagTypeEntity, (tag) => tag.project, {
         onDelete: 'CASCADE',
         nullable: false,
     })
-    requiredTags!: TagType[];
+    requiredTags!: TagTypeEntity[];
 
     @OneToMany(() => CategoryEntity, (category) => category.project)
     categories?: CategoryEntity[];

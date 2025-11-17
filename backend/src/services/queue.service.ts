@@ -1,9 +1,9 @@
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import Action from '@common/entities/action/action.entity';
+import ActionEntity from '@common/entities/action/action.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import Worker from '@common/entities/worker/worker.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import {
     ActionState,
     FileLocation,
@@ -39,7 +39,7 @@ import {
 import { StopJobResponseDto } from '@common/api/types/queue/stop-job-response.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { redis } from '@common/consts';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import { getInfoFromMinio, internalMinio } from '@common/minio-helper';
 import { addActionQueue } from '@common/scheduling-logic';
@@ -77,15 +77,15 @@ export class QueueService implements OnModuleInit {
     constructor(
         @InjectRepository(QueueEntity)
         private queueRepository: Repository<QueueEntity>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
         private userService: UserService,
-        @InjectRepository(Worker)
-        private workerRepository: Repository<Worker>,
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
+        @InjectRepository(WorkerEntity)
+        private workerRepository: Repository<WorkerEntity>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
         @InjectMetric('backend_online_workers')
         private onlineWorkers: Gauge,
         @InjectMetric('backend_pending_jobs')
@@ -133,7 +133,7 @@ export class QueueService implements OnModuleInit {
 
     async importFromDrive(
         driveCreate: DriveCreate,
-        user: User,
+        user: UserEntity,
     ): Promise<UpdateTagTypeDto> {
         const mission = await this.missionRepository.findOneOrFail({
             where: { uuid: driveCreate.missionUUID },
@@ -429,7 +429,7 @@ export class QueueService implements OnModuleInit {
     }
 
     async _addActionQueue(
-        action: Action,
+        action: ActionEntity,
         runtimeRequirements: RuntimeDescription,
     ) {
         logger.debug(
@@ -495,7 +495,7 @@ export class QueueService implements OnModuleInit {
         // mark the action as aborted in a transaction
         await this.actionRepository.manager.transaction(
             async (manager: EntityManager): Promise<void> => {
-                const action = await manager.findOne(Action, {
+                const action = await manager.findOne(ActionEntity, {
                     where: { uuid: actionRunId },
                     relations: ['worker'],
                 });

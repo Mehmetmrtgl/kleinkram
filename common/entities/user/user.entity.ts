@@ -1,20 +1,20 @@
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
 import { UserRole } from '../../frontend_shared/enum';
-import ActionTemplate from '../action/action-template.entity';
-import Action from '../action/action.entity';
-import Account from '../auth/account.entity';
-import Apikey from '../auth/apikey.entity';
-import GroupMembership from '../auth/group-membership.entity';
+import ActionTemplateEntity from '../action/action-template.entity';
+import ActionEntity from '../action/action.entity';
+import AccountEntity from '../auth/account.entity';
+import ApikeyEntity from '../auth/apikey.entity';
+import GroupMembershipEntity from '../auth/group-membership.entity';
 import BaseEntity from '../base-entity.entity';
-import Category from '../category/category.entity';
+import CategoryEntity from '../category/category.entity';
 import FileEntity from '../file/file.entity';
 import MetadataEntity from '../metadata/metadata.entity';
-import Mission from '../mission/mission.entity';
-import Project from '../project/project.entity';
+import MissionEntity from '../mission/mission.entity';
+import ProjectEntity from '../project/project.entity';
 import QueueEntity from '../queue/queue.entity';
 
-@Entity()
-export default class User extends BaseEntity {
+@Entity({ name: 'user' })
+export default class UserEntity extends BaseEntity {
     /**
      * The name of the user. This is the name that will be displayed in the UI.
      * The name gets automatically extracted from the oauth provider.
@@ -73,18 +73,18 @@ export default class User extends BaseEntity {
     @Column({ nullable: true })
     avatarUrl?: string;
 
-    @OneToOne(() => Account, (account) => account.user)
+    @OneToOne(() => AccountEntity, (account) => account.user)
     @JoinColumn({ name: 'account_uuid' })
-    account?: Account;
+    account?: AccountEntity;
 
-    @OneToMany(() => GroupMembership, (membership) => membership.user)
-    memberships?: GroupMembership[];
+    @OneToMany(() => GroupMembershipEntity, (membership) => membership.user)
+    memberships?: GroupMembershipEntity[];
 
-    @OneToMany(() => Project, (project) => project.creator)
-    projects?: Project[];
+    @OneToMany(() => ProjectEntity, (project) => project.creator)
+    projects?: ProjectEntity[];
 
-    @OneToMany(() => Mission, (mission) => mission.creator)
-    missions?: Mission[];
+    @OneToMany(() => MissionEntity, (mission) => mission.creator)
+    missions?: MissionEntity[];
 
     @OneToMany(() => FileEntity, (file) => file.creator)
     files?: FileEntity[];
@@ -92,21 +92,21 @@ export default class User extends BaseEntity {
     @OneToMany(() => QueueEntity, (queue) => queue.creator)
     queues?: QueueEntity[];
 
-    @OneToMany(() => Action, (action) => action.mission)
-    submittedActions?: Action[];
+    @OneToMany(() => ActionEntity, (action) => action.mission)
+    submittedActions?: ActionEntity[];
 
     @OneToMany(
-        () => ActionTemplate,
+        () => ActionTemplateEntity,
         (actionTemplate) => actionTemplate.createdBy,
     )
-    templates?: ActionTemplate[];
+    templates?: ActionTemplateEntity[];
 
     @OneToMany(() => MetadataEntity, (tag) => tag.creator)
     tags?: MetadataEntity[];
 
-    @OneToMany(() => Apikey, (apikey) => apikey.user)
-    api_keys?: Apikey[];
+    @OneToMany(() => ApikeyEntity, (apikey) => apikey.user)
+    api_keys?: ApikeyEntity[];
 
-    @OneToMany(() => Category, (category) => category.creator)
-    categories?: Category[];
+    @OneToMany(() => CategoryEntity, (category) => category.creator)
+    categories?: CategoryEntity[];
 }

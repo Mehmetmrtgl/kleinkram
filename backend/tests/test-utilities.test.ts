@@ -1,4 +1,4 @@
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import {
     clearAllData,
@@ -20,22 +20,22 @@ describe('Test Suite Utils', () => {
 
     test('test if clearAllData works', async () => {
         // Insert some data
-        const user = new User();
+        const user = new UserEntity();
         user.name = 'John Doe';
         user.email = 'test-01@leggedrobotics.com';
         user.role = UserRole.USER;
 
-        await database.getRepository(User).save(user);
+        await database.getRepository(UserEntity).save(user);
 
         // Check if the data was inserted
-        const users = await database.getRepository(User).find();
+        const users = await database.getRepository(UserEntity).find();
         expect(users.length).toBe(1);
 
         // Clear the data
         await clearAllData();
 
         // Check if the data was cleared
-        const usersAfterClear = await database.getRepository(User).find();
+        const usersAfterClear = await database.getRepository(UserEntity).find();
         expect(usersAfterClear.length).toBe(0);
     });
 
@@ -44,7 +44,7 @@ describe('Test Suite Utils', () => {
 
         await mockDatabaseUser('test-01@leggedrobotics.com');
 
-        const userRepository = database.getRepository(User);
+        const userRepository = database.getRepository(UserEntity);
         const users = await userRepository.find({
             select: ['email', 'uuid'],
         });

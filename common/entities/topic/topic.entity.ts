@@ -2,8 +2,8 @@ import { Column, Entity, ManyToOne } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
 
-@Entity()
-export default class Topic extends BaseEntity {
+@Entity({ name: 'topic' })
+export default class TopicEntity extends BaseEntity {
     @Column()
     name!: string;
 

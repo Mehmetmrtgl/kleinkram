@@ -8,8 +8,8 @@ import { ProjectWithMissionsDto } from '@common/api/types/project/project-with-m
 import { RemoveAccessGroupFromProjectDto } from '@common/api/types/remove-access-group-project.dto';
 import { SetAccessGroupUserExpirationDto } from '@common/api/types/set-access-group-user-expiration.dto';
 import { AccessGroupDto, GroupMembershipDto } from '@common/api/types/user.dto';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Project from '@common/entities/project/project.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import {
     Body,
     ConflictException,
@@ -99,7 +99,7 @@ export class AccessController {
     })
     @ApiResponse({
         status: 200,
-        type: Project,
+        type: ProjectEntity,
         description: 'The Project the user was added to.',
     })
     @ApiResponse({
@@ -127,7 +127,7 @@ export class AccessController {
     })
     @ApiResponse({
         status: 200,
-        type: AccessGroup,
+        type: AccessGroupEntity,
         description: 'The Access Group the user was added to.',
     })
     @ApiResponse({
@@ -154,7 +154,7 @@ export class AccessController {
     })
     @ApiResponse({
         status: 200,
-        type: AccessGroup,
+        type: AccessGroupEntity,
         description: 'The Access Group the user was removed from.',
     })
     @Post('removeUserFromAccessGroup')

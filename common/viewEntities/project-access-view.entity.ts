@@ -1,12 +1,12 @@
 import type { DataSource, SelectQueryBuilder } from 'typeorm';
 import { ViewColumn, ViewEntity } from 'typeorm';
-import Project from '../entities/project/project.entity';
+import ProjectEntity from '../entities/project/project.entity';
 import { AccessGroupRights } from '../frontend_shared/enum';
 
 @ViewEntity({
-    expression: (datasource: DataSource): SelectQueryBuilder<Project> =>
+    expression: (datasource: DataSource): SelectQueryBuilder<ProjectEntity> =>
         datasource
-            .createQueryBuilder(Project, 'project')
+            .createQueryBuilder(ProjectEntity, 'project')
             .innerJoin('project.project_accesses', 'projectAccesses')
             .innerJoin('projectAccesses.accessGroup', 'accessGroup')
             .innerJoin(
