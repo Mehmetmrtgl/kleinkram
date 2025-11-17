@@ -731,7 +731,7 @@ export class DeleteActionGuard extends BaseGuard {
         const actionUUID = request.body.actionUUID;
         const action = await this.actionRepository.findOneOrFail({
             where: { uuid: actionUUID },
-            relations: ['mission', 'createdBy'],
+            relations: ['mission', 'creator'],
         });
 
         if (action.mission === undefined)

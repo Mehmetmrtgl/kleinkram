@@ -224,7 +224,7 @@ export class ActionService {
                 where,
                 skip,
                 take,
-                relations: ['createdBy'],
+                relations: ['creator'],
             });
 
         return {
@@ -256,7 +256,7 @@ export class ActionService {
             .leftJoinAndSelect('action.mission', 'mission')
             .leftJoinAndSelect('mission.project', 'project')
             .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.createdBy', 'createdBy');
+            .leftJoinAndSelect('action.creator', 'creator');
 
         if (projectUuid !== undefined) {
             baseQuery.andWhere('project.uuid = :projectUuid', {
@@ -327,7 +327,7 @@ export class ActionService {
             relations: [
                 'mission',
                 'mission.project',
-                'createdBy',
+                'creator',
                 'template',
                 'worker',
             ],
@@ -350,7 +350,7 @@ export class ActionService {
             .leftJoinAndSelect('action.mission', 'mission')
             .leftJoinAndSelect('mission.project', 'project')
             .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.createdBy', 'createdBy')
+            .leftJoinAndSelect('action.creator', 'creator')
             .where(
                 new Brackets((qb) => {
                     qb.where('action.state = :state', {

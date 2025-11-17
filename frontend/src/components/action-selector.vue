@@ -53,7 +53,7 @@
                 <q-item-section>
                     <q-item-label>
                         <!--                    Rendering templates icon in green if preexisting and yellow if newTemplate-->
-                        <template v-if="props.opt.createdBy === null">
+                        <template v-if="props.opt.creator === null">
                             <q-icon
                                 name="sym_o_terminal"
                                 class="q-mr-sm"

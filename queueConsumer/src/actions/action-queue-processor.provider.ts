@@ -86,7 +86,7 @@ export class ActionQueueProcessorProvider implements OnModuleInit {
                 'template',
                 'mission',
                 'mission.project',
-                'createdBy',
+                'creator',
                 'worker',
             ],
         });
