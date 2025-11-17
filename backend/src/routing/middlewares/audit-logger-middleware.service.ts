@@ -14,11 +14,7 @@ import { ActionService } from '../../services/action.service';
 export class AuditLoggerMiddleware implements NestMiddleware {
     constructor(private actionService: ActionService) {}
 
-    async use(
-        request: Request,
-        _: Response,
-        next: NextFunction,
-    ): Promise<void> {
+    use(request: Request, _: Response, next: NextFunction): void {
         if (!request.cookies) {
             next(); // pass on to the next middleware function
             return;
