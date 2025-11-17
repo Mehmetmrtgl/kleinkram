@@ -71,7 +71,7 @@ export class ActionManagerService {
     }
 
     @tracing('processing_action')
-    async processAction(action: Action): Promise<boolean> {
+    async processAction(action: Readonly<Action>): Promise<boolean> {
         logger.info(`\n\nProcessing Action ${action.uuid}`);
 
         logger.info('Creating container.');
@@ -80,9 +80,13 @@ export class ActionManagerService {
             throw new Error(`Action state is not 'PENDING'`);
 
         // set state to 'STARTING'
-        action.state = ActionState.STARTING;
-        action.state_cause = 'Action is currently running...';
-        await this.actionRepository.save(action);
+        await this.actionRepository.update(
+            { uuid: action.uuid },
+            {
+                state: ActionState.STARTING,
+                state_cause: 'Action is currently running...',
+            },
+        );
 
         if (action.mission === undefined) {
             throw new Error('Mission is undefined');
@@ -110,9 +114,11 @@ export class ActionManagerService {
             const needsGpu = action.template.gpuMemory > 0;
             const { container, repoDigests, sha } =
                 await this.containerDaemon.startContainer(
-                    async () => {
-                        action.state = ActionState.PROCESSING;
-                        await this.actionRepository.save(action);
+                    async (): Promise<void> => {
+                        await this.actionRepository.update(
+                            { uuid: action.uuid },
+                            { state: ActionState.PROCESSING },
+                        );
                     },
                     {
                         docker_image: action.template.image_name,
@@ -135,9 +141,17 @@ export class ActionManagerService {
                 );
 
             // capture runner information
-            action.image = { repoDigests: repoDigests, sha };
-            await this.setContainerInfo(action, container);
-            await this.actionRepository.save(action);
+            const actionImage = { repoDigests: repoDigests, sha };
+            const { executionStartedAt, container: actionContainer } =
+                await this.getContainerInfo(container);
+            await this.actionRepository.update(
+                { uuid: action.uuid },
+                {
+                    executionStartedAt,
+                    container: actionContainer,
+                    image: actionImage,
+                },
+            );
 
             const sanitize = (string_: string): string => {
                 return string_.replace(apikey.apikey, '***');
@@ -171,14 +185,21 @@ export class ActionManagerService {
                 relations: ['worker', 'template'],
             });
 
-            action.state = ActionState.STOPPING;
-            await this.actionRepository.save(action);
+            await this.actionRepository.update(
+                { uuid: action.uuid },
+                { state: ActionState.STOPPING },
+            );
 
             this.containerDaemon.removeContainer(container.id, true);
             await this.setActionState(container, action);
-            action.executionEndedAt = new Date();
-            action.artifacts = ArtifactState.UPLOADING;
-            await this.actionRepository.save(action);
+
+            await this.actionRepository.update(
+                { uuid: action.uuid },
+                {
+                    executionEndedAt: new Date(),
+                    artifacts: ArtifactState.UPLOADING,
+                },
+            );
 
             if (action.template === undefined) {
                 throw new Error('Template is undefined');
@@ -190,11 +211,15 @@ export class ActionManagerService {
                     `${action.template.name}-v${action.template.version.toString()}-${action.uuid}`,
                 );
             await artifactUploadContainer.wait();
-            action.artifacts = ArtifactState.UPLOADED;
             this.containerDaemon.removeContainer(artifactUploadContainer.id);
             await this.containerDaemon.removeVolume(action.uuid);
-            action.artifact_url = `https://drive.google.com/drive/folders/${parentFolder}`;
-            await this.actionRepository.save(action);
+            await this.actionRepository.update(
+                { uuid: action.uuid },
+                {
+                    artifacts: ArtifactState.UPLOADED,
+                    artifact_url: `https://drive.google.com/drive/folders/${parentFolder}`,
+                },
+            );
 
             return true; // Mark the job as completed
         } finally {
@@ -206,22 +231,20 @@ export class ActionManagerService {
      * Inspects the container and sets the container information to the action
      * object. This function does not save the action to the database!
      *
-     * @param action
      * @param container
      * @private
      */
-    private async setContainerInfo(
-        action: Action,
-        container: Dockerode.Container,
-    ): Promise<void> {
+    private async getContainerInfo(container: Dockerode.Container): Promise<{
+        executionStartedAt: Date;
+        container: { id: string };
+    }> {
         const containerId = container.id;
         const containerDetails = await container.inspect();
 
-        action.executionStartedAt = new Date(containerDetails.Created);
-        action.container = {
-            id: containerId,
+        return {
+            executionStartedAt: new Date(containerDetails.Created),
+            container: { id: containerId },
         };
-        action.logs = [];
     }
 
     /**
@@ -266,10 +289,7 @@ export class ActionManagerService {
                                 },
                             );
 
-                            if (_action.logs === undefined) {
-                                _action.logs = [];
-                            }
-
+                            _action.logs ??= [];
                             _action.logs.push(...nextLogBatch);
                             await manager.save(_action);
                         },
@@ -288,7 +308,7 @@ export class ActionManagerService {
      */
     private async setActionState(
         container: Dockerode.Container,
-        action: Action,
+        action: Readonly<Action>,
     ): Promise<void> {
         const containerDetailsAfter = await container.inspect();
 
@@ -298,11 +318,15 @@ export class ActionManagerService {
 
         const exitCode = Number(containerDetailsAfter.State.ExitCode);
 
+        let state: ActionState;
+        let exit_code: number;
+        let state_cause: string;
+
         switch (exitCode) {
             case 125: {
-                action.state = ActionState.FAILED;
-                action.exit_code = exitCode;
-                action.state_cause =
+                state = ActionState.FAILED;
+                exit_code = exitCode;
+                state_cause =
                     'Container failed to run. The docker run command did ' +
                     'not execute successfully. Please open an issue ' +
                     'problem persists.';
@@ -310,9 +334,9 @@ export class ActionManagerService {
                 break;
             }
             case 139: {
-                action.state = ActionState.FAILED;
-                action.exit_code = exitCode;
-                action.state_cause =
+                state = ActionState.FAILED;
+                exit_code = exitCode;
+                state_cause =
                     'Container was terminated by the operating system via SIGSEGV signal. ' +
                     'This usually happens when the container tries to access memory ' +
                     'it is not allowed to access.';
@@ -320,9 +344,9 @@ export class ActionManagerService {
                 break;
             }
             case 143: {
-                action.state = ActionState.FAILED;
-                action.exit_code = exitCode;
-                action.state_cause =
+                state = ActionState.FAILED;
+                exit_code = exitCode;
+                state_cause =
                     'Container was terminated by the operating system via SIGTERM signal. ' +
                     'This usually happens when the container is stopped due to approaching ' +
                     'time limit.';
@@ -330,9 +354,9 @@ export class ActionManagerService {
                 break;
             }
             case 137: {
-                action.state = ActionState.FAILED;
-                action.exit_code = exitCode;
-                action.state_cause =
+                state = ActionState.FAILED;
+                exit_code = exitCode;
+                state_cause =
                     'Container was immediately terminated by the operating ' +
                     'system via SIGKILL signal. This usually happens when the ' +
                     'container exceeds the memory limit or reaches the time CPU limit.';
@@ -340,14 +364,22 @@ export class ActionManagerService {
                 break;
             }
             default: {
-                action.state_cause = `Container exited with code ${exitCode.toString()}`;
-                action.state =
-                    exitCode === 0 ? ActionState.DONE : ActionState.FAILED;
-                action.exit_code = exitCode;
+                state_cause = `Container exited with code ${exitCode.toString()}`;
+                state = exitCode === 0 ? ActionState.DONE : ActionState.FAILED;
+                exit_code = exitCode;
             }
         }
         logger.warn(`Action ${action.uuid} has failed with exit code 125`);
         logger.warn(action.state_cause);
+
+        await this.actionRepository.update(
+            { uuid: action.uuid },
+            {
+                state,
+                exit_code,
+                state_cause,
+            },
+        );
     }
 
     /**
@@ -381,13 +413,13 @@ export class ActionManagerService {
             ),
         );
         const { hostname: name } = await si.osInfo();
-        const actionsInLocalProcess = await this.actionRepository.find({
+        const actionsInLocalProcess = (await this.actionRepository.find({
             where: {
                 state: ActionState.PROCESSING,
                 worker: { identifier: name },
             },
             relations: ['mission', 'mission.project'],
-        });
+        })) as Readonly<Action>[];
         logger.info(
             `Checking ${actionsInLocalProcess.length.toString()} pending Actions.`,
         );
@@ -397,9 +429,13 @@ export class ActionManagerService {
                 logger.info(
                     `Action ${action.uuid} is running but has no running container.`,
                 );
-                action.state = ActionState.FAILED;
-                action.state_cause = 'Container crashed, no container found';
-                await this.actionRepository.save(action);
+                await this.actionRepository.update(
+                    { uuid: action.uuid },
+                    {
+                        state: ActionState.FAILED,
+                        state_cause: 'Container crashed, no container found',
+                    },
+                );
             }
         }
 
@@ -421,11 +457,9 @@ export class ActionManagerService {
                 continue;
             }
 
-            const action = await this.actionRepository.findOne({
-                where: {
-                    uuid,
-                },
-            });
+            const action = (await this.actionRepository.findOne({
+                where: { uuid },
+            })) as Readonly<Action> | null;
 
             // kill action container if no corresponding action is found
             if (!action) {
@@ -453,10 +487,14 @@ export class ActionManagerService {
                         container.Id,
                     );
 
-                    action.state = ActionState.FAILED;
-                    action.state_cause =
-                        'Container killed: running for more than 24 hours';
-                    await this.actionRepository.save(action);
+                    await this.actionRepository.update(
+                        { uuid: action.uuid },
+                        {
+                            state: ActionState.FAILED,
+                            state_cause:
+                                'Container killed: running for more than 24 hours',
+                        },
+                    );
                 }
                 continue;
             }
@@ -469,10 +507,14 @@ export class ActionManagerService {
             await this.containerDaemon.killAndRemoveContainer(container.Id);
 
             if (action.state === ActionState.PENDING) {
-                action.state = ActionState.FAILED;
-                action.state_cause =
-                    'Container killed: action has never started';
-                await this.actionRepository.save(action);
+                await this.actionRepository.update(
+                    { uuid: action.uuid },
+                    {
+                        state: ActionState.FAILED,
+                        state_cause:
+                            'Container killed: action has never started',
+                    },
+                );
             }
         }
     }

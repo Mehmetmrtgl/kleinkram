@@ -37,6 +37,7 @@ export class AuditLoggerMiddleware implements NestMiddleware {
         const auditLog = {
             method: request.method,
             url: request.originalUrl,
+            message: '',
         };
 
         logger.debug(
