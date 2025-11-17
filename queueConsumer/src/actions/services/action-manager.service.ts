@@ -106,14 +106,6 @@ export class ActionManagerService {
                 KLEINKRAM_ACTION_UUID: action.uuid,
                 KLEINKRAM_API_ENDPOINT: environment.ENDPOINT,
                 KLEINKRAM_S3_ENDPOINT: `https://${environment.MINIO_ENDPOINT}${environment.DEV ? ':9000' : ''}`,
-
-                // @deprecated
-                // TODO: the following variables are deprecated
-                APIKEY: apikey.apikey,
-                PROJECT_UUID: action.mission.project.uuid,
-                MISSION_UUID: action.mission.uuid,
-                ACTION_UUID: action.uuid,
-                ENDPOINT: environment.ENDPOINT,
             };
             const needsGpu = action.template.gpuMemory > 0;
             const { container, repoDigests, sha } =

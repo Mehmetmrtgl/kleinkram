@@ -56,17 +56,6 @@ The following environment variables are available within the Docker container du
 - `KLEINKRAM_API_ENDPOINT`: Endpoint of the Kleinkram API.
 - `KLEINKRAM_S3_ENDPOINT`: Endpoint of the Kleinkram S3 storage.
 
-::: warning Deprecated Environment Variables
-The following environment variables are deprecated and will be removed in the future:
-
-- `APIKEY` (Use `KLEINKRAM_API_KEY` instead)
-- `PROJECT_UUID` (Use `KLEINKRAM_PROJECT_UUID` instead)
-- `MISSION_UUID` (Use `KLEINKRAM_MISSION_UUID` instead)
-- `ACTION_UUID` (Use `KLEINKRAM_ACTION_UUID` instead)
-- `ENDPOINT` (Use `KLEINKRAM_API_ENDPOINT` instead)
-
-:::
-
 ## Push Actions to Docker Hub
 
 Kleinkram actions must be pushed to Docker Hub under a namespace defined by the `VITE_DOCKER_HUB_NAMESPACE` environment variable.
