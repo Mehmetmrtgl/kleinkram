@@ -362,7 +362,10 @@ export class MissionService {
         // this is necessary as raw and entities at not of the same length / order
         // eslint-disable-next-line unicorn/no-array-reduce
         const rawLookup = raw.reduce(
-            (lookup: Record<string, any>, rawEntry: any) => {
+            (
+                lookup: Record<string, unknown>,
+                rawEntry: { mission_uuid: string },
+            ) => {
                 lookup[rawEntry.mission_uuid] = rawEntry;
                 return lookup;
             },
@@ -468,7 +471,9 @@ export class MissionService {
         );
     }
 
-    async download(missionUUID: string) {
+    async download(
+        missionUUID: string,
+    ): Promise<{ filename: string; link: string }[]> {
         const mission = await this.missionRepository.findOneOrFail({
             where: { uuid: missionUUID },
             relations: ['files', 'project'],
@@ -494,7 +499,10 @@ export class MissionService {
         );
     }
 
-    async updateName(uuid: string, name: string) {
+    async updateName(
+        uuid: string,
+        name: string,
+    ): Promise<MissionEntity | null> {
         const exists = await this.missionRepository.exists({
             where: { name: ILike(name), uuid: Not(uuid) },
         });
