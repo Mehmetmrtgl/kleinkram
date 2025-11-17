@@ -25,10 +25,10 @@ export class ProjectGuardService {
 
     async canAccessProject(
         user: User,
-        projectUUID: string,
+        projectUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
-    ) {
-        if (!projectUUID || !user) {
+    ): Promise<boolean> {
+        if (!projectUuid || !user) {
             return false;
         }
 
@@ -37,14 +37,14 @@ export class ProjectGuardService {
         }
         const isExisting = await this.projectAccessView.exists({
             where: {
-                projectUUID,
-                userUUID: user.uuid,
+                projectUuid: projectUuid,
+                userUuid: user.uuid,
                 rights: MoreThanOrEqual(rights),
             },
         });
         if (!isExisting) {
             logger.debug(
-                `User ${user.name} (${user.uuid}) does not have access to project ${projectUUID} with rights ${rights.toString()}`,
+                `User ${user.name} (${user.uuid}) does not have access to project ${projectUuid} with rights ${rights.toString()}`,
             );
         }
         return isExisting;
@@ -54,7 +54,7 @@ export class ProjectGuardService {
         user: User,
         projectName: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
-    ) {
+    ): Promise<boolean> {
         if (!projectName || !user) {
             return false;
         }
@@ -67,7 +67,7 @@ export class ProjectGuardService {
         return this.canAccessProject(user, project.uuid, rights);
     }
 
-    async canCreate(user: User) {
+    async canCreate(user: User): Promise<boolean> {
         if (!user) {
             return false;
         }

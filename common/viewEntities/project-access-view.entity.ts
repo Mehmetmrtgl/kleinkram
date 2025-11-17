@@ -1,13 +1,12 @@
-import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
+import type { DataSource, SelectQueryBuilder } from 'typeorm';
+import { ViewColumn, ViewEntity } from 'typeorm';
 import Project from '../entities/project/project.entity';
-
 import { AccessGroupRights } from '../frontend_shared/enum';
 
 @ViewEntity({
-    expression: (datasource: DataSource) =>
+    expression: (datasource: DataSource): SelectQueryBuilder<Project> =>
         datasource
-            .createQueryBuilder()
-            .from(Project, 'project')
+            .createQueryBuilder(Project, 'project')
             .innerJoin('project.project_accesses', 'projectAccesses')
             .innerJoin('projectAccesses.accessGroup', 'accessGroup')
             .innerJoin(
@@ -15,28 +14,25 @@ import { AccessGroupRights } from '../frontend_shared/enum';
                 'memberships',
                 'memberships.expirationDate IS NULL OR memberships.expirationDate > NOW()',
             )
-            .innerJoin('memberships.user', 'users')
+            .innerJoin('memberships.user', 'user')
             .select([
                 'project.uuid as projectUUID',
-                'users.uuid as userUUID',
-                'projectAccesses.rights as rights',
-                'accessGroup.uuid as accessGroupUUID',
-                'projectAccesses.uuid as protectAccessUUID',
-            ]),
+                'user.uuid as userUUID',
+                // Use MAX() to find the highest right for this user/project pair
+                'MAX(projectAccesses.rights) as rights',
+            ])
+            // Group by user and project to get one row per pair
+            .groupBy('project.uuid')
+            .addGroupBy('user.uuid'),
 })
 export class ProjectAccessViewEntity {
     @ViewColumn({ name: 'projectuuid' })
-    projectUUID!: string;
+    projectUuid!: string;
 
     @ViewColumn({ name: 'useruuid' })
-    userUUID!: string;
+    userUuid!: string;
 
+    /** The highest level of access rights the user has for the project. */
     @ViewColumn()
     rights!: AccessGroupRights;
-
-    @ViewColumn({ name: 'accessgroupuuid' })
-    accessGroupUUID!: string;
-
-    @ViewColumn({ name: 'protectaccessuuid' })
-    protectAccessUUID!: string;
 }

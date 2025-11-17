@@ -432,8 +432,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
 
         const canAccessProject = await this.projectAccessView.exists({
             where: {
-                projectUUID: mission.project.uuid,
-                userUUID,
+                projectUuid: mission.project.uuid,
+                userUuid: userUUID,
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
             },
         });
