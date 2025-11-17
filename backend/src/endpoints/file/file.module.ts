@@ -10,7 +10,7 @@ import { FileController } from './file.controller';
 
 import AccessGroup from '@common/entities/auth/accessgroup.entity';
 import Account from '@common/entities/auth/account.entity';
-import Tag from '@common/entities/tag/tag.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import TagType from '@common/entities/tagType/tag-type.entity';
 import { MissionService } from '../../services/mission.service';
 import { TagService } from '../../services/tag.service';
@@ -29,7 +29,7 @@ import { FileGuardService } from '../../services/file-guard.service';
             Project,
             Account,
             AccessGroup,
-            Tag,
+            MetadataEntity,
             TagType,
             Category,
         ]),

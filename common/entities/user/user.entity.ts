@@ -8,10 +8,10 @@ import GroupMembership from '../auth/group-membership.entity';
 import BaseEntity from '../base-entity.entity';
 import Category from '../category/category.entity';
 import FileEntity from '../file/file.entity';
+import MetadataEntity from '../metadata/metadata.entity';
 import Mission from '../mission/mission.entity';
 import Project from '../project/project.entity';
 import QueueEntity from '../queue/queue.entity';
-import Tag from '../tag/tag.entity';
 
 @Entity()
 export default class User extends BaseEntity {
@@ -101,8 +101,8 @@ export default class User extends BaseEntity {
     )
     templates?: ActionTemplate[];
 
-    @OneToMany(() => Tag, (tag) => tag.creator)
-    tags?: Tag[];
+    @OneToMany(() => MetadataEntity, (tag) => tag.creator)
+    tags?: MetadataEntity[];
 
     @OneToMany(() => Apikey, (apikey) => apikey.user)
     api_keys?: Apikey[];

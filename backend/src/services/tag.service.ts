@@ -1,8 +1,8 @@
 import { AddTagDto, AddTagsDto } from '@common/api/types/tags/add-tags.dto';
 import { DeleteTagDto } from '@common/api/types/tags/delete-tag.dto';
 import { TagTypeDto, TagTypesDto } from '@common/api/types/tags/tags.dto';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import TagType from '@common/entities/tagType/tag-type.entity';
 import { DataType } from '@common/frontend_shared/enum';
 import {
@@ -16,8 +16,8 @@ import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 @Injectable()
 export class TagService {
     constructor(
-        @InjectRepository(Tag)
-        private tagRepository: Repository<Tag>,
+        @InjectRepository(MetadataEntity)
+        private tagRepository: Repository<MetadataEntity>,
         @InjectRepository(TagType)
         private tagTypeRepository: Repository<TagType>,
         @InjectRepository(Mission)
@@ -69,7 +69,7 @@ export class TagService {
             throw new ConflictException('Tag already exists');
         }
 
-        let tag: Tag | undefined;
+        let tag: MetadataEntity | undefined;
         const isString = typeof value === 'string';
         switch (tagType.datatype) {
             case DataType.NUMBER: {
@@ -79,7 +79,7 @@ export class TagService {
                     }
                     tag = this.tagRepository.create({
                         tagType,
-                        [tagType.datatype]: value as number,
+                        value_number: value as number,
                         mission,
                     });
                     break;
@@ -98,7 +98,7 @@ export class TagService {
                 }
                 tag = this.tagRepository.create({
                     tagType,
-                    [DataType.STRING]: value,
+                    value_string: value,
                     mission,
                 });
                 break;
@@ -111,7 +111,7 @@ export class TagService {
                 }
                 tag = this.tagRepository.create({
                     tagType,
-                    [tagType.datatype]: value,
+                    value_location: value,
                     mission,
                 });
                 break;
@@ -123,7 +123,7 @@ export class TagService {
                     }
                     tag = this.tagRepository.create({
                         tagType,
-                        [tagType.datatype]: value as boolean,
+                        value_boolean: value as boolean,
                         mission,
                     });
                     break;
@@ -141,7 +141,7 @@ export class TagService {
                 }
                 tag = this.tagRepository.create({
                     tagType,
-                    [tagType.datatype]: new Date(value),
+                    value_date: new Date(value),
                     mission,
                 });
                 break;
@@ -160,7 +160,7 @@ export class TagService {
         missionUUID: string,
         tagTypeUUID: string,
         value: string | number | boolean,
-    ): Promise<Tag> {
+    ): Promise<MetadataEntity> {
         const tagType = await this.tagTypeRepository.findOneOrFail({
             where: { uuid: tagTypeUUID },
         });

@@ -8,10 +8,10 @@ import MissionAccess from '@common/entities/auth/mission-access.entity';
 import ProjectAccess from '@common/entities/auth/project-access.entity';
 import CategoryEntity from '@common/entities/category/category.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
 import Project from '@common/entities/project/project.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import TagType from '@common/entities/tagType/tag-type.entity';
 import Topic from '@common/entities/topic/topic.entity';
 import User from '@common/entities/user/user.entity';
@@ -90,7 +90,7 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
                         Account,
                         AccessGroup,
                         TagType,
-                        Tag,
+                        MetadataEntity,
                         ProjectAccess,
                         MissionAccess,
                         ProjectAccessViewEntity,
@@ -115,7 +115,7 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             User,
             Apikey,
             TagType,
-            Tag,
+            MetadataEntity,
             ProjectAccess,
             MissionAccess,
             ProjectAccessViewEntity,

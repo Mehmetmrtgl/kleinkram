@@ -1,6 +1,6 @@
 import Apikey from '@common/entities/auth/apikey.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import User from '@common/entities/user/user.entity';
 import { AccessGroupRights, UserRole } from '@common/frontend_shared/enum';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
@@ -17,8 +17,8 @@ export class MissionGuardService {
         @InjectRepository(Mission)
         private missionRepository: Repository<Mission>,
         private projectGuardService: ProjectGuardService,
-        @InjectRepository(Tag)
-        private tagRepository: Repository<Tag>,
+        @InjectRepository(MetadataEntity)
+        private tagRepository: Repository<MetadataEntity>,
         @InjectRepository(MissionAccessViewEntity)
         private missionAccessView: Repository<MissionAccessViewEntity>,
     ) {}

@@ -4,9 +4,9 @@ import Apikey from '../auth/apikey.entity';
 import MissionAccess from '../auth/mission-access.entity';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
+import MetadataEntity from '../metadata/metadata.entity';
 import Project from '../project/project.entity';
 import QueueEntity from '../queue/queue.entity';
-import Tag from '../tag/tag.entity';
 import User from '../user/user.entity';
 
 @Unique('unique_mission_name_per_project', ['name', 'project'])
@@ -38,8 +38,8 @@ export default class Mission extends BaseEntity {
     @OneToMany(() => MissionAccess, (missionAccess) => missionAccess.mission)
     mission_accesses?: MissionAccess[];
 
-    @OneToMany(() => Tag, (tag) => tag.mission)
-    tags?: Tag[];
+    @OneToMany(() => MetadataEntity, (tag) => tag.mission)
+    tags?: MetadataEntity[];
 
     fileCount?: number;
     size?: number;

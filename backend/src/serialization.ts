@@ -3,9 +3,9 @@ import Action from '@common/entities/action/action.entity';
 import GroupMembership from '@common/entities/auth/group-membership.entity';
 import ProjectAccess from '@common/entities/auth/project-access.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
 import Project from '@common/entities/project/project.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import TagType from '@common/entities/tagType/tag-type.entity';
 import Topic from '@common/entities/topic/topic.entity';
 import User from '@common/entities/user/user.entity';
@@ -320,7 +320,7 @@ export const topicEntityToDto = (topic: Topic): TopicDto => {
     };
 };
 
-export const tagEntityToDto = (tag: Tag): TagDto => {
+export const tagEntityToDto = (tag: MetadataEntity): TagDto => {
     if (!tag.tagType) {
         throw new Error('TagType is not set');
     }
@@ -331,11 +331,11 @@ export const tagEntityToDto = (tag: Tag): TagDto => {
         },
         type: tagTypeEntityToDto(tag.tagType),
         value:
-            tag.STRING ??
-            tag.NUMBER ??
-            tag.BOOLEAN ??
-            tag.DATE ??
-            tag.LOCATION ??
+            tag.value_string ??
+            tag.value_number ??
+            tag.value_boolean ??
+            tag.value_date ??
+            tag.value_location ??
             '',
         createdAt: tag.createdAt,
         datatype: tag.tagType.datatype,

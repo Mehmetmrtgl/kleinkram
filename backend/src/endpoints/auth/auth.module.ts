@@ -14,9 +14,9 @@ import GroupMembership from '@common/entities/auth/group-membership.entity';
 import MissionAccess from '@common/entities/auth/mission-access.entity';
 import ProjectAccess from '@common/entities/auth/project-access.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
 import Project from '@common/entities/project/project.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import env from '@common/environment';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
@@ -36,7 +36,7 @@ import { MissionGuardService } from './mission-guard.service';
             Account,
             Project,
             Mission,
-            Tag,
+            MetadataEntity,
             ProjectAccess,
             MissionAccess,
             ProjectAccessViewEntity,

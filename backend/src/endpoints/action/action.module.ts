@@ -2,9 +2,9 @@ import ActionTemplate from '@common/entities/action/action-template.entity';
 import Action from '@common/entities/action/action.entity';
 import AccessGroup from '@common/entities/auth/accessgroup.entity';
 import Account from '@common/entities/auth/account.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import Mission from '@common/entities/mission/mission.entity';
 import Project from '@common/entities/project/project.entity';
-import Tag from '@common/entities/tag/tag.entity';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActionService } from '../../services/action.service';
@@ -21,7 +21,7 @@ import { ActionController } from './action.controller';
             Project,
             Mission,
             Account,
-            Tag,
+            MetadataEntity,
         ]),
         QueueModule,
     ],
