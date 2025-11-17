@@ -190,11 +190,13 @@ def check_version_compatiblity() -> None:
 
     if cli_version[0] != api_version[0]:
         raise InvalidCLIVersion(
-            f"CLI version {__version__} is not compatible with API version {api_vers_str}"
+            f"You are using an unsupported CLI version ({__version__}). "
+            f"Please upgrade the CLI to version {api_vers_str} to continue using the CLI."
         )
 
     if cli_version[1] != api_version[1]:
-        msg = f"CLI version {__version__} might not be compatible with API version {api_vers_str}"
+        msg = f"You are using an outdated CLI version ({__version__}). " \
+        msg += f"Please consider upgrading the CLI to version {api_vers_str}."
         Console(file=sys.stderr).print(msg, style="red")
         logger.warning(msg)
 
