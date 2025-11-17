@@ -736,7 +736,7 @@ export class DeleteActionGuard extends BaseGuard {
 
         if (action.mission === undefined)
             throw new BadRequestException('Action does not have a mission');
-        if (action.createdBy === undefined)
+        if (action.creator === undefined)
             throw new BadRequestException('Action does not have a creator');
 
         if (apiKey) {
@@ -755,7 +755,7 @@ export class DeleteActionGuard extends BaseGuard {
                 "can't delete action unless its DONE, FAILED or UNPROCESSABLE",
             );
         }
-        if (action.createdBy.uuid === user.uuid) {
+        if (action.creator.uuid === user.uuid) {
             return true;
         }
 

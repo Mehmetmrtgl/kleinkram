@@ -57,7 +57,7 @@ export class ActionService {
 
         let action = this.actionRepository.create({
             mission: { uuid: data.missionUUID },
-            createdBy: { uuid: auth.user.uuid },
+            creator: { uuid: auth.user.uuid },
             state: ActionState.PENDING,
             template,
         });
@@ -86,12 +86,15 @@ export class ActionService {
         };
     }
 
-    async delete(actionUUID: string) {
+    async delete(actionUUID: string): Promise<boolean> {
         await this.actionRepository.delete(actionUUID);
         return true;
     }
 
-    async multiSubmit(data: SubmitActionMulti, user: AuthHeader) {
+    async multiSubmit(
+        data: SubmitActionMulti,
+        user: AuthHeader,
+    ): Promise<ActionSubmitResponseDto[]> {
         return Promise.all(
             data.missionUUIDs.map((uuid) =>
                 this.submit(
