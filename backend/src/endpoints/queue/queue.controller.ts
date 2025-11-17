@@ -148,6 +148,6 @@ export class QueueController {
     async stopJob(
         @BodyUUID('jobId', 'Bull ID of Job to cancel') jobId: string,
     ): Promise<StopJobResponseDto> {
-        return this.queueService.stopJob(jobId);
+        return this.queueService.stopAction(jobId);
     }
 }

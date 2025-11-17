@@ -17,6 +17,7 @@ import { ConflictException, Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+    EntityManager,
     FindOptionsWhere,
     In,
     IsNull,
@@ -486,28 +487,40 @@ export class QueueService implements OnModuleInit {
         );
     }
 
-    async stopJob(jobId: string): Promise<StopJobResponseDto> {
-        const action = await this.actionRepository.findOne({
-            where: { uuid: jobId },
-            relations: ['worker'],
-        });
+    /**
+     * Stops an action run by its ID.
+     *
+     * @param actionRunId - The ID of the action run to stop.
+     * @returns A promise that resolves to a StopJobResponseDto.
+     * @throws ConflictException if the job is not found.
+     */
+    async stopAction(actionRunId: string): Promise<StopJobResponseDto> {
+        let actionIdentifier: string | undefined = undefined;
 
-        if (action?.worker === undefined)
-            throw new Error('No worker found for this action');
+        // mark the action as aborted in a transaction
+        await this.actionRepository.manager.transaction(
+            async (manager: EntityManager): Promise<void> => {
+                const action = await manager.findOne(Action, {
+                    where: { uuid: actionRunId },
+                    relations: ['worker'],
+                });
 
-        action.state = ActionState.FAILED;
-        await this.actionRepository.save(action);
+                if (action?.worker === undefined)
+                    throw new Error('No worker found for this action');
 
+                action.state = ActionState.FAILED;
+                await manager.save(action);
+                actionIdentifier = action.worker.identifier;
+            },
+        );
+
+        // remove the job from the queue
+        if (actionIdentifier === undefined)
+            throw new ConflictException('Action or Worker not found');
         const job =
-            await this.actionQueues[action.worker.identifier]?.getJob(jobId);
-        if (!job) {
-            throw new ConflictException('Job not found');
-        }
-        try {
-            await job.remove();
-        } catch (error: any) {
-            logger.log(error);
-        }
+            await this.actionQueues[actionIdentifier]?.getJob(actionRunId);
+        if (!job) throw new ConflictException('Job not found');
+        await job.remove();
 
         return {};
     }
