@@ -48,7 +48,7 @@ import Queue from 'bull';
 import { Gauge } from 'prom-client';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 
-function extractFileIdFromUrl(url: string): string | null {
+function extractFileIdFromUrl(url: string): string | undefined {
     // Define the regex patterns for file and folder IDs, now including optional /u/[number]/ segments
     const filePattern = /\/file(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]+)/;
     const folderPattern = /\/drive(?:\/u\/\d+)?\/folders\/([a-zA-Z0-9_-]+)/;
@@ -65,8 +65,8 @@ function extractFileIdFromUrl(url: string): string | null {
         return match[1];
     }
 
-    // Return null if no match is found
-    return null;
+    // Return undefined if no match is found
+    return undefined;
 }
 
 @Injectable()
@@ -142,7 +142,8 @@ export class QueueService implements OnModuleInit {
 
         // get GoogleDrive file id
         const fileId = extractFileIdFromUrl(driveCreate.driveURL);
-        if (!fileId) throw new ConflictException('Invalid Drive URL');
+        if (fileId === undefined)
+            throw new ConflictException('Invalid Drive URL');
 
         const queueEntry = await this.queueRepository.save(
             this.queueRepository.create({
@@ -398,12 +399,6 @@ export class QueueService implements OnModuleInit {
         }
 
         return {};
-    }
-
-    async exists(missionUUID: string, queueUUID: string) {
-        return this.queueRepository.exists({
-            where: { uuid: queueUUID, mission: { uuid: missionUUID } },
-        });
     }
 
     async cancelProcessing(
