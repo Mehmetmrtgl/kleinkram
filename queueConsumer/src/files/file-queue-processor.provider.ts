@@ -13,7 +13,7 @@ import { IsNull, Like, Repository } from 'typeorm';
 
 import FileEntity from '@common/entities/file/file.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import Topic from '@common/entities/topic/topic.entity';
+import TopicEntity from '@common/entities/topic/topic.entity';
 import env from '@common/environment';
 import {
     FileLocation,
@@ -59,7 +59,8 @@ export class FileQueueProcessorProvider implements OnModuleInit {
         private queueRepository: Repository<QueueEntity>,
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
-        @InjectRepository(Topic) private topicRepository: Repository<Topic>,
+        @InjectRepository(TopicEntity)
+        private topicRepository: Repository<TopicEntity>,
     ) {
         logger.debug('FileProcessor created');
     }
@@ -783,7 +784,7 @@ export class FileQueueProcessorProvider implements OnModuleInit {
             topics,
             date,
         }: {
-            topics: Partial<Topic>[];
+            topics: Partial<TopicEntity>[];
             date: Date;
             size: number;
         } = await mcapMetaInfo(temporaryFileName).catch(

@@ -1,6 +1,6 @@
 import { TopicNamesDto, TopicsDto } from '@common/api/types/topic.dto';
-import Topic from '@common/entities/topic/topic.entity';
-import User from '@common/entities/user/user.entity';
+import TopicEntity from '@common/entities/topic/topic.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,8 +11,10 @@ import { topicEntityToDto } from '../serialization';
 @Injectable()
 export class TopicService {
     constructor(
-        @InjectRepository(Topic) private topicRepository: Repository<Topic>,
-        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(TopicEntity)
+        private topicRepository: Repository<TopicEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
     ) {}
 
     async findAllNames(userUuid): Promise<TopicNamesDto> {
@@ -91,7 +93,7 @@ export class TopicService {
         type: string,
         messageCount: bigint,
         frequency: number,
-    ): Promise<Topic> {
+    ): Promise<TopicEntity> {
         const newTopic = this.topicRepository.create({
             name,
             type,

@@ -1,8 +1,8 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
-import Project from '@common/entities/project/project.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights, DataType } from '@common/frontend_shared/enum';
 import {
     createMetadataUsingPost,
@@ -30,7 +30,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // Create internal user
         ({
-            user: globalThis.creator as User,
+            user: globalThis.creator as UserEntity,
             token: globalThis.creator.token,
             response: globalThis.creator.Response,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -38,7 +38,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // Create 2nd internal user
         ({
-            user: globalThis.user as User,
+            user: globalThis.user as UserEntity,
             token: globalThis.userToken,
             response: globalThis.userResponse,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -48,7 +48,7 @@ describe('Verify project manipulation endpoints', () => {
     beforeEach(async () => {
         // get access group for creator
         const accessGroupRepository =
-            database.getRepository<AccessGroup>('access_group');
+            database.getRepository<AccessGroupEntity>('access_group');
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -68,7 +68,8 @@ describe('Verify project manipulation endpoints', () => {
         );
 
         // check if it is generated
-        const tagTypeRepository = database.getRepository<TagType>('TagType');
+        const tagTypeRepository =
+            database.getRepository<TagTypeEntity>('TagType');
         const tagTypes = await tagTypeRepository.findOneOrFail({
             where: { uuid: globalThis.metadataUuid },
         });
@@ -97,7 +98,8 @@ describe('Verify project manipulation endpoints', () => {
         );
 
         // check if project is created
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -108,7 +110,7 @@ describe('Verify project manipulation endpoints', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<User>('User');
+        const userRepository = database.getRepository<UserEntity>('User');
         const users = await userRepository.find();
         expect(users.length).toBe(2);
 
@@ -129,7 +131,8 @@ describe('Verify project manipulation endpoints', () => {
         console.log(`[DEBUG]: All Missions removed: ${responseMission}`);
 
         // delete project
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const allProjects = await projectRepository.find();
         const response = await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -138,7 +141,7 @@ describe('Verify project manipulation endpoints', () => {
         console.log(`[DEBUG]: All Projects removed: ${response}`);
 
         // delete tags
-        const tagsRepository = database.getRepository<TagType>('TagType');
+        const tagsRepository = database.getRepository<TagTypeEntity>('TagType');
         const allTagss = await tagsRepository.find();
         const metadataResponse = await tagsRepository.remove(allTagss);
         const remainingTags = await tagsRepository.find();
@@ -156,7 +159,8 @@ describe('Verify project manipulation endpoints', () => {
 
     test('if metadata can be added to project by creator of project', async () => {
         // check if link between project and TagType is correct
-        const TagTypeRepository = database.getRepository<TagType>('TagType');
+        const TagTypeRepository =
+            database.getRepository<TagTypeEntity>('TagType');
         const tagType = await TagTypeRepository.findOneOrFail({
             where: { uuid: globalThis.metadataUuid },
             relations: ['project'],
@@ -191,7 +195,8 @@ describe('Verify project manipulation endpoints', () => {
             },
         );
 
-        const TagTypeRepository = database.getRepository<TagType>('TagType');
+        const TagTypeRepository =
+            database.getRepository<TagTypeEntity>('TagType');
         const tagType = await TagTypeRepository.findOneOrFail({
             where: { uuid: metadataUuid },
             relations: ['project'],
@@ -204,7 +209,7 @@ describe('Verify project manipulation endpoints', () => {
 
     test('if access management of project can be edited by creator', async () => {
         const accessGroupRepository =
-            database.getRepository<AccessGroup>('access_group');
+            database.getRepository<AccessGroupEntity>('access_group');
         const accessGroupUser = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.user.name },
         });
@@ -214,7 +219,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // check if access group has correct access to project
         const projectAccessRepository =
-            database.getRepository<ProjectAccess>('project_access');
+            database.getRepository<ProjectAccessEntity>('project_access');
         const projectUserAccess = await projectAccessRepository.findOneOrFail({
             where: { accessGroup: { uuid: accessGroupUser.uuid } },
             relations: ['accessGroup'],

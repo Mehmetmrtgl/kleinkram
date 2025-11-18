@@ -1,45 +1,48 @@
 import { Column, Entity, ManyToOne, OneToMany, Unique } from 'typeorm';
-import Action from '../action/action.entity';
-import Apikey from '../auth/apikey.entity';
-import MissionAccess from '../auth/mission-access.entity';
+import ActionEntity from '../action/action.entity';
+import ApikeyEntity from '../auth/apikey.entity';
+import MissionAccessEntity from '../auth/mission-access.entity';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
-import Project from '../project/project.entity';
+import MetadataEntity from '../metadata/metadata.entity';
+import ProjectEntity from '../project/project.entity';
 import QueueEntity from '../queue/queue.entity';
-import Tag from '../tag/tag.entity';
-import User from '../user/user.entity';
+import UserEntity from '../user/user.entity';
 
 @Unique('unique_mission_name_per_project', ['name', 'project'])
-@Entity()
-export default class Mission extends BaseEntity {
+@Entity({ name: 'mission' })
+export default class MissionEntity extends BaseEntity {
     @Column()
     name!: string;
 
-    @ManyToOne(() => Project, (project) => project.missions, {
+    @ManyToOne(() => ProjectEntity, (project) => project.missions, {
         nullable: false,
     })
-    project?: Project;
+    project?: ProjectEntity;
 
     @OneToMany(() => FileEntity, (file) => file.mission)
     files?: FileEntity[];
 
-    @OneToMany(() => Action, (action) => action.mission)
-    actions?: Action[];
+    @OneToMany(() => ActionEntity, (action) => action.mission)
+    actions?: ActionEntity[];
 
     @OneToMany(() => QueueEntity, (queue) => queue.mission)
     queues?: QueueEntity[];
 
-    @ManyToOne(() => User, (user) => user.missions, { nullable: false })
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.missions, { nullable: false })
+    creator?: UserEntity;
 
-    @OneToMany(() => Apikey, (apiKey) => apiKey.mission)
-    api_keys?: Apikey[];
+    @OneToMany(() => ApikeyEntity, (apiKey) => apiKey.mission)
+    api_keys?: ApikeyEntity[];
 
-    @OneToMany(() => MissionAccess, (missionAccess) => missionAccess.mission)
-    mission_accesses?: MissionAccess[];
+    @OneToMany(
+        () => MissionAccessEntity,
+        (missionAccess) => missionAccess.mission,
+    )
+    mission_accesses?: MissionAccessEntity[];
 
-    @OneToMany(() => Tag, (tag) => tag.mission)
-    tags?: Tag[];
+    @OneToMany(() => MetadataEntity, (tag) => tag.mission)
+    tags?: MetadataEntity[];
 
     fileCount?: number;
     size?: number;

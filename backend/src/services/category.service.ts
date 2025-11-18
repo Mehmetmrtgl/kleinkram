@@ -1,5 +1,5 @@
 import { CategoriesDto } from '@common/api/types/category.dto';
-import Category from '@common/entities/category/category.entity';
+import CategoryEntity from '@common/entities/category/category.entity';
 import FileEntity from '@common/entities/file/file.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,14 +10,14 @@ import logger from '../logger';
 @Injectable()
 export class CategoryService {
     constructor(
-        @InjectRepository(Category)
-        private categoryRepository: Repository<Category>,
+        @InjectRepository(CategoryEntity)
+        private categoryRepository: Repository<CategoryEntity>,
         @InjectRepository(FileEntity)
         private fileEntityRepository: Repository<FileEntity>,
     ) {}
 
     async getAll(projectUUID: string, filter?: string): Promise<CategoriesDto> {
-        const where: FindOptionsWhere<Category> = {
+        const where: FindOptionsWhere<CategoryEntity> = {
             project: { uuid: projectUUID },
         };
         if (filter) {

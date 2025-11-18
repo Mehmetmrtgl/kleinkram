@@ -1,12 +1,12 @@
 import { MoreThanOrEqual, Repository } from 'typeorm';
-import Action from './entities/action/action.entity';
-import Worker from './entities/worker/worker.entity';
+import ActionEntity from './entities/action/action.entity';
+import WorkerEntity from './entities/worker/worker.entity';
 import { ActionState } from './frontend_shared/enum';
 import { RuntimeDescription } from './types';
 
 export async function findWorkerForAction(
     runtimeRequirements: RuntimeDescription,
-    workerRepository: Repository<Worker>,
+    workerRepository: Repository<WorkerEntity>,
     actionQueues: Record<string, any>,
     logger: any,
 ) {
@@ -43,7 +43,7 @@ export async function findWorkerForAction(
 }
 
 export async function addActionQueue(
-    action: Action,
+    action: ActionEntity,
     runtimeRequirements: RuntimeDescription,
     workerRepository: any,
     actionRepository: any,

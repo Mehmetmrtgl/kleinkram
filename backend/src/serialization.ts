@@ -1,14 +1,14 @@
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
-import Tag from '@common/entities/tag/tag.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
-import Topic from '@common/entities/topic/topic.entity';
-import User from '@common/entities/user/user.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
+import TopicEntity from '@common/entities/topic/topic.entity';
+import UserEntity from '@common/entities/user/user.entity';
 
 import { ActionWorkerDto } from '@common/api/types/action-workers.dto';
 import { ActionTemplateDto } from '@common/api/types/actions/action-template.dto';
@@ -32,7 +32,7 @@ import { TagDto, TagTypeDto } from '@common/api/types/tags/tags.dto';
 import { TopicDto } from '@common/api/types/topic.dto';
 import { GroupMembershipDto, UserDto } from '@common/api/types/user.dto';
 
-export const missionEntityToDto = (mission: Mission): MissionDto => {
+export const missionEntityToDto = (mission: MissionEntity): MissionDto => {
     if (!mission.project) {
         throw new Error('Mission project is not set');
     }
@@ -47,7 +47,7 @@ export const missionEntityToDto = (mission: Mission): MissionDto => {
 };
 
 export const missionEntityToDtoWithCreator = (
-    mission: Mission,
+    mission: MissionEntity,
 ): MissionWithCreatorDto => {
     if (!mission.creator) {
         throw new Error('Mission creator is not set');
@@ -59,7 +59,9 @@ export const missionEntityToDtoWithCreator = (
     };
 };
 
-export const missionEntityToFlatDto = (mission: Mission): FlatMissionDto => {
+export const missionEntityToFlatDto = (
+    mission: MissionEntity,
+): FlatMissionDto => {
     return {
         ...missionEntityToDtoWithCreator(mission),
         filesCount: mission.fileCount ?? 0,
@@ -68,7 +70,7 @@ export const missionEntityToFlatDto = (mission: Mission): FlatMissionDto => {
 };
 
 export const missionEntityToDtoWithFiles = (
-    mission: Mission,
+    mission: MissionEntity,
 ): MissionWithFilesDto => {
     if (!mission.files) {
         throw new Error('Mission files are not set');
@@ -86,7 +88,7 @@ export const missionEntityToDtoWithFiles = (
 };
 
 export const missionEntityToMinimumDto = (
-    mission: Mission,
+    mission: MissionEntity,
 ): MinimumMissionDto => {
     return {
         name: mission.name,
@@ -95,7 +97,7 @@ export const missionEntityToMinimumDto = (
 };
 
 export const actionTemplateEntityToDto = (
-    actionTemplate: ActionTemplate,
+    actionTemplate: ActionTemplateEntity,
 ): ActionTemplateDto => {
     return {
         uuid: actionTemplate.uuid,
@@ -113,8 +115,8 @@ export const actionTemplateEntityToDto = (
     };
 };
 
-export const actionEntityToDto = (action: Action): ActionDto => {
-    if (action.createdBy === undefined) {
+export const actionEntityToDto = (action: ActionEntity): ActionDto => {
+    if (action.creator === undefined) {
         throw new Error('Action must have a creator');
     }
 
@@ -131,7 +133,7 @@ export const actionEntityToDto = (action: Action): ActionDto => {
         artifacts: action.artifacts,
         auditLogs: (action.auditLogs as unknown as AuditLogDto[]) ?? [],
         createdAt: action.createdAt,
-        creator: userEntityToDto(action.createdBy),
+        creator: userEntityToDto(action.creator),
         image: (action.image as DockerImageDto) ?? { repoDigests: [] },
         logs: (action.logs as unknown as LogsDto[]) ?? [],
         mission: missionEntityToDto(action.mission),
@@ -144,7 +146,7 @@ export const actionEntityToDto = (action: Action): ActionDto => {
     };
 };
 
-export const tagTypeEntityToDto = (tagType: TagType): TagTypeDto => {
+export const tagTypeEntityToDto = (tagType: TagTypeEntity): TagTypeDto => {
     return {
         uuid: tagType.uuid,
         createdAt: tagType.createdAt,
@@ -199,7 +201,9 @@ export const fileEntityToDtoWithTopic = (
     };
 };
 
-export const projectAccessEntityToDto = (projectAccess: ProjectAccess) => {
+export const projectAccessEntityToDto = (
+    projectAccess: ProjectAccessEntity,
+) => {
     if (projectAccess.accessGroup === undefined) {
         throw new Error('Access group not found');
     }
@@ -218,7 +222,7 @@ export const projectAccessEntityToDto = (projectAccess: ProjectAccess) => {
 };
 
 export const groupMembershipEntityToDto = (
-    groupMembership: GroupMembership,
+    groupMembership: GroupMembershipEntity,
     includeEmail = false,
 ): GroupMembershipDto => {
     if (groupMembership.user === undefined) {
@@ -236,7 +240,7 @@ export const groupMembershipEntityToDto = (
     };
 };
 
-export const projectEntityToDto = (project: Project): ProjectDto => {
+export const projectEntityToDto = (project: ProjectEntity): ProjectDto => {
     return {
         uuid: project.uuid,
         name: project.name,
@@ -248,7 +252,7 @@ export const projectEntityToDto = (project: Project): ProjectDto => {
 };
 
 export const projectEntityToDtoWithMissionCount = (
-    project: Project,
+    project: ProjectEntity,
 ): ProjectWithMissionCountDto => {
     if (project.creator === undefined) {
         throw new Error('Creator can never be undefined');
@@ -262,7 +266,7 @@ export const projectEntityToDtoWithMissionCount = (
 };
 
 export const projectEntityToDtoWithRequiredTags = (
-    project: Project,
+    project: ProjectEntity,
     missionCount: number,
 ): ProjectWithMissionsDto => {
     if (project.creator === undefined) {
@@ -280,7 +284,7 @@ export const projectEntityToDtoWithRequiredTags = (
 };
 
 export const projectEntityToDtoWithMissionCountAndTags = (
-    project: Project,
+    project: ProjectEntity,
 ): ProjectWithRequiredTagsDto => {
     if (project.creator === undefined) {
         throw new Error('Creator can never be undefined');
@@ -295,7 +299,7 @@ export const projectEntityToDtoWithMissionCountAndTags = (
 };
 
 export const projectEntityToDtoWithMissions = (
-    project: Project,
+    project: ProjectEntity,
 ): ProjectWithMissionsDto => {
     if (project.creator === undefined) {
         throw new Error('Creator can never be undefined');
@@ -311,7 +315,7 @@ export const projectEntityToDtoWithMissions = (
     };
 };
 
-export const topicEntityToDto = (topic: Topic): TopicDto => {
+export const topicEntityToDto = (topic: TopicEntity): TopicDto => {
     return {
         name: topic.name,
         type: topic.type,
@@ -320,7 +324,7 @@ export const topicEntityToDto = (topic: Topic): TopicDto => {
     };
 };
 
-export const tagEntityToDto = (tag: Tag): TagDto => {
+export const tagEntityToDto = (tag: MetadataEntity): TagDto => {
     if (!tag.tagType) {
         throw new Error('TagType is not set');
     }
@@ -331,11 +335,11 @@ export const tagEntityToDto = (tag: Tag): TagDto => {
         },
         type: tagTypeEntityToDto(tag.tagType),
         value:
-            tag.STRING ??
-            tag.NUMBER ??
-            tag.BOOLEAN ??
-            tag.DATE ??
-            tag.LOCATION ??
+            tag.value_string ??
+            tag.value_number ??
+            tag.value_boolean ??
+            tag.value_date ??
+            tag.value_location ??
             '',
         createdAt: tag.createdAt,
         datatype: tag.tagType.datatype,
@@ -345,7 +349,10 @@ export const tagEntityToDto = (tag: Tag): TagDto => {
     };
 };
 
-export const userEntityToDto = (user: User, includeEmail = false): UserDto => {
+export const userEntityToDto = (
+    user: UserEntity,
+    includeEmail = false,
+): UserDto => {
     return {
         uuid: user.uuid,
         name: user.name,

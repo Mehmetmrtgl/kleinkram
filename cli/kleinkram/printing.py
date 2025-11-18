@@ -4,6 +4,7 @@ import json
 import sys
 from dataclasses import asdict
 from datetime import datetime
+import time
 from pathlib import Path
 from typing import List
 from typing import Mapping
@@ -13,13 +14,17 @@ from typing import Tuple
 from typing import Union
 
 import dateutil.parser
+import httpx
+import typer
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+import kleinkram
+from kleinkram.api.client import AuthenticatedClient
 from kleinkram.config import get_shared_state
 from kleinkram.core import FileVerificationStatus
-from kleinkram.models import File
+from kleinkram.models import File, Run, LogEntry, ActionTemplate
 from kleinkram.models import FileState
 from kleinkram.models import MetadataValue
 from kleinkram.models import MetadataValueType
@@ -384,3 +389,218 @@ def print_project_info(project: Project, *, pprint: bool) -> None:
         for key in project_dct:
             project_dct[key] = str(project_dct[key])  # TODO: improve this
         print(json.dumps(project_dct))
+
+
+def runs_to_table(runs: Sequence[Run]) -> Table:
+    table = Table(title="action runs")
+    table.add_column("project")
+    table.add_column("mission")
+    table.add_column("template")
+    table.add_column("run id")
+    table.add_column("status")
+    table.add_column("created")
+
+    # order by created_at descending
+    runs_sorted = sorted(runs, key=lambda r: r.created_at, reverse=True)
+
+    max_table_size = get_shared_state().max_table_size
+    for run in runs_sorted[:max_table_size]:
+        table.add_row(
+            run.project_name,
+            run.mission_name,
+            run.template_name,
+            Text(str(run.uuid), style="green"),
+            run.state,
+            str(run.created_at),
+        )
+
+    if len(list(runs)) > max_table_size:
+        _add_placeholder_row(table, skipped=len(runs) - max_table_size)
+    return table
+
+
+def run_info_table(run: Run) -> Table:
+    table = Table("k", "v", title=f"run info: {run.uuid}", show_header=False)
+
+    table.add_row("id", Text(str(run.uuid), style="green"))
+    table.add_row("template", run.template_name)
+    table.add_row("status", run.state)
+    table.add_row("project", run.project_name)
+    table.add_row("mission", run.mission_name)
+    table.add_row("created", str(run.created_at))
+
+    finished = str(run.updated_at) if run.updated_at else "N/A"
+    table.add_row("updated", finished)
+
+    return table
+
+
+def print_runs_table(runs: Sequence[Run], *, pprint: bool) -> None:
+    """
+    Prints the runs to stdout
+    either using pprint or as a list for piping
+    """
+    if pprint:
+        table = runs_to_table(runs)
+        Console().print(table)
+    else:
+        for run in runs:
+            print(run.uuid)
+
+
+def print_run_info(run: Run, *, pprint: bool) -> None:
+    """
+    Prints the run info to stdout
+    either using pprint or as JSON for piping
+    """
+    if pprint:
+        Console().print(run_info_table(run))
+    else:
+        run_dict = asdict(run)
+        for key in run_dict:
+            run_dict[key] = str(run_dict[key])  # simple serialization
+        print(json.dumps(run_dict))
+
+
+LOG_LEVEL_COLORS = {
+    "DEBUG": typer.colors.CYAN,
+    "INFO": typer.colors.GREEN,
+    "WARNING": typer.colors.YELLOW,
+    "ERROR": typer.colors.RED,
+    "CRITICAL": typer.colors.BRIGHT_RED,
+    "STDOUT": typer.colors.BRIGHT_BLACK,
+    "STDERR": typer.colors.RED,
+}
+
+
+def pretty_print_log(entry: LogEntry) -> None:
+    """
+    Prints a single LogEntry object to the console with
+    colors and standardized formatting.
+
+    This version correctly handles carriage returns (from tqdm)
+    and empty lines.
+    """
+    # Clean up the level name, just in case
+    level = entry.level.upper().strip()
+    color = LOG_LEVEL_COLORS.get(level, typer.colors.WHITE)
+    timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    level_str = f"[{level.ljust(8)}]"
+    message = entry.message.strip()
+
+    if not message:
+        return
+
+    typer.secho(f"[{timestamp_str}] {level_str} ", fg=color, nl=False)
+    typer.echo(message)
+
+
+def print_run_logs(logs: Sequence[LogEntry], *, pprint: bool) -> None:
+    """
+    Prints a sequence of LogEntry objects to the console.
+    (This function is unchanged, as the logic is fully
+    contained in pretty_print_log.)
+    """
+    if not logs:
+        typer.secho("No logs found for this run.", fg=typer.colors.YELLOW)
+        return
+
+    for log_entry in logs:
+        if pprint:
+            pretty_print_log(log_entry)
+        else:
+            typer.echo(f"[{log_entry.timestamp}] {log_entry.message}")
+
+
+def action_templates_to_table(templates: Sequence[ActionTemplate]) -> Table:
+    """Creates a rich Table for a list of ActionTemplates."""
+    table = Table(title="Available Action Templates")
+
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("ID (UUID)", style="magenta")
+    table.add_column("Image Name", style="green")
+    table.add_column("Command", style="cyan")
+
+    for template in templates:
+        uuid_text = Text(str(template.uuid), style="magenta")
+        table.add_row(template.name, uuid_text, template.image_name, template.command)
+
+    return table
+
+
+def print_action_templates_table(
+    templates: Sequence[ActionTemplate], *, pprint: bool
+) -> None:
+    """
+    Prints the action templates to stdout
+    either using rich or as a simple list of IDs for piping.
+    """
+    if not templates:
+        typer.echo("No action templates found.")
+        return
+
+    if pprint:
+        table = action_templates_to_table(templates)
+        Console().print(table)
+    else:
+        for template in templates:
+            print(template.uuid)
+
+
+def follow_run_logs(client: AuthenticatedClient, run_uuid: str) -> int:
+    """
+    Polls the API for run details and prints new logs as they arrive.
+
+    Returns:
+        An exit code (0 for success, 1 for failure).
+    """
+    typer.echo(f"Following logs for run {run_uuid}...")
+
+    TERMINAL_STATES = {"DONE", "ERROR", "UNPROCESSABLE"}
+    printed_log_count = 0
+    current_run_state = None
+    exit_code = 0  # Assume success
+
+    try:
+        while current_run_state not in TERMINAL_STATES:
+            try:
+                run_details: Run = kleinkram.api.routes.get_run(client, run_uuid)
+                current_run_state = run_details.state.upper()
+
+                # Print only new logs
+                new_logs = run_details.logs[printed_log_count:]
+                if new_logs:
+                    # Always pretty-print when following
+                    print_run_logs(new_logs, pprint=True)
+                    printed_log_count = len(run_details.logs)
+
+                if current_run_state in TERMINAL_STATES:
+                    color = (
+                        typer.colors.GREEN
+                        if run_details.state.upper() == "DONE"
+                        else typer.colors.RED
+                    )
+                    typer.secho(
+                        f"\nRun finished with state: {run_details.state}", fg=color
+                    )
+                    if run_details.state.upper() != "DONE":
+                        exit_code = 1  # Set failure exit code
+                    break
+
+                time.sleep(2)  # Poll every 2 seconds
+
+            except kleinkram.errors.RunNotFound:
+                time.sleep(1)
+            except httpx.HTTPStatusError as e:
+                typer.secho(f"Error fetching run status: {e}", fg=typer.colors.RED)
+                time.sleep(5)  # Wait longer on API errors
+
+    except KeyboardInterrupt:
+        typer.secho(
+            f"\nStopped following logs. Run {run_uuid} is still processing.",
+            fg=typer.colors.YELLOW,
+        )
+        # Return 0, as the command itself wasn't a failure
+        return 0
+
+    return exit_code

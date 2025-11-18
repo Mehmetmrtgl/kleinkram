@@ -1,9 +1,9 @@
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import Action from '@common/entities/action/action.entity';
+import ActionEntity from '@common/entities/action/action.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import Worker from '@common/entities/worker/worker.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import {
     ActionState,
     FileLocation,
@@ -17,6 +17,7 @@ import { ConflictException, Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+    EntityManager,
     FindOptionsWhere,
     In,
     IsNull,
@@ -38,7 +39,7 @@ import {
 import { StopJobResponseDto } from '@common/api/types/queue/stop-job-response.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { redis } from '@common/consts';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import { getInfoFromMinio, internalMinio } from '@common/minio-helper';
 import { addActionQueue } from '@common/scheduling-logic';
@@ -47,7 +48,7 @@ import Queue from 'bull';
 import { Gauge } from 'prom-client';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 
-function extractFileIdFromUrl(url: string): string | null {
+function extractFileIdFromUrl(url: string): string | undefined {
     // Define the regex patterns for file and folder IDs, now including optional /u/[number]/ segments
     const filePattern = /\/file(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]+)/;
     const folderPattern = /\/drive(?:\/u\/\d+)?\/folders\/([a-zA-Z0-9_-]+)/;
@@ -64,8 +65,8 @@ function extractFileIdFromUrl(url: string): string | null {
         return match[1];
     }
 
-    // Return null if no match is found
-    return null;
+    // Return undefined if no match is found
+    return undefined;
 }
 
 @Injectable()
@@ -76,15 +77,15 @@ export class QueueService implements OnModuleInit {
     constructor(
         @InjectRepository(QueueEntity)
         private queueRepository: Repository<QueueEntity>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
         private userService: UserService,
-        @InjectRepository(Worker)
-        private workerRepository: Repository<Worker>,
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
+        @InjectRepository(WorkerEntity)
+        private workerRepository: Repository<WorkerEntity>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
         @InjectMetric('backend_online_workers')
         private onlineWorkers: Gauge,
         @InjectMetric('backend_pending_jobs')
@@ -132,7 +133,7 @@ export class QueueService implements OnModuleInit {
 
     async importFromDrive(
         driveCreate: DriveCreate,
-        user: User,
+        user: UserEntity,
     ): Promise<UpdateTagTypeDto> {
         const mission = await this.missionRepository.findOneOrFail({
             where: { uuid: driveCreate.missionUUID },
@@ -141,7 +142,8 @@ export class QueueService implements OnModuleInit {
 
         // get GoogleDrive file id
         const fileId = extractFileIdFromUrl(driveCreate.driveURL);
-        if (!fileId) throw new ConflictException('Invalid Drive URL');
+        if (fileId === undefined)
+            throw new ConflictException('Invalid Drive URL');
 
         const queueEntry = await this.queueRepository.save(
             this.queueRepository.create({
@@ -399,12 +401,6 @@ export class QueueService implements OnModuleInit {
         return {};
     }
 
-    async exists(missionUUID: string, queueUUID: string) {
-        return this.queueRepository.exists({
-            where: { uuid: queueUUID, mission: { uuid: missionUUID } },
-        });
-    }
-
     async cancelProcessing(
         queueUUID: string,
         missionUUID: string,
@@ -433,7 +429,7 @@ export class QueueService implements OnModuleInit {
     }
 
     async _addActionQueue(
-        action: Action,
+        action: ActionEntity,
         runtimeRequirements: RuntimeDescription,
     ) {
         logger.debug(
@@ -486,28 +482,40 @@ export class QueueService implements OnModuleInit {
         );
     }
 
-    async stopJob(jobId: string): Promise<StopJobResponseDto> {
-        const action = await this.actionRepository.findOne({
-            where: { uuid: jobId },
-            relations: ['worker'],
-        });
+    /**
+     * Stops an action run by its ID.
+     *
+     * @param actionRunId - The ID of the action run to stop.
+     * @returns A promise that resolves to a StopJobResponseDto.
+     * @throws ConflictException if the job is not found.
+     */
+    async stopAction(actionRunId: string): Promise<StopJobResponseDto> {
+        let actionIdentifier: string | undefined = undefined;
 
-        if (action?.worker === undefined)
-            throw new Error('No worker found for this action');
+        // mark the action as aborted in a transaction
+        await this.actionRepository.manager.transaction(
+            async (manager: EntityManager): Promise<void> => {
+                const action = await manager.findOne(ActionEntity, {
+                    where: { uuid: actionRunId },
+                    relations: ['worker'],
+                });
 
-        action.state = ActionState.FAILED;
-        await this.actionRepository.save(action);
+                if (action?.worker === undefined)
+                    throw new Error('No worker found for this action');
 
+                action.state = ActionState.FAILED;
+                await manager.save(action);
+                actionIdentifier = action.worker.identifier;
+            },
+        );
+
+        // remove the job from the queue
+        if (actionIdentifier === undefined)
+            throw new ConflictException('Action or Worker not found');
         const job =
-            await this.actionQueues[action.worker.identifier]?.getJob(jobId);
-        if (!job) {
-            throw new ConflictException('Job not found');
-        }
-        try {
-            await job.remove();
-        } catch (error: any) {
-            logger.log(error);
-        }
+            await this.actionQueues[actionIdentifier]?.getJob(actionRunId);
+        if (!job) throw new ConflictException('Job not found');
+        await job.remove();
 
         return {};
     }

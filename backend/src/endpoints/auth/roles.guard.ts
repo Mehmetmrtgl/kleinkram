@@ -1,4 +1,4 @@
-import Apikey from '@common/entities/auth/apikey.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import {
     AccessGroupRights,
     ActionState,
@@ -19,8 +19,8 @@ import { Repository } from 'typeorm';
 
 import Queue from '@common/entities/queue/queue.entity';
 
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
 import { FileGuardService } from '../../services/file-guard.service';
 import { ProjectGuardService } from '../../services/project-guard.service';
 import { UserService } from '../../services/user.service';
@@ -421,7 +421,8 @@ export class CanDeleteMissionGuard extends BaseGuard {
 export class AddTagGuard extends BaseGuard {
     constructor(
         private missionGuardService: MissionGuardService,
-        @InjectRepository(Apikey) private apikeyRepository: Repository<Apikey>,
+        @InjectRepository(ApikeyEntity)
+        private apikeyRepository: Repository<ApikeyEntity>,
         private reflector: Reflector,
     ) {
         super();
@@ -684,8 +685,8 @@ export class ReadActionGuard extends BaseGuard {
 export class CreateActionGuard extends BaseGuard {
     constructor(
         private missionGuardService: MissionGuardService,
-        @InjectRepository(ActionTemplate)
-        private actionTemplateRepository: Repository<ActionTemplate>,
+        @InjectRepository(ActionTemplateEntity)
+        private actionTemplateRepository: Repository<ActionTemplateEntity>,
     ) {
         super();
     }
@@ -719,8 +720,8 @@ export class DeleteActionGuard extends BaseGuard {
     constructor(
         private reflector: Reflector,
         private missionGuardService: MissionGuardService,
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
     ) {
         super();
     }
@@ -730,12 +731,12 @@ export class DeleteActionGuard extends BaseGuard {
         const actionUUID = request.body.actionUUID;
         const action = await this.actionRepository.findOneOrFail({
             where: { uuid: actionUUID },
-            relations: ['mission', 'createdBy'],
+            relations: ['mission', 'creator'],
         });
 
         if (action.mission === undefined)
             throw new BadRequestException('Action does not have a mission');
-        if (action.createdBy === undefined)
+        if (action.creator === undefined)
             throw new BadRequestException('Action does not have a creator');
 
         if (apiKey) {
@@ -754,7 +755,7 @@ export class DeleteActionGuard extends BaseGuard {
                 "can't delete action unless its DONE, FAILED or UNPROCESSABLE",
             );
         }
-        if (action.createdBy.uuid === user.uuid) {
+        if (action.creator.uuid === user.uuid) {
             return true;
         }
 
@@ -772,8 +773,8 @@ export class CreateActionsGuard extends BaseGuard {
     constructor(
         private reflector: Reflector,
         private missionGuardService: MissionGuardService,
-        @InjectRepository(ActionTemplate)
-        private actionTemplateRepository: Repository<ActionTemplate>,
+        @InjectRepository(ActionTemplateEntity)
+        private actionTemplateRepository: Repository<ActionTemplateEntity>,
     ) {
         super();
     }

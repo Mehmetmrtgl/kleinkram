@@ -1,6 +1,6 @@
-import Apikey from '@common/entities/auth/apikey.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights, UserRole } from '@common/frontend_shared/enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,7 +19,7 @@ export class FileGuardService {
     ) {}
 
     async canAccessFile(
-        user: User,
+        user: UserEntity,
         fileUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ) {
@@ -64,7 +64,7 @@ export class FileGuardService {
     }
 
     async canAccessFileByName(
-        user: User,
+        user: UserEntity,
         filename: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ) {
@@ -81,7 +81,7 @@ export class FileGuardService {
     }
 
     async canKeyAccessFileByName(
-        apikey: Apikey,
+        apikey: ApikeyEntity,
         filename: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ) {
@@ -98,7 +98,7 @@ export class FileGuardService {
     }
 
     async canKeyAccessFile(
-        apiKey: Apikey,
+        apiKey: ApikeyEntity,
         fileUUID: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ) {
@@ -116,7 +116,7 @@ export class FileGuardService {
     }
 
     async canAccessFiles(
-        user: User,
+        user: UserEntity,
         fileUUIDs: string[],
         rights: AccessGroupRights = AccessGroupRights.READ,
     ) {

@@ -1,7 +1,8 @@
 import { CreateProject } from '@common/api/types/create-project.dto';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
     NotFoundException,
@@ -25,10 +26,10 @@ import { ProjectDto } from '@common/api/types/project/base-project.dto';
 import { ProjectWithRequiredTagsDto } from '@common/api/types/project/project-with-required-tags.dto';
 import { ProjectsDto } from '@common/api/types/project/projects.dto';
 import { ResentProjectDto } from '@common/api/types/project/recent-projects.dto';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import {
     AccessGroupRights,
     AccessGroupType,
@@ -56,15 +57,15 @@ export class ProjectService {
     private config: AccessGroupConfig;
 
     constructor(
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
         private userService: UserService,
-        @InjectRepository(ProjectAccess)
-        private projectAccessRepository: Repository<ProjectAccess>,
-        @InjectRepository(TagType)
-        private tagTypeRepository: Repository<TagType>,
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
+        @InjectRepository(ProjectAccessEntity)
+        private projectAccessRepository: Repository<ProjectAccessEntity>,
+        @InjectRepository(TagTypeEntity)
+        private tagTypeRepository: Repository<TagTypeEntity>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
         private configService: ConfigService,
         private readonly dataSource: DataSource,
     ) {
@@ -146,7 +147,7 @@ export class ProjectService {
 
     async getRecentProjects(
         take: number,
-        user: User,
+        user: UserEntity,
     ): Promise<ResentProjectDto[]> {
         let projects;
         if (user.role === UserRole.ADMIN) {
@@ -303,10 +304,7 @@ export class ProjectService {
             .map((ag) => ag.accessGroup)
             .filter((ag) => ag !== undefined);
 
-        if (!project.requiredTags) {
-            project.requiredTags = [];
-        }
-
+        project.requiredTags ??= [];
         const tagTypes = await Promise.all(
             project.requiredTags.map((tag) => {
                 return this.tagTypeRepository.findOneOrFail({
@@ -340,8 +338,11 @@ export class ProjectService {
         }
 
         const transactedProject = await this.dataSource.transaction(
-            async (manager) => {
-                const savedProject = await manager.save(Project, newProject);
+            async (manager: EntityManager): Promise<ProjectEntity> => {
+                const savedProject = await manager.save(
+                    ProjectEntity,
+                    newProject,
+                );
                 await this.createDefaultAccessGroups(
                     manager,
                     defaultAccessGroups,
@@ -350,15 +351,22 @@ export class ProjectService {
                 );
 
                 if (project.accessGroups) {
-                    await this.createSpecifiedAccessGroups(
-                        manager,
-                        deduplicatedAccessGroups,
-                        savedProject,
-                    );
+                    try {
+                        await this.createSpecifiedAccessGroups(
+                            manager,
+                            deduplicatedAccessGroups,
+                            savedProject,
+                        );
+                    } catch {
+                        throw new BadRequestException(
+                            'Failed to set permissions. One or more user/group UUIDs may be invalid.',
+                        );
+                    }
                 }
                 return savedProject;
             },
         );
+
         return (await this.projectRepository.findOneOrFail({
             where: { uuid: transactedProject.uuid },
         })) as unknown as ProjectDto;
@@ -427,7 +435,7 @@ export class ProjectService {
             async (transactionalEntityManager) => {
                 // Check if there are any missions with that project
                 const missionCount = await transactionalEntityManager.count(
-                    Mission,
+                    MissionEntity,
                     { where: { project: { uuid } } },
                 );
 
@@ -439,7 +447,7 @@ export class ProjectService {
 
                 // all categories will be deleted due to 'onDelete: CASCADE'.
                 const deleteResult = await transactionalEntityManager.delete(
-                    Project,
+                    ProjectEntity,
                     { uuid },
                 );
 
@@ -455,10 +463,10 @@ export class ProjectService {
 
     async createDefaultAccessGroups(
         manager: EntityManager,
-        accessGroups: AccessGroup[],
-        project: Project,
+        accessGroups: AccessGroupEntity[],
+        project: ProjectEntity,
         removedDefaultGroups?: string[],
-    ) {
+    ): Promise<(ProjectAccessEntity | undefined)[]> {
         if (!removedDefaultGroups) {
             removedDefaultGroups = [];
         }
@@ -489,7 +497,7 @@ export class ProjectService {
                     accessGroup,
                     project: project,
                 });
-                return manager.save(ProjectAccess, projectAccess);
+                return manager.save(ProjectAccessEntity, projectAccess);
             }),
         );
     }
@@ -500,11 +508,11 @@ export class ProjectService {
             | { accessGroupUUID: string; rights: AccessGroupRights }
             | { userUUID: string; rights: AccessGroupRights }
         )[],
-        project: Project,
-    ) {
+        project: ProjectEntity,
+    ): Promise<Awaited<ProjectAccessEntity>[]> {
         return await Promise.all(
             accessGroups.map(async (accessGroup) => {
-                let accessGroupDB: AccessGroup;
+                let accessGroupDB: AccessGroupEntity;
                 if ('accessGroupUUID' in accessGroup) {
                     accessGroupDB =
                         await this.accessGroupRepository.findOneOrFail({
@@ -536,7 +544,7 @@ export class ProjectService {
                     accessGroup: accessGroupDB,
                     project: project,
                 });
-                return manager.save(ProjectAccess, projectAccess);
+                return manager.save(ProjectAccessEntity, projectAccess);
             }),
         );
     }

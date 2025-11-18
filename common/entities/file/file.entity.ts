@@ -12,21 +12,23 @@ import {
 import { FileOrigin, FileState, FileType } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
 import CategoryEntity from '../category/category.entity';
-import Mission from '../mission/mission.entity';
-import Topic from '../topic/topic.entity';
-import User from '../user/user.entity';
+import MissionEntity from '../mission/mission.entity';
+import TopicEntity from '../topic/topic.entity';
+import UserEntity from '../user/user.entity';
 
-@Entity()
+@Entity({ name: 'file_entity' })
 @Unique('unique_file_name_per_mission', ['filename', 'mission'])
 export default class FileEntity extends BaseEntity {
-    @ManyToOne(() => Mission, (mission) => mission.files, { nullable: false })
-    mission?: Mission;
+    @ManyToOne(() => MissionEntity, (mission) => mission.files, {
+        nullable: false,
+    })
+    mission?: MissionEntity;
 
     @Column()
     date!: Date;
 
-    @OneToMany(() => Topic, (topic) => topic.file)
-    topics?: Topic[];
+    @OneToMany(() => TopicEntity, (topic) => topic.file)
+    topics?: TopicEntity[];
 
     @Column()
     filename!: string;
@@ -43,8 +45,8 @@ export default class FileEntity extends BaseEntity {
     /**
      * The user who uploaded the file.
      */
-    @ManyToOne(() => User, (user) => user.files, { nullable: false })
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.files, { nullable: false })
+    creator?: UserEntity;
 
     @Column()
     type!: FileType;

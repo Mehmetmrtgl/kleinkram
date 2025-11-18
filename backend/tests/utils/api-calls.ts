@@ -4,9 +4,9 @@ import { CreateMission } from '@common/api/types/create-mission.dto';
 import { CreateProject } from '@common/api/types/create-project.dto';
 import { CreateTemplateDto } from '@common/api/types/create-template.dto';
 import { CreateTagTypeDto } from '@common/api/types/tags/create-tag-type.dto';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { QueueState } from '@common/frontend_shared/enum';
 import crypto from 'node:crypto';
 import * as fs from 'node:fs';
@@ -20,9 +20,9 @@ export class HeaderCreator {
     /**
      * Creates a HeadersBuilder instance and initializes headers.
      *
-     * @param {User} user - The authenticated user whose token is used in headers.
+     * @param {UserEntity} user - The authenticated user whose token is used in headers.
      */
-    constructor(user?: User) {
+    constructor(user?: UserEntity) {
         this.headers = new Headers();
 
         if (user) {
@@ -57,14 +57,14 @@ export class HeaderCreator {
  * Sends a POST request to create a new project on the backend server.
  *
  * @param {CreateProject} project - The project data to be created.
- * @param {User} user -             The authenticated user requesting the project creation.
+ * @param {UserEntity} user -             The authenticated user requesting the project creation.
  * @returns {Promise<string>} -     A promise that responseolves to the UUID of the created project.
  *
  * @throws {Error} -                Throws an error if the request fails or returns a non-2xx status code.
  */
 export const createProjectUsingPost = async (
     project: CreateProject,
-    user: User,
+    user: UserEntity,
 ): Promise<string> => {
     // generate header
     const headersBuilder = new HeaderCreator(user);
@@ -85,7 +85,7 @@ export const createProjectUsingPost = async (
 
 export const createMissionUsingPost = async (
     mission: CreateMission,
-    user: User,
+    user: UserEntity,
 ): Promise<string> => {
     // create header
     const headersBuilder = new HeaderCreator(user);
@@ -122,7 +122,7 @@ export const createMissionUsingPost = async (
  *
  */
 export async function uploadFile(
-    user: User,
+    user: UserEntity,
     filename: string,
     missionUuid: string,
 ): Promise<ArrayBuffer> {
@@ -219,7 +219,7 @@ export async function uploadFile(
 
 export const createMetadataUsingPost = async (
     tagType: CreateTagTypeDto,
-    user: User,
+    user: UserEntity,
 ): Promise<string> => {
     const headersBuilder = new HeaderCreator(user);
     headersBuilder.addHeader('Content-Type', 'application/json');
@@ -241,9 +241,9 @@ export const createMetadataUsingPost = async (
 
 export const createAccessGroupUsingPost = async (
     accessGroup: CreateAccessGroupDto,
-    creator: User,
+    creator: UserEntity,
     // accessGroupType: AccessGroupType,
-    userList: [User],
+    userList: [UserEntity],
 ): Promise<string> => {
     const headersBuilder = new HeaderCreator(creator);
     headersBuilder.addHeader('Content-Type', 'application/json');
@@ -258,7 +258,7 @@ export const createAccessGroupUsingPost = async (
 
     // get access group
     const testAccesGroup = await database
-        .getRepository<AccessGroup>('AccessGroup')
+        .getRepository<AccessGroupEntity>('AccessGroup')
         .findOneOrFail({ where: { name: accessGroup.name } });
 
     const groupJson = await response.json();
@@ -295,7 +295,7 @@ export const createAccessGroupUsingPost = async (
 
 export const createActionUsingPost = async (
     action: CreateTemplateDto,
-    user: User,
+    user: UserEntity,
 ): Promise<string> => {
     // generate header
     const headersBuilder = new HeaderCreator(user);

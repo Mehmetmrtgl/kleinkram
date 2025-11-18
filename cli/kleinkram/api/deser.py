@@ -13,7 +13,7 @@ from uuid import UUID
 import dateutil.parser
 
 from kleinkram.errors import ParsingError
-from kleinkram.models import File
+from kleinkram.models import File, Run, LogEntry, ActionTemplate
 from kleinkram.models import FileState
 from kleinkram.models import MetadataValue
 from kleinkram.models import Mission
@@ -29,6 +29,7 @@ __all__ = [
 ProjectObject = NewType("ProjectObject", Dict[str, Any])
 MissionObject = NewType("MissionObject", Dict[str, Any])
 FileObject = NewType("FileObject", Dict[str, Any])
+RunObject = NewType("RunObject", Dict[str, Any])
 
 MISSION = "mission"
 PROJECT = "project"
@@ -65,6 +66,56 @@ class ProjectObjectKeys(str, Enum):
     CREATED_AT = "createdAt"
     UPDATED_AT = "updatedAt"
     REQUIRED_TAGS = "requiredTags"
+
+
+class RunObjectKeys(str, Enum):
+    UUID = "uuid"
+    STATE = "state"
+    CREATED_AT = "createdAt"
+    MISSION = "mission"
+    TEMPLATE = "template"
+    UPDATED_AT = "updatedAt"
+    LOGS = "logs"
+
+
+"""
+@dataclass(frozen=True)
+class ActionTemplate:
+    uuid: UUID
+    access_rights: int
+    command: str
+    cpu_cores: int
+    cpu_memory_gb: int
+    entrypoint: str
+    gpu_memory_gb: int
+    image_name: str
+    max_runtime_minutes: int
+    created_at: datetime
+    name: str
+    version: str
+
+"""
+
+
+class TemplateObjectKeys(str, Enum):
+    UUID = "uuid"
+    NAME = "name"
+    ACCESS_RIGHTS = "accessRights"
+    COMMAND = "command"
+    CPU_CORES = "cpuCores"
+    CPU_MEMORY_GB = "cpuMemory"
+    ENTRYPOINT = "entrypoint"
+    GPU_MEMORY_GB = "gpuMemory"
+    IMAGE_NAME = "imageName"
+    MAX_RUNTIME_MINUTES = "maxRuntime"
+    CREATED_AT = "createdAt"
+    VERSION = "version"
+
+
+class LogEntryObjectKeys(str, Enum):
+    TIMESTAMP = "timestamp"
+    LEVEL = "type"
+    MESSAGE = "message"
 
 
 def _get_nested_info(data, key: Literal["mission", "project"]) -> Tuple[UUID, str]:
@@ -193,3 +244,107 @@ def _parse_file(file: FileObject) -> File:
     except Exception as e:
         raise ParsingError(f"error parsing file: {file}") from e
     return parsed
+
+
+"""
+@dataclass(frozen=True)
+class ActionTemplate:
+    uuid: UUID
+    access_rights: int
+    command: str
+    cpu_cores: int
+    cpu_memory_gb: int
+    entrypoint: str
+    gpu_memory_gb: int
+    image_name: str
+    max_runtime_minutes: int
+    created_at: datetime
+    name: str
+    version: str
+
+"""
+
+
+def _parse_action_template(run_object: RunObject) -> ActionTemplate:
+    try:
+        uuid_ = UUID(run_object[TemplateObjectKeys.UUID], version=4)
+        access_rights = run_object[TemplateObjectKeys.ACCESS_RIGHTS]
+        command = run_object[TemplateObjectKeys.COMMAND]
+        cpu_cores = run_object[TemplateObjectKeys.CPU_CORES]
+        cpu_memory_gb = run_object[TemplateObjectKeys.CPU_MEMORY_GB]
+        entrypoint = run_object[TemplateObjectKeys.ENTRYPOINT]
+        gpu_memory_gb = run_object[TemplateObjectKeys.GPU_MEMORY_GB]
+        image_name = run_object[TemplateObjectKeys.IMAGE_NAME]
+        max_runtime_minutes = run_object[TemplateObjectKeys.MAX_RUNTIME_MINUTES]
+        created_at = _parse_datetime(run_object[TemplateObjectKeys.CREATED_AT])
+        name = run_object[TemplateObjectKeys.NAME]
+        version = run_object[TemplateObjectKeys.VERSION]
+
+    except Exception as e:
+        raise ParsingError(f"error parsing action template: {run_object}") from e
+
+    return ActionTemplate(
+        uuid=uuid_,
+        access_rights=access_rights,
+        command=command,
+        cpu_cores=cpu_cores,
+        cpu_memory_gb=cpu_memory_gb,
+        entrypoint=entrypoint,
+        gpu_memory_gb=gpu_memory_gb,
+        image_name=image_name,
+        max_runtime_minutes=max_runtime_minutes,
+        created_at=created_at,
+        name=name,
+        version=version,
+    )
+
+
+def _parse_run(run_object: RunObject) -> Run:
+    try:
+        uuid_ = UUID(run_object[RunObjectKeys.UUID], version=4)
+        state = run_object[RunObjectKeys.STATE]
+        created_at = _parse_datetime(run_object[RunObjectKeys.CREATED_AT])
+        updated_at = (
+            _parse_datetime(run_object[RunObjectKeys.UPDATED_AT])
+            if run_object.get(RunObjectKeys.UPDATED_AT)
+            else None
+        )
+
+        mission_dict = run_object[RunObjectKeys.MISSION]
+        mission_id = UUID(mission_dict[MissionObjectKeys.UUID], version=4)
+        mission_name = mission_dict[MissionObjectKeys.NAME]
+
+        project_dict = mission_dict[PROJECT]
+        project_name = project_dict[ProjectObjectKeys.NAME]
+
+        template_dict = run_object[RunObjectKeys.TEMPLATE]
+        template_id = UUID(template_dict[TemplateObjectKeys.UUID], version=4)
+        template_name = template_dict[TemplateObjectKeys.NAME]
+        logs = []
+        for log_entry in run_object.get(RunObjectKeys.LOGS, []):
+            log_timestamp = _parse_datetime(log_entry[LogEntryObjectKeys.TIMESTAMP])
+            log_level = log_entry[LogEntryObjectKeys.LEVEL]
+            log_message = log_entry[LogEntryObjectKeys.MESSAGE]
+            logs.append(
+                LogEntry(
+                    timestamp=log_timestamp,
+                    level=log_level,
+                    message=log_message,
+                )
+            )
+
+    except Exception as e:
+        raise ParsingError(f"error parsing run: {run_object}") from e
+
+    return Run(
+        uuid=uuid_,
+        state=state,
+        created_at=created_at,
+        updated_at=updated_at,
+        mission_id=mission_id,
+        mission_name=mission_name,
+        project_name=project_name,
+        template_id=template_id,
+        template_name=template_name,
+        logs=logs,
+    )

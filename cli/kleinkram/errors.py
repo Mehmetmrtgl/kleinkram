@@ -63,3 +63,6 @@ class NotAuthenticated(Exception):
 class UpdateCLIVersion(Exception):
     def __init__(self) -> None:
         super().__init__(UPDATE_MESSAGE)
+
+
+class RunNotFound(Exception): ...

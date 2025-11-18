@@ -1,23 +1,23 @@
 import { Column, Entity, ManyToMany, ManyToOne, Unique } from 'typeorm';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
-import Project from '../project/project.entity';
-import User from '../user/user.entity';
+import ProjectEntity from '../project/project.entity';
+import UserEntity from '../user/user.entity';
 
-@Entity()
+@Entity({ name: 'category' })
 @Unique('unique_category_name_per_project', ['name', 'project'])
-export default class Category extends BaseEntity {
+export default class CategoryEntity extends BaseEntity {
     @Column()
     name!: string;
 
-    @ManyToOne(() => Project, (project) => project.categories, {
+    @ManyToOne(() => ProjectEntity, (project) => project.categories, {
         onDelete: 'CASCADE',
     })
-    project?: Project;
+    project?: ProjectEntity;
 
     @ManyToMany(() => FileEntity, (file) => file.categories)
     files?: FileEntity[];
 
-    @ManyToOne(() => User, (user) => user.categories)
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.categories)
+    creator?: UserEntity;
 }

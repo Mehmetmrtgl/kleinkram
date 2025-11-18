@@ -1,10 +1,15 @@
 import { SortOrder } from '@common/api/types/pagination';
 import File from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import { MethodNotAllowedException } from '@nestjs/common';
 import { isValid, parseISO } from 'date-fns';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+    Brackets,
+    ObjectLiteral,
+    Repository,
+    SelectQueryBuilder,
+} from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 export const stringToBoolean = (value: string): boolean | undefined => {
@@ -42,7 +47,7 @@ export const stringToLocation = (value: string): string | undefined => {
     return value;
 };
 
-export const convertGlobToLikePattern = (glob: string) => {
+export const convertGlobToLikePattern = (glob: string): string => {
     return glob
         .replaceAll('%', String.raw`\%`)
         .replaceAll('_', String.raw`\_`)
@@ -51,7 +56,7 @@ export const convertGlobToLikePattern = (glob: string) => {
 };
 
 export const getFilteredProjectIdSubQuery = (
-    projectRepository: Repository<Project>,
+    projectRepository: Repository<ProjectEntity>,
     projectIds: string[],
     projectPatterns: string[],
     exactMatch: boolean,
@@ -72,8 +77,10 @@ export const getFilteredProjectIdSubQuery = (
             : 'LOWER(project.name) LIKE ANY(ARRAY[:...projectPatterns])';
 
         query.orWhere(whereStatement, {
-            projectPatterns: projectPatterns.map(
-                (pattern) => `%${pattern.toLowerCase()}%`,
+            projectPatterns: projectPatterns.map((pattern) =>
+                exactMatch
+                    ? pattern.toLowerCase()
+                    : `%${pattern.toLowerCase()}%`,
             ),
         });
     }
@@ -134,7 +141,7 @@ const metadataMatchesKeyValuePair = (
 };
 
 export const getFilteredMissionIdSubQuery = (
-    missionRepository: Repository<Mission>,
+    missionRepository: Repository<MissionEntity>,
     missionIds: string[],
     missionPatterns: string[],
     missionMetadata: Record<string, string>,
@@ -192,9 +199,9 @@ export const getFilteredFileIdSubQuery = (
     return query;
 };
 
-export const addMissionCount = (
-    query: SelectQueryBuilder<any>,
-): SelectQueryBuilder<any> => {
+export const addMissionCount = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
+): SelectQueryBuilder<T> => {
     query.loadRelationCountAndMap(
         'project.missionCount',
         'project.missions',
@@ -205,8 +212,8 @@ export const addMissionCount = (
 };
 
 export const addFileStats = (
-    query: SelectQueryBuilder<Mission>,
-): SelectQueryBuilder<Mission> => {
+    query: SelectQueryBuilder<MissionEntity>,
+): SelectQueryBuilder<MissionEntity> => {
     query
         .addSelect((subQuery) => {
             return subQuery
@@ -224,10 +231,10 @@ export const addFileStats = (
     return query;
 };
 
-export const addProjectCreatorFilter = (
-    query: SelectQueryBuilder<any>,
+export const addProjectCreatorFilter = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
     creatorUuid: string | undefined,
-): SelectQueryBuilder<any> => {
+): SelectQueryBuilder<T> => {
     if (creatorUuid) {
         query.andWhere('project.creator.uuid = :creatorUuid', {
             creatorUuid,
@@ -237,13 +244,13 @@ export const addProjectCreatorFilter = (
     return query;
 };
 
-export const addProjectFilters = (
-    query: SelectQueryBuilder<any>,
-    projectRepository: Repository<Project>,
+export const addProjectFilters = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
+    projectRepository: Repository<ProjectEntity>,
     projectIds: string[],
     projectPatterns: string[],
     exactMatch = false,
-): SelectQueryBuilder<any> => {
+): SelectQueryBuilder<T> => {
     if (projectIds.length > 0 || projectPatterns.length > 0) {
         const projectLikePatterns = projectPatterns.map((element) =>
             convertGlobToLikePattern(element),
@@ -264,13 +271,13 @@ export const addProjectFilters = (
     return query;
 };
 
-export const addMissionFilters = (
-    query: SelectQueryBuilder<any>,
-    missionRepository: Repository<Mission>,
+export const addMissionFilters = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
+    missionRepository: Repository<MissionEntity>,
     missionIds: string[],
     missionPatterns: string[],
     missionMetadata: Record<string, string>,
-): SelectQueryBuilder<any> => {
+): SelectQueryBuilder<T> => {
     if (
         missionIds.length > 0 ||
         missionPatterns.length > 0 ||
@@ -295,12 +302,12 @@ export const addMissionFilters = (
     return query;
 };
 
-export const addFileFilters = (
-    query: SelectQueryBuilder<any>,
+export const addFileFilters = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
     fileRepository: Repository<File>,
     fileIds: string[],
     filePatterns: string[],
-): SelectQueryBuilder<any> => {
+): SelectQueryBuilder<T> => {
     if (fileIds.length > 0 || filePatterns.length > 0) {
         const fileLikePatterns = filePatterns.map((element) =>
             convertGlobToLikePattern(element),
@@ -320,12 +327,12 @@ export const addFileFilters = (
     return query;
 };
 
-export const addSort = (
-    query: SelectQueryBuilder<any>,
+export const addSort = <T extends ObjectLiteral>(
+    query: SelectQueryBuilder<T>,
     allowedSortKeyMap: Record<string, string>,
     sortBy: string,
     sortOrder: SortOrder,
-): SelectQueryBuilder<any> => {
+): SelectQueryBuilder<T> => {
     if (!(sortBy in allowedSortKeyMap)) {
         throw new MethodNotAllowedException(`Invalid sortBy key: ${sortBy}`);
     }

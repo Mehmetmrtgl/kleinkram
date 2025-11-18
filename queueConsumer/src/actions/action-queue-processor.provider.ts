@@ -1,5 +1,7 @@
-import Action, { SubmittedAction } from '@common/entities/action/action.entity';
-import Worker from '@common/entities/worker/worker.entity';
+import ActionEntity, {
+    SubmittedAction,
+} from '@common/entities/action/action.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import { ActionState, ArtifactState } from '@common/frontend_shared/enum';
 import {
     InjectQueue,
@@ -39,16 +41,16 @@ import { ActionManagerService } from './services/action-manager.service';
 @Processor(`action-queue-${os.hostname()}`)
 @Injectable()
 export class ActionQueueProcessorProvider implements OnModuleInit {
-    private worker: Worker | undefined;
+    private worker: WorkerEntity | undefined;
 
     constructor(
         @InjectQueue(`action-queue-${os.hostname()}`)
         private readonly analysisQueue: Queue,
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
         private actionController: ActionManagerService,
-        @InjectRepository(Worker)
-        private workerRepository: Repository<Worker>,
+        @InjectRepository(WorkerEntity)
+        private workerRepository: Repository<WorkerEntity>,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -84,7 +86,7 @@ export class ActionQueueProcessorProvider implements OnModuleInit {
                 'template',
                 'mission',
                 'mission.project',
-                'createdBy',
+                'creator',
                 'worker',
             ],
         });
@@ -240,7 +242,7 @@ export class ActionQueueProcessorProvider implements OnModuleInit {
                 throw new Error('Worker not found');
             }
 
-            const worker = await manager.findOneOrFail(Worker, {
+            const worker = await manager.findOneOrFail(WorkerEntity, {
                 where: { uuid: this.worker.uuid },
             });
             worker.lastSeen = new Date();

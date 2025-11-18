@@ -6,11 +6,11 @@ import {
 import { ProjectWithAccessRightsDto } from '@common/api/types/project/project-access.dto';
 import { ProjectWithMissionsDto } from '@common/api/types/project/project-with-missions.dto';
 import { AccessGroupDto, GroupMembershipDto } from '@common/api/types/user.dto';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     AccessGroupRights,
     AccessGroupType,
@@ -37,16 +37,16 @@ import {
 @Injectable()
 export class AccessService {
     constructor(
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
-        @InjectRepository(GroupMembership)
-        private groupMembershipRepository: Repository<GroupMembership>,
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
-        @InjectRepository(ProjectAccess)
-        private projectAccessRepository: Repository<ProjectAccess>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
+        @InjectRepository(GroupMembershipEntity)
+        private groupMembershipRepository: Repository<GroupMembershipEntity>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
+        @InjectRepository(ProjectAccessEntity)
+        private projectAccessRepository: Repository<ProjectAccessEntity>,
         private readonly entityManager: EntityManager,
     ) {}
 
@@ -119,7 +119,7 @@ export class AccessService {
     async createAccessGroup(
         name: string,
         auth: AuthHeader,
-    ): Promise<AccessGroup> {
+    ): Promise<AccessGroupEntity> {
         const user = await this.userRepository.findOneOrFail({
             where: { uuid: auth.user.uuid },
         });
@@ -138,7 +138,7 @@ export class AccessService {
 
         return (await this.accessGroupRepository.save(
             newGroup,
-        )) as unknown as AccessGroup;
+        )) as unknown as AccessGroupEntity;
     }
 
     async hasProjectRights(
@@ -175,7 +175,7 @@ export class AccessService {
         userUUID: string,
         rights: AccessGroupRights,
         auth: AuthHeader,
-    ): Promise<Project> {
+    ): Promise<ProjectEntity> {
         const project = await this.projectRepository.findOneOrFail({
             where: { uuid: projectUUID },
             relations: ['project_accesses', 'project_accesses.accessGroup'],
@@ -251,41 +251,44 @@ export class AccessService {
     async addUserToAccessGroup(
         accessGroupUUID: string,
         userUUID: string,
-    ): Promise<AccessGroup> {
+    ): Promise<AccessGroupEntity> {
         return await this.entityManager.transaction(
             async (transactionalEntityManager) => {
                 const accessGroup =
                     await transactionalEntityManager.findOneOrFail(
-                        AccessGroup,
+                        AccessGroupEntity,
                         {
                             where: { uuid: accessGroupUUID },
                             relations: ['memberships'],
                         },
                     );
                 const user = await transactionalEntityManager.findOneOrFail(
-                    User,
+                    UserEntity,
                     {
                         where: { uuid: userUUID },
                     },
                 );
 
                 // @ts-ignore
-                const agu = transactionalEntityManager.create(GroupMembership, {
-                    expirationDate: undefined,
-                });
+                const agu = transactionalEntityManager.create(
+                    GroupMembershipEntity,
+                    {
+                        expirationDate: undefined,
+                    },
+                );
                 await transactionalEntityManager.save(agu);
                 await transactionalEntityManager
                     .createQueryBuilder()
-                    .relation(AccessGroup, 'memberships')
+                    .relation(AccessGroupEntity, 'memberships')
                     .of(accessGroup)
                     .add(agu);
                 await transactionalEntityManager
                     .createQueryBuilder()
-                    .relation(User, 'memberships')
+                    .relation(UserEntity, 'memberships')
                     .of(user)
                     .add(agu);
                 return await transactionalEntityManager.findOneOrFail(
-                    AccessGroup,
+                    AccessGroupEntity,
                     {
                         where: { uuid: accessGroupUUID },
                         relations: ['memberships', 'memberships.user'],
@@ -298,7 +301,7 @@ export class AccessService {
     async removeUserFromAccessGroup(
         accessGroupUUID: string,
         userUUID: string,
-    ): Promise<AccessGroup> {
+    ): Promise<AccessGroupEntity> {
         const usersWithEditRights = await this.groupMembershipRepository.count({
             where: {
                 accessGroup: { uuid: accessGroupUUID },
@@ -332,7 +335,7 @@ export class AccessService {
         take: number,
     ): Promise<AccessGroupsDto> {
         // we only list the access groups that are not hidden
-        const where: FindOptionsWhere<AccessGroup> = {
+        const where: FindOptionsWhere<AccessGroupEntity> = {
             hidden: false,
         };
 
@@ -362,7 +365,7 @@ export class AccessService {
         logger.debug(`Found ${count.toString()} access groups`);
 
         const data: AccessGroupDto[] = accessGroups.map(
-            (accessGroup: AccessGroup): AccessGroupDto => {
+            (accessGroup: AccessGroupEntity): AccessGroupDto => {
                 return {
                     creator: accessGroup.creator
                         ? userEntityToDto(accessGroup.creator)
@@ -510,14 +513,14 @@ export class AccessService {
         newProjectAccess: ProjectAccessDto[],
     ): Promise<void> {
         // remove all old access rights
-        await transaction.delete(ProjectAccess, {
+        await transaction.delete(ProjectAccessEntity, {
             project: { uuid: projectUuid },
         });
 
         // set the new access rights
         const accessUpdates = newProjectAccess.map((access) =>
             transaction.upsert(
-                ProjectAccess,
+                ProjectAccessEntity,
                 {
                     project: { uuid: projectUuid },
                     accessGroup: { uuid: access.uuid },
@@ -554,7 +557,7 @@ export class AccessService {
         userId: string,
     ): Promise<void> {
         // check if the current user has at least write rights
-        const userAccess = await transaction.find(ProjectAccess, {
+        const userAccess = await transaction.find(ProjectAccessEntity, {
             where: {
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
                 project: { uuid: projectUuid },
@@ -570,7 +573,7 @@ export class AccessService {
 
         // the current user must have at least the same rights
         // as the highest rights he has modified
-        const currentAccess = await transaction.find(ProjectAccess, {
+        const currentAccess = await transaction.find(ProjectAccessEntity, {
             where: {
                 project: { uuid: projectUuid },
             },
@@ -618,7 +621,7 @@ export class AccessService {
         projectUuid: string,
     ): Promise<void> {
         // check if there is at least one group with delete rights
-        const deleteAccess = await transaction.find(ProjectAccess, {
+        const deleteAccess = await transaction.find(ProjectAccessEntity, {
             where: {
                 rights: AccessGroupRights.DELETE,
                 project: { uuid: projectUuid },

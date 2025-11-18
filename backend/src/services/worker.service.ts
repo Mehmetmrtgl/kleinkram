@@ -1,5 +1,5 @@
 import { ActionWorkersDto } from '@common/api/types/action-workers.dto';
-import Worker from '@common/entities/worker/worker.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -7,7 +7,8 @@ import { Repository } from 'typeorm';
 @Injectable()
 export class WorkerService {
     constructor(
-        @InjectRepository(Worker) private workerRepository: Repository<Worker>,
+        @InjectRepository(WorkerEntity)
+        private workerRepository: Repository<WorkerEntity>,
     ) {}
 
     async findAll(): Promise<ActionWorkersDto> {

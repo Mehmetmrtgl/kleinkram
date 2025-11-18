@@ -19,18 +19,20 @@ from kleinkram.api.client import AuthenticatedClient
 from kleinkram.api.routes import _claim_admin
 from kleinkram.api.routes import _get_api_version
 from kleinkram.auth import login_flow
+from kleinkram.cli._action import action_typer
 from kleinkram.cli._download import download_typer
 from kleinkram.cli._endpoint import endpoint_typer
 from kleinkram.cli._file import file_typer
 from kleinkram.cli._list import list_typer
 from kleinkram.cli._mission import mission_typer
 from kleinkram.cli._project import project_typer
+from kleinkram.cli._run import run_typer
 from kleinkram.cli._upload import upload_typer
 from kleinkram.cli._verify import verify_typer
 from kleinkram.cli.error_handling import ErrorHandledTyper
 from kleinkram.cli.error_handling import display_error
-from kleinkram.config import MAX_TABLE_SIZE
 from kleinkram.config import Config
+from kleinkram.config import MAX_TABLE_SIZE
 from kleinkram.config import check_config_compatibility
 from kleinkram.config import get_config
 from kleinkram.config import get_shared_state
@@ -85,6 +87,7 @@ class CommandTypes(str, Enum):
     AUTH = "Authentication Commands"
     CORE = "Core Commands"
     CRUD = "Create Update Delete Commands"
+    ACTION = "Kleinkram Action Commands"
 
 
 class OrderCommands(TyperGroup):
@@ -110,6 +113,8 @@ app.add_typer(list_typer, name="list", rich_help_panel=CommandTypes.CORE)
 app.add_typer(file_typer, name="file", rich_help_panel=CommandTypes.CRUD)
 app.add_typer(mission_typer, name="mission", rich_help_panel=CommandTypes.CRUD)
 app.add_typer(project_typer, name="project", rich_help_panel=CommandTypes.CRUD)
+app.add_typer(action_typer, name="action", rich_help_panel=CommandTypes.ACTION)
+app.add_typer(run_typer, name="run", rich_help_panel=CommandTypes.ACTION)
 
 
 # attach error handler to app
@@ -128,7 +133,7 @@ def base_handler(exc: Exception) -> int:
 @app.command(rich_help_panel=CommandTypes.AUTH)
 def login(
     oAuthProvider: str = typer.Option(
-        "google",
+        "auto",
         "--oauth-provider",
         "-p",
         help="OAuth provider to use for login. Supported providers: google, github, fake-oauth.",
@@ -137,6 +142,14 @@ def login(
     key: Optional[str] = typer.Option(None, help="CLI key"),
     headless: bool = typer.Option(False),
 ) -> None:
+
+    # logic to resolve the "auto" default
+    if oAuthProvider == "auto":
+        config = get_config()
+        if config.selected_endpoint == "local":
+            oAuthProvider = "fake-oauth"
+        else:
+            oAuthProvider = "google"
 
     # validate oAuthProvider
     if oAuthProvider not in ["google", "github", "fake-oauth"]:
@@ -177,11 +190,13 @@ def check_version_compatiblity() -> None:
 
     if cli_version[0] != api_version[0]:
         raise InvalidCLIVersion(
-            f"CLI version {__version__} is not compatible with API version {api_vers_str}"
+            f"You are using an unsupported CLI version ({__version__}). "
+            f"Please upgrade the CLI to version {api_vers_str} to continue using the CLI."
         )
 
     if cli_version[1] != api_version[1]:
-        msg = f"CLI version {__version__} might not be compatible with API version {api_vers_str}"
+        msg = f"You are using an outdated CLI version ({__version__}). "
+        msg += f"Please consider upgrading the CLI to version {api_vers_str}."
         Console(file=sys.stderr).print(msg, style="red")
         logger.warning(msg)
 

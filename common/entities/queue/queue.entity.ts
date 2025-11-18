@@ -1,10 +1,10 @@
 import { Column, Entity, ManyToOne } from 'typeorm';
 import { FileLocation, QueueState } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
-import Mission from '../mission/mission.entity';
-import User from '../user/user.entity';
+import MissionEntity from '../mission/mission.entity';
+import UserEntity from '../user/user.entity';
 
-@Entity()
+@Entity({ name: 'queue' })
 export default class QueueEntity extends BaseEntity {
     /**
      * The unique identifier of the file.
@@ -30,10 +30,10 @@ export default class QueueEntity extends BaseEntity {
     })
     state!: QueueState;
 
-    @ManyToOne(() => Mission, (project) => project.queues, {
+    @ManyToOne(() => MissionEntity, (project) => project.queues, {
         onDelete: 'CASCADE',
     })
-    mission?: Mission;
+    mission?: MissionEntity;
 
     @Column({
         type: 'enum',
@@ -45,6 +45,6 @@ export default class QueueEntity extends BaseEntity {
     @Column({ nullable: true, default: null })
     processingDuration?: number;
 
-    @ManyToOne(() => User, (user) => user.queues)
-    creator?: User;
+    @ManyToOne(() => UserEntity, (user) => user.queues)
+    creator?: UserEntity;
 }

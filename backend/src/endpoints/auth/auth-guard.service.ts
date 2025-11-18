@@ -1,6 +1,6 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,14 +10,14 @@ import logger from '../../logger';
 @Injectable()
 export class AuthGuardService {
     constructor(
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
-        @InjectRepository(GroupMembership)
-        private groupMembership: Repository<GroupMembership>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
+        @InjectRepository(GroupMembershipEntity)
+        private groupMembership: Repository<GroupMembershipEntity>,
     ) {}
 
     async canEditAccessGroupByProjectUuid(
-        user: User,
+        user: UserEntity,
         projectAccessUUID: string,
     ): Promise<boolean> {
         if (!user || !projectAccessUUID) {
@@ -38,7 +38,7 @@ export class AuthGuardService {
     }
 
     async canEditAccessGroupByGroupUuid(
-        user: User,
+        user: UserEntity,
         uuid: string,
     ): Promise<boolean> {
         if (!user || !uuid) {

@@ -1,25 +1,25 @@
 import { faker } from '@faker-js/faker';
 import { define } from 'typeorm-seeding';
-import AccessGroup from '../../entities/auth/accessgroup.entity';
-import Project from '../../entities/project/project.entity';
-import TagType from '../../entities/tagType/tag-type.entity';
-import User from '../../entities/user/user.entity';
+import AccessGroupEntity from '../../entities/auth/accessgroup.entity';
+import ProjectEntity from '../../entities/project/project.entity';
+import TagTypeEntity from '../../entities/tagType/tag-type.entity';
+import UserEntity from '../../entities/user/user.entity';
 import { extendedFaker } from '../../faker-extended';
 
 export interface ProjectContext {
     name: string;
-    creator: User;
-    allUsers: User[];
-    allAccessGroups: AccessGroup[];
-    tagTypes: TagType[];
+    creator: UserEntity;
+    allUsers: UserEntity[];
+    allAccessGroups: AccessGroupEntity[];
+    tagTypes: TagTypeEntity[];
 }
 
-define(Project, (_, context: Partial<ProjectContext> = {}) => {
+define(ProjectEntity, (_, context: Partial<ProjectContext> = {}) => {
     const creator =
         context.creator || faker.helpers.arrayElement(context.allUsers ?? []);
     console.assert(creator, 'No creator provided for project');
 
-    const project = new Project();
+    const project = new ProjectEntity();
     project.uuid = extendedFaker.string.uuid();
     project.name = context.name || extendedFaker.project.name();
     project.creator = creator;

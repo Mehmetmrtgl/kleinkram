@@ -1,6 +1,6 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Project from '@common/entities/project/project.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     AccessGroupRights,
     AccessGroupType,
@@ -15,20 +15,20 @@ import logger from '../logger';
 @Injectable()
 export class ProjectGuardService {
     constructor(
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
         @InjectRepository(ProjectAccessViewEntity)
         private projectAccessView: Repository<ProjectAccessViewEntity>,
     ) {}
 
     async canAccessProject(
-        user: User,
-        projectUUID: string,
+        user: UserEntity,
+        projectUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
-    ) {
-        if (!projectUUID || !user) {
+    ): Promise<boolean> {
+        if (!projectUuid || !user) {
             return false;
         }
 
@@ -37,24 +37,24 @@ export class ProjectGuardService {
         }
         const isExisting = await this.projectAccessView.exists({
             where: {
-                projectUUID,
-                userUUID: user.uuid,
+                projectUuid: projectUuid,
+                userUuid: user.uuid,
                 rights: MoreThanOrEqual(rights),
             },
         });
         if (!isExisting) {
             logger.debug(
-                `User ${user.name} (${user.uuid}) does not have access to project ${projectUUID} with rights ${rights.toString()}`,
+                `User ${user.name} (${user.uuid}) does not have access to project ${projectUuid} with rights ${rights.toString()}`,
             );
         }
         return isExisting;
     }
 
     async canAccessProjectByName(
-        user: User,
+        user: UserEntity,
         projectName: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
-    ) {
+    ): Promise<boolean> {
         if (!projectName || !user) {
             return false;
         }
@@ -67,7 +67,7 @@ export class ProjectGuardService {
         return this.canAccessProject(user, project.uuid, rights);
     }
 
-    async canCreate(user: User) {
+    async canCreate(user: UserEntity): Promise<boolean> {
         if (!user) {
             return false;
         }

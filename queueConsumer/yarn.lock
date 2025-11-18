@@ -1163,10 +1163,10 @@
     "@types/node" "*"
     "@types/ssh2" "*"
 
-"@types/dockerode@^3.3.45":
-  version "3.3.45"
-  resolved "https://registry.yarnpkg.com/@types/dockerode/-/dockerode-3.3.45.tgz#1b5f19301563acf811adc13a6b2b3e0981998a5e"
-  integrity sha512-iYpZF+xr5QLpIICejLdUF2r5gh8IXY1Gw3WLmt41dUbS3Vn/3hVgL+6lJBVbmrhYBWfbWPPstdr6+A0s95DTWA==
+"@types/dockerode@^3.3.46":
+  version "3.3.46"
+  resolved "https://registry.yarnpkg.com/@types/dockerode/-/dockerode-3.3.46.tgz#7ad0e63f9244aab45fb8145abad161d1cd75acb8"
+  integrity sha512-pvvaYMN3PKXMvWi7A1UNMgqXpWD4+AWfmTFK1kCxfSXW7dMigaeyufRM9tAJf+sy4CX6tKn76z/fR6ut2SZsrg==
   dependencies:
     "@types/docker-modem" "*"
     "@types/node" "*"
@@ -1244,10 +1244,10 @@
   dependencies:
     "@types/express" "*"
 
-"@types/node@*", "@types/node@24.10.0", "@types/node@>=13.7.0":
-  version "24.10.0"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.10.0.tgz#6b79086b0dfc54e775a34ba8114dcc4e0221f31f"
-  integrity sha512-qzQZRBqkFsYyaSWXuEHc2WR9c0a0CXwiE5FWUvn7ZM+vdy1uZLfCunD38UzhuB7YN/J11ndbDBcTmOdxJo9Q7A==
+"@types/node@*", "@types/node@24.10.1", "@types/node@>=13.7.0":
+  version "24.10.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.10.1.tgz#91e92182c93db8bd6224fca031e2370cef9a8f01"
+  integrity sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==
   dependencies:
     undici-types "~7.16.0"
 
@@ -2636,10 +2636,10 @@ googleapis-common@^8.0.0:
     qs "^6.7.0"
     url-template "^2.0.8"
 
-googleapis@^165.0.0:
-  version "165.0.0"
-  resolved "https://registry.yarnpkg.com/googleapis/-/googleapis-165.0.0.tgz#7e9ee403d86e3e971ba22db2471a97b6cf680ac8"
-  integrity sha512-uXA/Z779zTkW7NUNZqjJz6878inQyU1PIpxisZDezJaR7wfKPP3d/BNeGLDNbO2wnkMpZ6bmpeshWNRR/fjqmw==
+googleapis@^166.0.0:
+  version "166.0.0"
+  resolved "https://registry.yarnpkg.com/googleapis/-/googleapis-166.0.0.tgz#fb4579de960fbee86c5fd8dc9b992113fb3e2334"
+  integrity sha512-Xz7yG+ihVvYMwSULKIMeTp6vDX95rrSbsaR3xUmgYjwQdAkchMQ5ndFeG5QZwcBOIyvJFvG7ZLIZE7mKW2X/hw==
   dependencies:
     google-auth-library "^10.2.0"
     googleapis-common "^8.0.0"

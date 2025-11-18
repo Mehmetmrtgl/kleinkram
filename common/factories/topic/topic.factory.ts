@@ -1,14 +1,14 @@
 import { define } from 'typeorm-seeding';
 import FileEntity from '../../entities/file/file.entity';
-import Topic from '../../entities/topic/topic.entity';
+import TopicEntity from '../../entities/topic/topic.entity';
 import { extendedFaker } from '../../faker-extended';
 
 export interface TopicContext {
     file: FileEntity;
 }
 
-define(Topic, (_, context: Partial<TopicContext> = {}) => {
-    const topic = new Topic();
+define(TopicEntity, (_, context: Partial<TopicContext> = {}) => {
+    const topic = new TopicEntity();
     topic.name = extendedFaker.ros.topic();
     topic.uuid = extendedFaker.string.uuid();
     topic.frequency = extendedFaker.number.int({ min: 0, max: 100 });

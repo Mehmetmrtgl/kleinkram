@@ -1,20 +1,20 @@
 import { faker } from '@faker-js/faker';
 import { define } from 'typeorm-seeding';
-import AccessGroup from '../../entities/auth/accessgroup.entity';
-import GroupMembership from '../../entities/auth/group-membership.entity';
-import User from '../../entities/user/user.entity';
+import AccessGroupEntity from '../../entities/auth/accessgroup.entity';
+import GroupMembershipEntity from '../../entities/auth/group-membership.entity';
+import UserEntity from '../../entities/user/user.entity';
 import { extendedFaker } from '../../faker-extended';
 import { AccessGroupType } from '../../frontend_shared/enum';
 
 export interface AccessGroupFactoryContext {
-    user: User;
-    allUsers: User[];
+    user: UserEntity;
+    allUsers: UserEntity[];
     isPersonal: boolean;
 }
 
 // @ts-expect-error
-define(AccessGroup, (_, context: AccessGroupFactoryContext) => {
-    const accessGroup = new AccessGroup();
+define(AccessGroupEntity, (_, context: AccessGroupFactoryContext) => {
+    const accessGroup = new AccessGroupEntity();
 
     if (context.isPersonal) {
         console.assert(
@@ -29,7 +29,7 @@ define(AccessGroup, (_, context: AccessGroupFactoryContext) => {
             {
                 user: context.user,
                 canEditGroup: false,
-            } as GroupMembership,
+            } as GroupMembershipEntity,
         ];
     } else {
         console.assert(
@@ -46,7 +46,7 @@ define(AccessGroup, (_, context: AccessGroupFactoryContext) => {
                 ({
                     user,
                     canEditGroup: user === accessGroup.creator,
-                }) as GroupMembership,
+                }) as GroupMembershipEntity,
         );
     }
 

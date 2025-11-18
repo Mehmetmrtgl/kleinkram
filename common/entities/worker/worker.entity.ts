@@ -1,9 +1,9 @@
 import { Column, Entity, OneToMany } from 'typeorm';
-import Action from '../action/action.entity';
+import ActionEntity from '../action/action.entity';
 import BaseEntity from '../base-entity.entity';
 
-@Entity()
-export default class Worker extends BaseEntity {
+@Entity({ name: 'worker' })
+export default class WorkerEntity extends BaseEntity {
     @Column({ unique: true })
     identifier!: string;
 
@@ -34,6 +34,6 @@ export default class Worker extends BaseEntity {
     @Column()
     reachable!: boolean;
 
-    @OneToMany(() => Action, (action) => action.worker)
-    actions?: Action[];
+    @OneToMany(() => ActionEntity, (action) => action.worker)
+    actions?: ActionEntity[];
 }

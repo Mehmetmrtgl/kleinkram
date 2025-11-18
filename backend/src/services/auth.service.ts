@@ -1,7 +1,7 @@
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Account from '@common/entities/auth/account.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import User from '@common/entities/user/user.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import {
     AccessGroupType,
     CookieNames,
@@ -24,14 +24,14 @@ export class AuthService implements OnModuleInit {
 
     constructor(
         private jwtService: JwtService,
-        @InjectRepository(Account)
-        private accountRepository: Repository<Account>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(AccessGroup)
-        private accessGroupRepository: Repository<AccessGroup>,
-        @InjectRepository(GroupMembership)
-        private groupMembershipRepository: Repository<GroupMembership>,
+        @InjectRepository(AccountEntity)
+        private accountRepository: Repository<AccountEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(AccessGroupEntity)
+        private accessGroupRepository: Repository<AccessGroupEntity>,
+        @InjectRepository(GroupMembershipEntity)
+        private groupMembershipRepository: Repository<GroupMembershipEntity>,
         private configService: ConfigService,
     ) {
         const config = this.configService.get('accessConfig');
@@ -43,7 +43,7 @@ export class AuthService implements OnModuleInit {
         await createAccessGroups(this.accessGroupRepository, this.config);
     }
 
-    async validateAndCreateUserByGitHub(profile: any): Promise<User> {
+    async validateAndCreateUserByGitHub(profile: any): Promise<UserEntity> {
         const { id, emails, displayName, photos } = profile;
         const email = emails[0].value;
 
@@ -72,7 +72,7 @@ export class AuthService implements OnModuleInit {
         );
     }
 
-    async validateAndCreateUserByFakeOAuth(profile: any): Promise<User> {
+    async validateAndCreateUserByFakeOAuth(profile: any): Promise<UserEntity> {
         const { id, email, displayName, photo } = profile;
 
         const account = await this.accountRepository.findOne({
@@ -94,7 +94,7 @@ export class AuthService implements OnModuleInit {
         return this.create(id, Providers.FakeOAuth, email, displayName, photo);
     }
 
-    async validateAndCreateUserByGoogle(profile: any): Promise<User> {
+    async validateAndCreateUserByGoogle(profile: any): Promise<UserEntity> {
         const { id, emails, displayName, photos } = profile;
         const email = emails[0].value;
 
@@ -123,7 +123,7 @@ export class AuthService implements OnModuleInit {
         );
     }
 
-    login(user: User) {
+    login(user: UserEntity) {
         const payload: JwtPayload = {
             uuid: user.uuid,
         };
@@ -180,7 +180,7 @@ export class AuthService implements OnModuleInit {
  * @param config
  */
 export const createAccessGroups = async (
-    accessGroupRepository: Repository<AccessGroup>,
+    accessGroupRepository: Repository<AccessGroupEntity>,
     config: AccessGroupConfig,
 ) => {
     // Read access_config/*.json and create access groups
@@ -209,8 +209,8 @@ export const createAccessGroups = async (
  * @param accessGroupRepository
  */
 async function createPrimaryGroup(
-    user: User,
-    accessGroupRepository: Repository<AccessGroup>,
+    user: UserEntity,
+    accessGroupRepository: Repository<AccessGroupEntity>,
 ) {
     logger.debug(`Add user ${user.uuid} to primary access group`);
 
@@ -252,9 +252,9 @@ async function createPrimaryGroup(
  */
 async function addToAffiliationGroups(
     config: AccessGroupConfig,
-    user: User,
-    accessGroupRepository: Repository<AccessGroup>,
-    groupMembershipRepository: Repository<GroupMembership>,
+    user: UserEntity,
+    accessGroupRepository: Repository<AccessGroupEntity>,
+    groupMembershipRepository: Repository<GroupMembershipEntity>,
 ) {
     await Promise.all(
         config.emails.map((_config) => {
@@ -281,10 +281,10 @@ async function addToAffiliationGroups(
 
 export const createNewUser = async (
     config: AccessGroupConfig,
-    userRepository: Repository<User>,
-    accountRepository: Repository<Account>,
-    accessGroupRepository: Repository<AccessGroup>,
-    groupMembershipRepository: Repository<GroupMembership>,
+    userRepository: Repository<UserEntity>,
+    accountRepository: Repository<AccountEntity>,
+    accessGroupRepository: Repository<AccessGroupEntity>,
+    groupMembershipRepository: Repository<GroupMembershipEntity>,
     options: {
         oauthID: string;
         provider: Providers;
@@ -292,7 +292,7 @@ export const createNewUser = async (
         username: string;
         picture: string;
     },
-): Promise<User> => {
+): Promise<UserEntity> => {
     const existingUser = await userRepository.findOne({
         where: { email: options.email },
         relations: ['account'],
@@ -305,7 +305,7 @@ export const createNewUser = async (
         );
     }
 
-    const account: Account = accountRepository.create({
+    const account: AccountEntity = accountRepository.create({
         oauthID: options.oauthID,
         provider: options.provider,
     });
@@ -325,7 +325,7 @@ export const createNewUser = async (
 
     logger.debug(`Creating new user with email ${options.email}`);
 
-    let user: User = userRepository.create({
+    let user: UserEntity = userRepository.create({
         email: options.email,
         name: options.username,
         role: UserRole.USER,

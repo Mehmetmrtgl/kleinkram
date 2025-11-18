@@ -8,15 +8,15 @@ import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { AdminOnlyGuard, LoggedInUserGuard } from './roles.guard';
 
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Account from '@common/entities/auth/account.entity';
-import GroupMembership from '@common/entities/auth/group-membership.entity';
-import MissionAccess from '@common/entities/auth/mission-access.entity';
-import ProjectAccess from '@common/entities/auth/project-access.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
+import GroupMembershipEntity from '@common/entities/auth/group-membership.entity';
+import MissionAccessEntity from '@common/entities/auth/mission-access.entity';
+import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
-import Tag from '@common/entities/tag/tag.entity';
+import MetadataEntity from '@common/entities/metadata/metadata.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import env from '@common/environment';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
@@ -32,17 +32,17 @@ import { MissionGuardService } from './mission-guard.service';
 @Module({
     imports: [
         TypeOrmModule.forFeature([
-            AccessGroup,
-            Account,
-            Project,
-            Mission,
-            Tag,
-            ProjectAccess,
-            MissionAccess,
+            AccessGroupEntity,
+            AccountEntity,
+            ProjectEntity,
+            MissionEntity,
+            MetadataEntity,
+            ProjectAccessEntity,
+            MissionAccessEntity,
             ProjectAccessViewEntity,
             MissionAccessViewEntity,
             FileEntity,
-            GroupMembership,
+            GroupMembershipEntity,
         ]),
         PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule.registerAsync({

@@ -1,5 +1,5 @@
-import Apikey from '@common/entities/auth/apikey.entity';
-import User from '@common/entities/user/user.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 /**
@@ -19,6 +19,6 @@ export const AddUser = createParamDecorator((_, context: ExecutionContext) => {
 });
 
 export interface AuthHeader {
-    user: User;
-    apikey?: Apikey;
+    user: UserEntity;
+    apikey?: ApikeyEntity;
 }

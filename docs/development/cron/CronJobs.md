@@ -1,11 +1,12 @@
-# Cron
+# Cron Jobs
 
-Chron jobs are recurring tasks required to clean up the database and perform other maintenance tasks.
-The following is a list of the chron jobs that are currently running on the server.
-They should be, if possible, run on the queue consumer server. But as this server might be replicated, redlock is
-used to ensure that the cron jobs are only run once.
+Cron jobs are recurring tasks used for database cleanup, synchronization, and system maintenance.
 
-## Jobs
+Most jobs run on the Queue Consumer service. Because this service can have multiple replicas, any job running there must
+use Redlock to ensure it only runs on one instance at a time. Jobs on the Backend run as a single instance and do not
+require a lock.
+
+## Jobs Inventory
 
 | When        | Name               | Location       | Description                                                                                                                                                |
 | ----------- | ------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,3 +17,4 @@ used to ensure that the cron jobs are only run once.
 | Every 30s   | Container Cleanup  | Queue Consumer | Check if containers have crashed or should be killed. Updates the DB                                                                                       |
 | Every 2nd H | DB Dump            | Backend        | Generate Database dump and upload it to Minio                                                                                                              |
 | Every 30s   | API Health Check   | Backend        | Check which Queue Consumer have checked in within the last 2min. All others are set to unreachable and no longer receive Jobs. Their jobs are rescheduled. |
+| Every 4h    | Check Group Access | Queue Consumer | Soft-deletes any GroupMembership where the expirationDate has passed.                                                                                      |

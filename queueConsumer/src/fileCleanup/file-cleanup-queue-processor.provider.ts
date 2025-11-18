@@ -1,8 +1,8 @@
 import { redis, systemUser } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
-import Mission from '@common/entities/mission/mission.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
     AccessGroupRights,
@@ -51,10 +51,10 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         private fileRepository: Repository<FileEntity>,
         @InjectRepository(QueueEntity)
         private queueRepository: Repository<QueueEntity>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
         @InjectRepository(ProjectAccessViewEntity)
         private projectAccessView: Repository<ProjectAccessViewEntity>,
         @InjectRepository(MissionAccessViewEntity)
@@ -62,7 +62,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         @InjectQueue('file-queue') private readonly fileQueue: Queue,
     ) {}
 
-    onModuleInit() {
+    onModuleInit(): void {
         const redisClient = new Redis(redis);
         this.redlock = new Redlock([redisClient], {
             retryCount: 0,
@@ -71,7 +71,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
     }
 
     @Process({ concurrency: 10, name: 'cancelUpload' })
-    async process(job: CancelUploadJob) {
+    async process(job: CancelUploadJob): Promise<void> {
         const userUUID = job.data.userUUID;
         const uuids = job.data.uuids;
         const missionUUID = job.data.missionUUID;
@@ -118,7 +118,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
     }
 
     @Cron(CronExpression.EVERY_DAY_AT_3AM)
-    async fixFileHashes() {
+    async fixFileHashes(): Promise<void> {
         await this.redlock
             .using([`lock:hash-repair`], 10_000, async () => {
                 logger.debug('Fixing file hashes');
@@ -174,7 +174,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
     }
 
     @Cron(CronExpression.EVERY_DAY_AT_1AM)
-    async cleanupFailedUploads() {
+    async cleanupFailedUploads(): Promise<void> {
         await this.redlock
             .using([`lock:cleanup-failed-uploads`], 10_000, async () => {
                 logger.debug('Cleaning up failed uploads');
@@ -234,57 +234,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
             });
     }
 
-    async dumpFileType(fileType: FileType) {
-        // bag files
-        const files = await this.fileRepository.find({
-            relations: ['mission', 'mission.project'],
-            where: { state: FileState.OK, type: fileType },
-        });
-
-        const header =
-            'filename,file_uuid,mission,project,projectUuid,missionUuid';
-        const csv = files
-            .map((file) => {
-                if (file.mission === undefined) {
-                    logger.error(
-                        `Mission of file ${file.uuid} is undefined, skipping`,
-                    );
-                    return;
-                }
-
-                if (file.mission.project === undefined) {
-                    logger.error(
-                        `Project of file ${file.uuid} is undefined, skipping`,
-                    );
-                    return;
-                }
-
-                return `${file.filename},${file.uuid},${file.mission.name},${file.mission.project.name},${file.mission.project.uuid},${file.mission.uuid}`;
-            })
-            .filter((line) => line !== undefined);
-
-        const csvString = [header, ...csv].join('\n');
-        await internalMinio.putObject(
-            fileType === FileType.BAG
-                ? env.MINIO_DATA_BUCKET_NAME
-                : env.MINIO_DATA_BUCKET_NAME,
-            'file_names.csv',
-            csvString,
-        );
-    }
-
-    /**
-     * Dump an CSV containing the resolution of the file names
-     * (file name, file uuid, mission name, project name, project uuid, mission uuid)
-     */
-    @Cron(CronExpression.EVERY_DAY_AT_1AM)
-    async createFileNameDump() {
-        await this.dumpFileType(FileType.BAG);
-        await this.dumpFileType(FileType.MCAP);
-    }
-
     @Cron(CronExpression.EVERY_DAY_AT_2AM)
-    async synchronizeFileSystem() {
+    async synchronizeFileSystem(): Promise<void> {
         await this.redlock
             .using([`lock:fs-sync`], 10_000, async () => {
                 logger.debug('Synchronizing file system');
@@ -349,7 +300,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
             });
     }
 
-    async missingInDB(fileType: FileType) {
+    async missingInDB(fileType: FileType): Promise<void> {
         const bucket = env.MINIO_DATA_BUCKET_NAME;
         const minioObjects = internalMinio.listObjects(bucket, ''); // ObjectStream
 
@@ -448,7 +399,10 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         }
     }
 
-    async canCancelUpload(userUUID: string, missionUUID: string) {
+    async canCancelUpload(
+        userUUID: string,
+        missionUUID: string,
+    ): Promise<boolean> {
         const user = await this.userRepository.findOneOrFail({
             where: { uuid: userUUID },
         });
@@ -478,8 +432,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
 
         const canAccessProject = await this.projectAccessView.exists({
             where: {
-                projectUUID: mission.project.uuid,
-                userUUID,
+                projectUuid: mission.project.uuid,
+                userUuid: userUUID,
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
             },
         });
@@ -488,8 +442,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         }
         return await this.missionAccessView.exists({
             where: {
-                missionUUID,
-                userUUID,
+                missionUuid: missionUUID,
+                userUuid: userUUID,
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
             },
         });

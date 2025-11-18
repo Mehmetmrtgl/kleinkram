@@ -1,19 +1,19 @@
 import { faker } from '@faker-js/faker';
 import { define } from 'typeorm-seeding';
-import AccessGroup from '../../entities/auth/accessgroup.entity';
-import ProjectAccess from '../../entities/auth/project-access.entity';
-import Project from '../../entities/project/project.entity';
+import AccessGroupEntity from '../../entities/auth/accessgroup.entity';
+import ProjectAccessEntity from '../../entities/auth/project-access.entity';
+import ProjectEntity from '../../entities/project/project.entity';
 
 import { AccessGroupRights } from '../../frontend_shared/enum';
 
 export interface ProjectAccessFactoryContext {
-    projects: Project[];
-    accessGroups: AccessGroup[];
+    projects: ProjectEntity[];
+    accessGroups: AccessGroupEntity[];
 }
 
 // @ts-ignore
-define(ProjectAccess, (_, context: ProjectAccessFactoryContext) => {
-    const projectAccess = new ProjectAccess();
+define(ProjectAccessEntity, (_, context: ProjectAccessFactoryContext) => {
+    const projectAccess = new ProjectAccessEntity();
 
     projectAccess.rights = faker.helpers.arrayElement([
         0, 10, 20, 30,

@@ -1,10 +1,16 @@
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
-import User from '@common/entities/user/user.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { ActionState, UserRole } from '@common/frontend_shared/enum';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import {
+    Brackets,
+    EntityManager,
+    FindOptionsWhere,
+    ILike,
+    Repository,
+} from 'typeorm';
 import { actionEntityToDto, actionTemplateEntityToDto } from '../serialization';
 import { QueueService } from './queue.service';
 
@@ -22,7 +28,7 @@ import {
     SubmitActionDto,
 } from '@common/api/types/submit-action-response.dto';
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
-import Apikey from '@common/entities/auth/apikey.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import { RuntimeDescription } from '@common/types';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
@@ -30,14 +36,14 @@ import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 @Injectable()
 export class ActionService {
     constructor(
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(ActionTemplate)
-        private actionTemplateRepository: Repository<ActionTemplate>,
-        @InjectRepository(Apikey)
-        private apikeyRepository: Repository<Apikey>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
+        @InjectRepository(ActionTemplateEntity)
+        private actionTemplateRepository: Repository<ActionTemplateEntity>,
+        @InjectRepository(ApikeyEntity)
+        private apikeyRepository: Repository<ApikeyEntity>,
         private readonly queueService: QueueService,
     ) {}
 
@@ -51,7 +57,7 @@ export class ActionService {
 
         let action = this.actionRepository.create({
             mission: { uuid: data.missionUUID },
-            createdBy: { uuid: auth.user.uuid },
+            creator: { uuid: auth.user.uuid },
             state: ActionState.PENDING,
             template,
         });
@@ -80,12 +86,15 @@ export class ActionService {
         };
     }
 
-    async delete(actionUUID: string) {
+    async delete(actionUUID: string): Promise<boolean> {
         await this.actionRepository.delete(actionUUID);
         return true;
     }
 
-    async multiSubmit(data: SubmitActionMulti, user: AuthHeader) {
+    async multiSubmit(
+        data: SubmitActionMulti,
+        user: AuthHeader,
+    ): Promise<ActionSubmitResponseDto[]> {
         return Promise.all(
             data.missionUUIDs.map((uuid) =>
                 this.submit(
@@ -122,7 +131,7 @@ export class ActionService {
         }
 
         const template = this.actionTemplateRepository.create({
-            createdBy: { uuid: auth.user.uuid },
+            creator: { uuid: auth.user.uuid },
             name: data.name,
             cpuCores: data.cpuCores,
             cpuMemory: data.cpuMemory,
@@ -185,7 +194,7 @@ export class ActionService {
         template.cpuMemory = data.cpuMemory;
         template.gpuMemory = data.gpuMemory;
         template.image_name = data.dockerImage;
-        template.createdBy = dbuser;
+        template.creator = dbuser;
         template.command = data.command ?? '';
         template.version = previousVersions[0]?.version ?? 0 + change;
         template.uuid = '';
@@ -204,7 +213,9 @@ export class ActionService {
         take: number,
         search: string,
     ): Promise<ActionTemplatesDto> {
-        const where: FindOptionsWhere<ActionTemplate> = { searchable: true };
+        const where: FindOptionsWhere<ActionTemplateEntity> = {
+            searchable: true,
+        };
         if (search !== '') {
             where.name = ILike(`%${search}%`);
         }
@@ -213,7 +224,7 @@ export class ActionService {
                 where,
                 skip,
                 take,
-                relations: ['createdBy'],
+                relations: ['creator'],
             });
 
         return {
@@ -239,63 +250,26 @@ export class ActionService {
         const user = await this.userRepository.findOneOrFail({
             where: { uuid: userUUID },
         });
-        if (user.role === UserRole.ADMIN) {
-            const query = this.actionRepository
-                .createQueryBuilder('action')
-                .leftJoinAndSelect('action.mission', 'mission')
-                .leftJoinAndSelect('mission.project', 'project')
-                .leftJoinAndSelect('action.createdBy', 'createdBy')
-                .leftJoinAndSelect('action.template', 'template')
-                .andWhere('project.uuid = :projectUuid', { projectUuid })
-                .orderBy(`action.${sortBy}`, sortDirection)
-                .skip(skip)
-                .take(take);
-            if (search) {
-                query.andWhere(
-                    new Brackets((qb) => {
-                        qb.where('template.name ILIKE :searchTerm', {
-                            searchTerm: `%${search}%`,
-                        })
-                            .orWhere('action.state_cause ILIKE :searchTerm', {
-                                searchTerm: `%${search}%`,
-                            })
-                            .orWhere('template.image_name ILIKE :searchTerm', {
-                                searchTerm: `%${search}%`,
-                            });
-                    }),
-                );
-            }
-            if (missionUuid) {
-                query.andWhere('mission.uuid = :missionUuid', { missionUuid });
-            }
-
-            const [actions, count] = await query.getManyAndCount();
-            return {
-                count,
-                data: actions.map((element) => actionEntityToDto(element)),
-                skip,
-                take,
-            };
-        }
 
         const baseQuery = this.actionRepository
             .createQueryBuilder('action')
             .leftJoinAndSelect('action.mission', 'mission')
             .leftJoinAndSelect('mission.project', 'project')
             .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.createdBy', 'createdBy')
-            .andWhere('project.uuid = :projectUuid', {
-                projectUuid: projectUuid,
-            })
-            .skip(skip)
-            .take(take)
-            .orderBy(`action.${sortBy}`, sortDirection);
+            .leftJoinAndSelect('action.creator', 'creator');
 
-        if (missionUuid) {
+        if (projectUuid !== undefined) {
+            baseQuery.andWhere('project.uuid = :projectUuid', {
+                projectUuid,
+            });
+        }
+
+        if (missionUuid !== undefined) {
             baseQuery.andWhere('mission.uuid = :missionUuid', {
                 missionUuid: missionUuid,
             });
         }
+
         if (search) {
             baseQuery.andWhere(
                 new Brackets((qb) => {
@@ -311,6 +285,28 @@ export class ActionService {
                 }),
             );
         }
+
+        if (
+            sortBy !== undefined &&
+            sortBy !== '' &&
+            sortDirection in ['ASC', 'DESC']
+        ) {
+            baseQuery.orderBy(`action.${sortBy}`, sortDirection);
+        }
+
+        if (user.role === UserRole.ADMIN) {
+            const query = baseQuery.skip(skip).take(take);
+
+            const [actions, count] = await query.getManyAndCount();
+            return {
+                count,
+                data: actions.map((element) => actionEntityToDto(element)),
+                skip,
+                take,
+            };
+        }
+
+        baseQuery.skip(skip).take(take);
 
         const [actions, count] = await addAccessConstraints(
             baseQuery,
@@ -331,7 +327,7 @@ export class ActionService {
             relations: [
                 'mission',
                 'mission.project',
-                'createdBy',
+                'creator',
                 'template',
                 'worker',
             ],
@@ -354,7 +350,7 @@ export class ActionService {
             .leftJoinAndSelect('action.mission', 'mission')
             .leftJoinAndSelect('mission.project', 'project')
             .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.createdBy', 'createdBy')
+            .leftJoinAndSelect('action.creator', 'creator')
             .where(
                 new Brackets((qb) => {
                     qb.where('action.state = :state', {
@@ -373,30 +369,37 @@ export class ActionService {
         return { data: data as unknown as ActionDto[], count, skip, take };
     }
 
+    /**
+     * Writes an audit log entry for the action associated with the given API key.
+     * Uses a transaction to ensure data integrity.
+     *
+     * @param apiKey - The API key associated with the action.
+     * @param auditLog - The audit log entry containing method and URL.
+     */
     async writeAuditLog(
         apiKey: string,
         auditLog: {
             method: string;
             url: string;
         },
-    ) {
-        await this.apikeyRepository.manager.transaction(async (manager) => {
-            const key: Apikey = await manager.findOneOrFail(Apikey, {
-                where: { apikey: apiKey },
-                relations: ['action'],
-            });
+    ): Promise<void> {
+        await this.apikeyRepository.manager.transaction(
+            async (manager: EntityManager): Promise<void> => {
+                const key: ApikeyEntity = await manager.findOneOrFail(
+                    ApikeyEntity,
+                    {
+                        where: { apikey: apiKey },
+                        relations: ['action'],
+                    },
+                );
 
-            const action: Action | undefined = key.action;
-            if (!action) {
-                return;
-            }
+                const action: ActionEntity | undefined = key.action;
+                if (action === undefined) return;
 
-            if (!action.auditLogs) {
-                action.auditLogs = [];
-            }
-
-            action.auditLogs.push(auditLog);
-            await manager.save(action);
-        });
+                action.auditLogs ??= [];
+                action.auditLogs.push(auditLog);
+                await manager.save(action);
+            },
+        );
     }
 }

@@ -1,38 +1,34 @@
-import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import Mission from '../entities/mission/mission.entity';
-
+import type { DataSource } from 'typeorm';
+import { ViewColumn, ViewEntity } from 'typeorm';
+import MissionEntity from '../entities/mission/mission.entity';
 import { AccessGroupRights } from '../frontend_shared/enum';
 
 @ViewEntity({
     expression: (datasource: DataSource) =>
         datasource
-            .createQueryBuilder()
-            .from(Mission, 'mission')
+            .createQueryBuilder(MissionEntity, 'mission')
             .innerJoin('mission.mission_accesses', 'missionAccesses')
             .innerJoin('missionAccesses.accessGroup', 'accessGroup')
             .innerJoin('accessGroup.memberships', 'memberships')
-            .innerJoin('memberships.user', 'users')
+            .innerJoin('memberships.user', 'user')
             .select([
                 'mission.uuid as missionUUID',
-                'users.uuid as userUUID',
-                'missionAccesses.rights as rights',
-                'accessGroup.uuid as accessGroupUUID',
-                'missionAccesses.uuid as missionAccessUUID',
-            ]),
+                'user.uuid as userUUID',
+                // Aggregate to find the highest level of rights
+                'MAX(missionAccesses.rights) as rights',
+            ])
+            // Group by user and mission to get one row per pair
+            .groupBy('mission.uuid')
+            .addGroupBy('user.uuid'),
 })
 export class MissionAccessViewEntity {
     @ViewColumn({ name: 'missionuuid' })
-    missionUUID!: string;
+    missionUuid!: string;
 
     @ViewColumn({ name: 'useruuid' })
-    userUUID!: string;
+    userUuid!: string;
 
+    /** The highest level of access rights the user has for the mission. */
     @ViewColumn({ name: 'rights' })
     rights!: AccessGroupRights;
-
-    @ViewColumn({ name: 'accessgroupuuid' })
-    accessGroupUUID!: string;
-
-    @ViewColumn({ name: 'missionaccessuuid' })
-    missionAccessUUID!: string;
 }

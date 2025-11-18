@@ -1,6 +1,6 @@
-import Action from '@common/entities/action/action.entity';
-import Apikey from '@common/entities/auth/apikey.entity';
-import User from '@common/entities/user/user.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights, UserRole } from '@common/frontend_shared/enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,14 +12,14 @@ import { MissionGuardService } from './mission-guard.service';
 @Injectable()
 export class ActionGuardService {
     constructor(
-        @InjectRepository(Action)
-        private actionRepository: Repository<Action>,
+        @InjectRepository(ActionEntity)
+        private actionRepository: Repository<ActionEntity>,
         private projectGuardService: ProjectGuardService,
         private missionGuardService: MissionGuardService,
     ) {}
 
     async canAccessAction(
-        user: User,
+        user: UserEntity,
         actionUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {
@@ -61,7 +61,7 @@ export class ActionGuardService {
     }
 
     async canKeyAccessAction(
-        apikey: Apikey,
+        apikey: ApikeyEntity,
         actionUuid: string,
         rights: AccessGroupRights = AccessGroupRights.READ,
     ): Promise<boolean> {

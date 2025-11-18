@@ -1,4 +1,4 @@
-import Worker from '@common/entities/worker/worker.entity';
+import WorkerEntity from '@common/entities/worker/worker.entity';
 import Docker from 'dockerode';
 import fs from 'node:fs';
 import { promisify } from 'node:util';
@@ -21,8 +21,8 @@ export async function getDiskSpace() {
 }
 
 export async function createWorker(
-    workerRepository: Repository<Worker>,
-): Promise<Worker> {
+    workerRepository: Repository<WorkerEntity>,
+): Promise<WorkerEntity> {
     // Gather CPU information
     const cpuData = await si.cpu();
     const cpuCores = cpuData.cores;

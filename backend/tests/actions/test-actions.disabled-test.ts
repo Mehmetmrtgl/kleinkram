@@ -1,11 +1,11 @@
-import User from '@common/entities/user/user.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { clearAllData, database } from '../utils/database-utilities';
 
 import { SubmitActionDto } from '@common/api/types/submit-action-response.dto';
-import ActionTemplate from '@common/entities/action/action-template.entity';
-import Action from '@common/entities/action/action.entity';
-import AccessGroup from '@common/entities/auth/accessgroup.entity';
-import Project from '@common/entities/project/project.entity';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
 import { AccessGroupRights } from '@common/frontend_shared/enum';
 import { DEFAULT_URL, generateAndFetchDatabaseUser } from '../auth/utilities';
 import {
@@ -25,7 +25,7 @@ describe('Verify Action', () => {
 
         // Create internal user
         ({
-            user: globalThis.creator as User,
+            user: globalThis.creator as UserEntity,
             token: globalThis.creator.token,
             response: globalThis.creator.Response,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -33,7 +33,7 @@ describe('Verify Action', () => {
 
         // Create 2nd internal user
         ({
-            user: globalThis.user as User,
+            user: globalThis.user as UserEntity,
             token: globalThis.userToken,
             response: globalThis.userResponse,
         } = await generateAndFetchDatabaseUser('internal', 'user'));
@@ -41,7 +41,7 @@ describe('Verify Action', () => {
 
         // Create external user
         ({
-            user: globalThis.externalUser as User,
+            user: globalThis.externalUser as UserEntity,
             token: globalThis.externalUser.token,
             response: globalThis.externalUser.response,
         } = await generateAndFetchDatabaseUser('external', 'user'));
@@ -51,7 +51,7 @@ describe('Verify Action', () => {
 
         // Create admin user
         ({
-            user: globalThis.admin as User,
+            user: globalThis.admin as UserEntity,
             token: globalThis.admin.token,
             response: globalThis.admin.response,
         } = await generateAndFetchDatabaseUser('internal', 'admin'));
@@ -61,7 +61,7 @@ describe('Verify Action', () => {
     beforeEach(async () => {
         // get access group for creator and user
         const accessGroupRepository =
-            database.getRepository<AccessGroup>('access_group');
+            database.getRepository<AccessGroupEntity>('access_group');
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -89,7 +89,8 @@ describe('Verify Action', () => {
         );
 
         // check if project is created
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -139,7 +140,7 @@ describe('Verify Action', () => {
         );
         // check if action is generated
         const actionRepository =
-            database.getRepository<ActionTemplate>('ActionTemplate');
+            database.getRepository<ActionTemplateEntity>('ActionTemplate');
         const action = await actionRepository.findOneOrFail({
             where: { uuid: globalThis.actionUuid },
         });
@@ -153,7 +154,7 @@ describe('Verify Action', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<User>('User');
+        const userRepository = database.getRepository<UserEntity>('User');
         const users = await userRepository.find();
         expect(users.length).toBe(4);
 
@@ -169,7 +170,7 @@ describe('Verify Action', () => {
 
         // delete all action templates
         const actionTemplateRepository =
-            database.getRepository<ActionTemplate>('action_template');
+            database.getRepository<ActionTemplateEntity>('action_template');
         const allActionTemplates = await actionTemplateRepository.find();
 
         console.log('DEBUG: all templates', allActionTemplates);
@@ -181,7 +182,8 @@ describe('Verify Action', () => {
         console.log(`[DEBUG]: All Action Template removed.`);
 
         // delete all actions
-        const actionsRepository = database.getRepository<Action>('Action');
+        const actionsRepository =
+            database.getRepository<ActionEntity>('Action');
         const allActions = await actionsRepository.find();
         await actionsRepository.remove(allActions);
         const remainingActions = await actionsRepository.find();
@@ -198,7 +200,8 @@ describe('Verify Action', () => {
         console.log(`[DEBUG]: All Missions removed.`);
 
         // delete project
-        const projectRepository = database.getRepository<Project>('Project');
+        const projectRepository =
+            database.getRepository<ProjectEntity>('Project');
         const allProjects = await projectRepository.find();
         await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -215,7 +218,7 @@ describe('Verify Action', () => {
     test('if a internal user with create rights can create a action template', async () => {
         // created in beforeEach()
         const actionRepository =
-            database.getRepository<ActionTemplate>('ActionTemplate');
+            database.getRepository<ActionTemplateEntity>('ActionTemplate');
         const action = await actionRepository.findOneOrFail({
             where: { uuid: globalThis.actionUuid },
         });

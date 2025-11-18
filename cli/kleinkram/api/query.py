@@ -41,6 +41,14 @@ class FileQuery:
     mission_query: MissionQuery = field(default_factory=MissionQuery)
 
 
+@dataclass
+class RunQuery:
+    mission_ids: List[UUID] = field(default_factory=list)
+    mission_patterns: List[str] = field(default_factory=list)
+    project_ids: List[UUID] = field(default_factory=list)
+    project_patterns: List[str] = field(default_factory=list)
+
+
 def check_mission_query_is_creatable(query: MissionQuery) -> str:
     """\
     check if a query is unique and can be used to create a mission

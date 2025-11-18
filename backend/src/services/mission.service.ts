@@ -5,10 +5,10 @@ import {
     MissionsDto,
     MissionWithFilesDto,
 } from '@common/api/types/mission/mission.dto';
-import Mission from '@common/entities/mission/mission.entity';
-import Project from '@common/entities/project/project.entity';
-import TagType from '@common/entities/tagType/tag-type.entity';
-import User from '@common/entities/user/user.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import ProjectEntity from '@common/entities/project/project.entity';
+import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import { addTagsToMinioObject, externalMinio } from '@common/minio-helper';
 import { ConflictException, Injectable } from '@nestjs/common';
@@ -49,11 +49,12 @@ const FIND_MANY_SORT_KEYS = {
 @Injectable()
 export class MissionService {
     constructor(
-        @InjectRepository(Mission)
-        private missionRepository: Repository<Mission>,
-        @InjectRepository(Project)
-        private projectRepository: Repository<Project>,
-        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
+        @InjectRepository(ProjectEntity)
+        private projectRepository: Repository<ProjectEntity>,
+        @InjectRepository(UserEntity)
+        private userRepository: Repository<UserEntity>,
         private userService: UserService,
         private tagService: TagService,
     ) {}
@@ -73,14 +74,14 @@ export class MissionService {
         });
         if (!createMission.ignoreTags) {
             const missingTags = project.requiredTags.filter(
-                (tagType: TagType) =>
+                (tagType: TagTypeEntity) =>
                     createMission.tags[tagType.uuid] === undefined &&
                     createMission.tags[tagType.uuid] === '' &&
                     createMission.tags[tagType.uuid] === null,
             );
             if (missingTags.length > 0) {
                 const missingTagNames = missingTags
-                    .map((tagType: TagType) => tagType.name)
+                    .map((tagType: TagTypeEntity) => tagType.name)
                     .join(', ');
                 throw new ConflictException(
                     `All required tags must be provided for the mission. Missing tags: ${
@@ -314,7 +315,7 @@ export class MissionService {
     }
 
     async findMissionByProject(
-        user: User,
+        user: UserEntity,
         projectUuid: string,
         skip: number,
         take: number,
@@ -361,7 +362,10 @@ export class MissionService {
         // this is necessary as raw and entities at not of the same length / order
         // eslint-disable-next-line unicorn/no-array-reduce
         const rawLookup = raw.reduce(
-            (lookup: Record<string, any>, rawEntry: any) => {
+            (
+                lookup: Record<string, unknown>,
+                rawEntry: { mission_uuid: string },
+            ) => {
                 lookup[rawEntry.mission_uuid] = rawEntry;
                 return lookup;
             },
@@ -467,7 +471,9 @@ export class MissionService {
         );
     }
 
-    async download(missionUUID: string) {
+    async download(
+        missionUUID: string,
+    ): Promise<{ filename: string; link: string }[]> {
         const mission = await this.missionRepository.findOneOrFail({
             where: { uuid: missionUUID },
             relations: ['files', 'project'],
@@ -493,7 +499,10 @@ export class MissionService {
         );
     }
 
-    async updateName(uuid: string, name: string) {
+    async updateName(
+        uuid: string,
+        name: string,
+    ): Promise<MissionEntity | null> {
         const exists = await this.missionRepository.exists({
             where: { name: ILike(name), uuid: Not(uuid) },
         });

@@ -95,7 +95,9 @@ export class UserController {
         type: PermissionsDto,
         description: 'The permissions of the currently logged in user',
     })
-    async permissions(@AddUser() user: AuthHeader): Promise<PermissionsDto> {
-        return this.userService.permissions(user);
+    async permissions(
+        @AddUser() authHeader: AuthHeader,
+    ): Promise<PermissionsDto> {
+        return this.userService.getUserPermissions(authHeader.user.uuid);
     }
 }

@@ -84,7 +84,7 @@
                 </q-tab-panel>
 
                 <q-tab-panel name="manage_access">
-                    <configure-access-rights
+                    <access-rights-manager
                         v-model="accessGroups"
                         :min-access-rights="minAccessRights"
                     />
@@ -119,7 +119,7 @@ import { DefaultRightDto } from '@api/types/access-control/default-right.dto';
 import { TagTypeDto } from '@api/types/tags/tags.dto';
 import { AccessGroupType } from '@common/enum';
 import { useQueryClient } from '@tanstack/vue-query';
-import ConfigureAccessRights from 'components/configure-access-rights/configure-access-rights.vue';
+import AccessRightsManager from 'components/configure-access-rights/access-rights-manager.vue';
 import ConfigureMetadata from 'components/configure-metadata.vue';
 import { QInput, useDialogPluginComponent, useQuasar } from 'quasar';
 import { useProjectDefaultAccess } from 'src/hooks/query-hooks';

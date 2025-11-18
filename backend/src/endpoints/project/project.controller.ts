@@ -18,6 +18,7 @@ import {
     Controller,
     Delete,
     Get,
+    ParseArrayPipe,
     Post,
     Put,
     Query,
@@ -39,7 +40,7 @@ import {
     UserOnly,
 } from '../auth/roles.decorator';
 
-@Controller(['project', 'projects']) // TODO: over time we will migrate to 'projects'
+@Controller(['projects'])
 export class ProjectController {
     constructor(
         private readonly projectService: ProjectService,
@@ -49,7 +50,7 @@ export class ProjectController {
     @Post()
     @CanCreate()
     @ApiOkResponse({
-        description: 'Returns the updated project',
+        description: 'Returns the created project',
         type: ProjectDto,
     })
     async createProject(
@@ -63,7 +64,7 @@ export class ProjectController {
     @Get(':uuid')
     @CanReadProject()
     @ApiOkResponse({
-        description: 'Returns the project',
+        description: 'Returns the project macthing the uuid.',
         type: ProjectWithRequiredTagsDto,
     })
     async getProjectById(
@@ -188,7 +189,8 @@ export class ProjectController {
     })
     async updateProjectAccess(
         @ParameterUID('uuid') uuid: string,
-        @Body() body: ProjectAccessDto[],
+        @Body(new ParseArrayPipe({ items: ProjectAccessDto }))
+        body: ProjectAccessDto[],
         @AddUser() auth: AuthHeader,
     ): Promise<ProjectAccessListDto> {
         return this.accessService.updateProjectAccess(uuid, body, auth);
