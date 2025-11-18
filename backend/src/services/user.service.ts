@@ -12,6 +12,7 @@ import {
     AccessGroupType,
     UserRole,
 } from '@common/frontend_shared/enum';
+import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
 import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,6 +28,8 @@ export class UserService implements OnModuleInit {
         private projectAccessView: Repository<ProjectAccessViewEntity>,
         @InjectRepository(ApikeyEntity)
         private apikeyRepository: Repository<ApikeyEntity>,
+        @InjectRepository(MissionAccessViewEntity)
+        private missionAccessView: Repository<MissionAccessViewEntity>,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -164,56 +167,70 @@ export class UserService implements OnModuleInit {
         };
     }
 
-    async permissions(auth: AuthHeader): Promise<PermissionsDto> {
-        let user = await this.userRepository.findOne({
-            where: {
-                uuid: auth.user.uuid,
-                memberships: {
-                    accessGroup: { type: AccessGroupType.AFFILIATION },
-                },
-            },
-            relations: ['memberships'],
-            select: ['uuid', 'role'],
-        });
-
-        let defaultPermission: AccessGroupRights;
-        if (user === null) {
-            user = await this.userRepository.findOneOrFail({
-                where: { uuid: auth.user.uuid },
-                select: ['uuid', 'role'],
-            });
-            defaultPermission = 0;
-        } else {
-            if (user.memberships === undefined)
-                throw new Error('Membership undefined');
-
-            defaultPermission = user.memberships.length > 0 ? 10 : 0;
+    /**
+     * Get the permissions for a user, including their role,
+     * default permission level, and specific project and mission permissions.
+     *
+     * @param userUuid - UUID of the user
+     * @returns PermissionsDto
+     * @throws Error if userUuid is null or empty
+     */
+    async getUserPermissions(userUuid: string): Promise<PermissionsDto> {
+        // validate preconditions
+        if (!userUuid) {
+            throw new Error('User UUID is required to get permissions');
         }
 
-        const role = user.role;
+        // Execute independent queries in parallel using Promise.all
+        const [user, projectAccessRows, missionAccessRows] = await Promise.all([
+            // Query 1: Get User and specific memberships in one go
+            this.userRepository.findOne({
+                where: { uuid: userUuid },
+                relations: ['memberships', 'memberships.accessGroup'],
+            }),
 
-        const projects: {
-            uuid: string;
-            access: number;
-        }[] = await this.projectAccessView
-            .createQueryBuilder('project')
-            .select('project.projectUUID', 'uuid')
-            .addSelect('MAX(project.rights)', 'access')
-            .where('project.userUUID = :userUUID', { userUUID: user.uuid })
-            .groupBy('project.projectUUID')
-            .getRawMany();
+            // Query 2: Get Project Access
+            this.projectAccessView.find({
+                where: { userUuid: userUuid },
+                select: ['projectUuid', 'rights'],
+            }),
 
-        // TODO: Implement missions once we have mission level access control
-        const missions: {
-            uuid: string;
-            access: number;
-        }[] = [];
+            // Query 3: Get Mission Access
+            this.missionAccessView.find({
+                where: { userUuid: userUuid },
+                select: ['missionUuid', 'rights'],
+            }),
+        ]);
+
+        if (!user) {
+            throw new Error(`User with UUID ${userUuid} not found`);
+        }
+
+        // We check if the loaded memberships contain an AFFILIATION type
+        const hasAffiliation = user.memberships?.some(
+            (m) => m.accessGroup?.type === AccessGroupType.AFFILIATION,
+        );
+
+        const defaultPermission: AccessGroupRights = hasAffiliation
+            ? AccessGroupRights.WRITE
+            : AccessGroupRights.READ;
+
+        // map project accesses
+        const projectAccesses = projectAccessRows.map((r) => ({
+            uuid: r.projectUuid,
+            access: r.rights,
+        }));
+
+        const missionAccesses = missionAccessRows.map((r) => ({
+            uuid: r.missionUuid,
+            access: r.rights,
+        }));
 
         return {
-            role,
+            role: user.role,
             defaultPermission,
-            projects,
-            missions,
+            projects: projectAccesses,
+            missions: missionAccesses,
         } as PermissionsDto;
     }
 
