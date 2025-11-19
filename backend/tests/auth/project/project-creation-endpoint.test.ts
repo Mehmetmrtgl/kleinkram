@@ -1,6 +1,7 @@
 import { clearAllData, database } from '../../utils/database-utilities';
 
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights } from '@common/frontend_shared/enum';
@@ -63,7 +64,7 @@ describe('Verification project endpoint', () => {
     beforeEach(async () => {
         // get access group for creator
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -86,7 +87,7 @@ describe('Verification project endpoint', () => {
 
         // check if project is created
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -98,7 +99,7 @@ describe('Verification project endpoint', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<UserEntity>('User');
+        const userRepository = database.getRepository<UserEntity>(UserEntity);
         const users = await userRepository.find();
         expect(users.length).toBe(4);
 
@@ -113,7 +114,8 @@ describe('Verification project endpoint', () => {
         expect(actualUserUuids.sort()).toEqual(expectedUserUuids.sort());
 
         // delete all missions
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const allMissions = await missionRepository.find();
         const responseMission = await missionRepository.remove(allMissions);
         const remainingMissions = await missionRepository.find();
@@ -122,7 +124,7 @@ describe('Verification project endpoint', () => {
 
         // delete project
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const allProjects = await projectRepository.find();
         const response = await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -139,7 +141,7 @@ describe('Verification project endpoint', () => {
     test('User with leggedrobotics email can create a new project', async () => {
         // happens in beforeAll
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -148,7 +150,7 @@ describe('Verification project endpoint', () => {
 
     test('if it is not possible to create a project with the same name', async () => {
         const header = new HeaderCreator(globalThis.creator);
-        const response = await fetch(`${DEFAULT_URL}/project`, {
+        const response = await fetch(`${DEFAULT_URL}/projects`, {
             method: 'POST',
             headers: header.getHeaders(),
             body: JSON.stringify({
@@ -201,7 +203,7 @@ describe('Verification project endpoint', () => {
 
         // check database
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -224,7 +226,7 @@ describe('Verification project endpoint', () => {
 
         // check if project is deleted
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const projects = await projectRepository.find();
         expect(projects.length).toBe(0);
     });
@@ -271,7 +273,7 @@ describe('Verification project endpoint', () => {
 
     test('the creator can add users to with WRITE access to the project during creation', async () => {
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -354,7 +356,7 @@ describe('Verification project endpoint', () => {
     test('the creator can add users to with CREATE access to the project during creation', async () => {
         // create project with CREATE access for user
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -392,7 +394,8 @@ describe('Verification project endpoint', () => {
         );
 
         // check if mission is generated
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const mission = await missionRepository.findOneOrFail({
             where: { uuid: missionUuid },
         });
@@ -474,7 +477,7 @@ describe('Verification project endpoint', () => {
         headerCreator.addHeader('Content-Type', 'application/json');
 
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupUser = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.user.name },
         });
@@ -513,7 +516,8 @@ describe('Verification project endpoint', () => {
         );
 
         // check if mission is generated
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const mission = await missionRepository.findOneOrFail({
             where: { uuid: missionUuid },
         });
@@ -542,7 +546,7 @@ describe('Verification project endpoint', () => {
 
         // check if project is not deleted
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const projects = await projectRepository.find();
         expect(projects.length).toBe(1);
     });

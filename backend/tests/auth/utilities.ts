@@ -15,7 +15,8 @@ export const DEFAULT_GROUP_UUIDS: [string] = [
     '00000000-0000-0000-0000-000000000000',
 ] as const;
 export const getAllAccessGroups = async (): Promise<AccessGroupEntity[]> => {
-    const accessGroupRepository = database.getRepository('AccessGroup');
+    const accessGroupRepository =
+        database.getRepository<AccessGroupEntity>(AccessGroupEntity);
     return (await accessGroupRepository.find({
         relations: ['members', 'members.user'],
         select: {
@@ -92,7 +93,7 @@ export const generateAndFetchDatabaseUser = async (
 
         const baseEmail =
             userType === 'internal'
-                ? 'internal-user@leggedrobotics.com'
+                ? 'internal-user@kleinkram.leggedrobotics.com'
                 : 'external-user@third-party.com';
 
         let userEmail = baseEmail;

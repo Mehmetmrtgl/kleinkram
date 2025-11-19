@@ -5,6 +5,7 @@ import { SubmitActionDto } from '@common/api/types/submit-action-response.dto';
 import ActionTemplateEntity from '@common/entities/action/action-template.entity';
 import ActionEntity from '@common/entities/action/action.entity';
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
 import { AccessGroupRights } from '@common/frontend_shared/enum';
 import { DEFAULT_URL, generateAndFetchDatabaseUser } from '../auth/utilities';
@@ -61,7 +62,7 @@ describe('Verify Action', () => {
     beforeEach(async () => {
         // get access group for creator and user
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -90,7 +91,7 @@ describe('Verify Action', () => {
 
         // check if project is created
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -111,7 +112,8 @@ describe('Verify Action', () => {
         );
 
         // check if mission is generated
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const mission = await missionRepository.findOneOrFail({
             where: { uuid: globalThis.missionUuid },
         });
@@ -140,7 +142,7 @@ describe('Verify Action', () => {
         );
         // check if action is generated
         const actionRepository =
-            database.getRepository<ActionTemplateEntity>('ActionTemplate');
+            database.getRepository<ActionTemplateEntity>(ActionTemplateEntity);
         const action = await actionRepository.findOneOrFail({
             where: { uuid: globalThis.actionUuid },
         });
@@ -154,7 +156,7 @@ describe('Verify Action', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<UserEntity>('User');
+        const userRepository = database.getRepository<UserEntity>(UserEntity);
         const users = await userRepository.find();
         expect(users.length).toBe(4);
 
@@ -170,7 +172,7 @@ describe('Verify Action', () => {
 
         // delete all action templates
         const actionTemplateRepository =
-            database.getRepository<ActionTemplateEntity>('action_template');
+            database.getRepository<ActionTemplateEntity>(ActionTemplateEntity);
         const allActionTemplates = await actionTemplateRepository.find();
 
         console.log('DEBUG: all templates', allActionTemplates);
@@ -183,7 +185,7 @@ describe('Verify Action', () => {
 
         // delete all actions
         const actionsRepository =
-            database.getRepository<ActionEntity>('Action');
+            database.getRepository<ActionEntity>(ActionEntity);
         const allActions = await actionsRepository.find();
         await actionsRepository.remove(allActions);
         const remainingActions = await actionsRepository.find();
@@ -192,7 +194,8 @@ describe('Verify Action', () => {
         console.log(`[DEBUG]: All Actions removed.`);
 
         // delete all missions
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const allMissions = await missionRepository.find();
         await missionRepository.remove(allMissions);
         const remainingMissions = await missionRepository.find();
@@ -201,7 +204,7 @@ describe('Verify Action', () => {
 
         // delete project
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const allProjects = await projectRepository.find();
         await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -218,7 +221,7 @@ describe('Verify Action', () => {
     test('if a internal user with create rights can create a action template', async () => {
         // created in beforeEach()
         const actionRepository =
-            database.getRepository<ActionTemplateEntity>('ActionTemplate');
+            database.getRepository<ActionTemplateEntity>(ActionTemplateEntity);
         const action = await actionRepository.findOneOrFail({
             where: { uuid: globalThis.actionUuid },
         });

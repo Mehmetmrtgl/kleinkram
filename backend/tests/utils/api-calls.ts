@@ -70,7 +70,7 @@ export const createProjectUsingPost = async (
     const headersBuilder = new HeaderCreator(user);
     headersBuilder.addHeader('Content-Type', 'application/json');
 
-    const response = await fetch(`${DEFAULT_URL}/project`, {
+    const response = await fetch(`${DEFAULT_URL}/projects`, {
         method: 'POST',
         headers: headersBuilder.getHeaders(),
         body: JSON.stringify(project),
