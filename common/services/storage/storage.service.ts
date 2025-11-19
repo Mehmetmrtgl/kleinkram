@@ -1,21 +1,21 @@
 import { AuditLog } from '@common/audit/audit.decorator';
 import { FileAuditStrategy } from '@common/audit/audit.strategies';
 import { AuditFileAction } from '@common/audit/audit.types';
-import environment from '@common/environment';
 import { Inject, Injectable } from '@nestjs/common';
-import axios from 'axios';
-import jwt from 'jsonwebtoken';
-import { Client, ItemBucketMetadata } from 'minio';
-import AssumeRoleProvider from 'minio/dist/main/AssumeRoleProvider.js';
+import { BucketItemStat, Client, ItemBucketMetadata } from 'minio';
 import Credentials from 'minio/dist/main/Credentials';
 import { BucketItem, TaggingOpts, Tags } from 'minio/dist/main/internal/type';
 import { Stream } from 'node:stream';
+import { StorageAuthService } from './storage-auth.service';
+import { StorageMetricsService } from './storage-metrics.service';
 
 @Injectable()
 export class StorageService {
     constructor(
         @Inject('MINIO_CLIENTS')
         private clients: { external: Client; internal: Client },
+        private readonly metricsService: StorageMetricsService,
+        private readonly authService: StorageAuthService,
     ) {}
 
     @AuditLog(AuditFileAction.READ, FileAuditStrategy)
@@ -55,6 +55,29 @@ export class StorageService {
         return this.clients.internal.getObject(bucketName, objectName);
     }
 
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
+    async listFiles(bucketName: string): Promise<BucketItem[]> {
+        const stream = this.clients.internal.listObjects(bucketName, '');
+        const result: BucketItem[] = [];
+        for await (const item of stream) {
+            result.push(item);
+        }
+        return result;
+    }
+
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
+    async getFileInfo(
+        bucketName: string,
+        location: string,
+    ): Promise<BucketItemStat | undefined> {
+        try {
+            return await this.clients.internal.statObject(bucketName, location);
+        } catch (error: any) {
+            if (error.code === 'NotFound') return;
+            throw error;
+        }
+    }
+
     @AuditLog(AuditFileAction.WRITE, FileAuditStrategy)
     async uploadFile(
         bucketName: string,
@@ -70,6 +93,11 @@ export class StorageService {
         );
     }
 
+    @AuditLog(AuditFileAction.DELETE, FileAuditStrategy)
+    async deleteFile(bucketName: string, location: string): Promise<void> {
+        await this.clients.internal.removeObject(bucketName, location);
+    }
+
     @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async getTags(
         bucketName: string,
@@ -79,19 +107,7 @@ export class StorageService {
             bucketName,
             objectName,
         );
-
-        // Extracted normalization logic to keep method clean
         return this.normalizeTags(tagList);
-    }
-
-    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
-    async getFileInfo(bucketName: string, location: string) {
-        try {
-            return await this.clients.internal.statObject(bucketName, location);
-        } catch (error: any) {
-            if (error.code === 'NotFound') return null;
-            throw error;
-        }
     }
 
     @AuditLog(AuditFileAction.META, FileAuditStrategy)
@@ -104,9 +120,7 @@ export class StorageService {
             bucketName,
             objectName,
             tags,
-            {
-                versionId: 'null',
-            },
+            { versionId: 'null' },
         );
     }
 
@@ -119,130 +133,32 @@ export class StorageService {
         );
     }
 
-    @AuditLog(AuditFileAction.DELETE, FileAuditStrategy)
-    async deleteFile(bucketName: string, location: string): Promise<void> {
-        await this.clients.internal.removeObject(bucketName, location);
-    }
-
-    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
-    async listFiles(bucketName: string): Promise<BucketItem[]> {
-        const stream = this.clients.internal.listObjects(bucketName, '');
-        const result: BucketItem[] = [];
-        for await (const item of stream) {
-            result.push(item);
-        }
-        return result;
-    }
-
-    private normalizeTags(tagList: any): Record<string, string> {
-        const result: Record<string, string> = {};
-        if (Array.isArray(tagList)) {
-            for (const tag of tagList) {
-                if (tag.Key && tag.Value) result[tag.Key] = tag.Value;
-            }
-        } else if (typeof tagList === 'object') {
-            return tagList as Record<string, string>;
-        }
-        return result;
-    }
-    /**
-     * Fetches system drive metrics from MinIO Prometheus endpoint
-     */
     async getSystemMetrics(): Promise<any> {
-        const expiredAt = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-
-        const payload = {
-            exp: expiredAt,
-
-            sub: environment.MINIO_ACCESS_KEY,
-
-            iss: 'prometheus',
-        };
-
-        const token = jwt.sign(payload, environment.MINIO_SECRET_KEY, {
-            algorithm: 'HS512',
-        });
-
-        const response = await axios.get(
-            'http://minio:9000/minio/metrics/v3/system/drive',
-
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        return this.parseMinioMetrics(response.data);
-    }
-
-    private parseMinioMetrics(metricsText) {
-        const lines = metricsText
-            .split('\n')
-            .filter((line) => line.trim() !== '');
-
-        const result = {};
-        for (const line of lines) {
-            // Skip comments
-            if (line.startsWith('#')) {
-                continue;
-            }
-
-            // Match metric lines
-            const match = line.match(/^(\w+)\{(.+)\}\s+(.+)$/);
-
-            if (match) {
-                const [, metricName, labelsText, value] = match;
-
-                // Parse labels
-                const labels = {};
-
-                for (const labelPair of labelsText.split(',')) {
-                    const [key, value_] = labelPair.split('=');
-                    labels[key] = value_.replaceAll('"', ''); // Remove quotes
-                }
-
-                // Add to the result object
-                if (!result[metricName]) {
-                    result[metricName] = [];
-                }
-
-                result[metricName].push({
-                    labels,
-
-                    value: Number.parseFloat(value),
-                });
-            }
-        }
-
-        return result;
+        return this.metricsService.getSystemMetrics();
     }
 
     @AuditLog(AuditFileAction.WRITE, FileAuditStrategy)
     async generateTemporaryCredential(
         filename: string,
-
         bucketName: string,
     ): Promise<Credentials> {
-        const resource = `arn:aws:s3:::${bucketName}/${filename}`;
+        return this.authService.generateTemporaryCredential(
+            filename,
+            bucketName,
+        );
+    }
 
-        const policy = {
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Effect: 'Allow',
-                    Action: ['s3:PutObject', 's3:AbortMultipartUpload'],
-                    Resource: [resource],
-                },
-            ],
-        };
-
-        const provider = new AssumeRoleProvider({
-            secretKey: environment.MINIO_PASSWORD,
-            accessKey: environment.MINIO_USER,
-            stsEndpoint: 'http://minio:9000',
-            action: 'AssumeRole',
-            policy: JSON.stringify(policy),
-            durationSeconds: 60 * 60 * 4,
-        });
-
-        return await provider.getCredentials();
+    private normalizeTags(tagList: any): Record<string, string> {
+        if (Array.isArray(tagList)) {
+            // eslint-disable-next-line unicorn/no-array-reduce
+            return tagList.reduce((accumulator, tag) => {
+                if (tag.Key && tag.Value) accumulator[tag.Key] = tag.Value;
+                return accumulator;
+            }, {});
+        }
+        if (typeof tagList === 'object') {
+            return tagList as Record<string, string>;
+        }
+        return {};
     }
 }

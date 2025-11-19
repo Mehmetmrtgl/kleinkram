@@ -225,7 +225,7 @@ export class QueueService implements OnModuleInit {
 
         if (fileInfo === null) throw new Error('File not found in Minio');
         if (file.state === FileState.UPLOADING) file.state = FileState.OK;
-        file.size = fileInfo.size;
+        file.size = fileInfo?.size ?? 0;
         await this.fileRepository.save(file);
 
         queue.state = QueueState.AWAITING_PROCESSING;
@@ -243,7 +243,7 @@ export class QueueService implements OnModuleInit {
         userUUID: string,
         skip: number,
         take: number,
-    ) {
+    ): Promise<any[]> {
         // @ts-ignore
         const user = await this.userService.findOneByUUID(userUUID);
         const where: FindOptionsWhere<QueueEntity> = {
