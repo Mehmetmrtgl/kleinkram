@@ -556,7 +556,7 @@ def follow_run_logs(client: AuthenticatedClient, run_uuid: str) -> int:
     """
     typer.echo(f"Following logs for run {run_uuid}...")
 
-    TERMINAL_STATES = {"DONE", "ERROR", "UNPROCESSABLE"}
+    TERMINAL_STATES = {"DONE", "FAILED", "UNPROCESSABLE"}
     printed_log_count = 0
     current_run_state = None
     exit_code = 0  # Assume success
