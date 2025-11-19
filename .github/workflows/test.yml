@@ -50,7 +50,6 @@ jobs:
                     fi
                     sleep 1
                     echo "waiting for endpoints"
-                    ls -al ./.endpoints/
                   done
                   echo "Endpoints found. Running tests..."
 
