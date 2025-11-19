@@ -18,7 +18,8 @@
         "minio": "8.0.6",
         "pg": "^8.16.3",
         "ts-node": "^10.9.2",
-        "typeorm": "^0.4.0-alpha.1",
+        "@nestjs/typeorm": "^10.0.2",
+        "typeorm": "^0.3.27",
         "typeorm-seeding": "^1.6.1"
     },
     "devDependencies": {
