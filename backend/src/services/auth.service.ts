@@ -13,10 +13,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtPayload } from 'jsonwebtoken';
-import { AuthFlowException } from 'src/types/auth-flow-exception';
 import { Repository } from 'typeorm';
 import logger from '../logger';
 import { AccessGroupConfig } from '../types/access-group-config';
+import { AuthFlowException } from '../types/auth-flow-exception';
 
 @Injectable()
 export class AuthService implements OnModuleInit {

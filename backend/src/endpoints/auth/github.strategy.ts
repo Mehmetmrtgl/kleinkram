@@ -4,9 +4,9 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import e from 'express';
 import { Strategy, VerifyCallback } from 'passport-github2';
-import { AuthFlowException } from 'src/types/auth-flow-exception';
 import logger from '../../logger';
 import { AuthService } from '../../services/auth.service';
+import { AuthFlowException } from '../../types/auth-flow-exception';
 
 @Injectable()
 export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
