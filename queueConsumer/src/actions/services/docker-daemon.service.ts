@@ -130,7 +130,7 @@ export class DockerDaemon {
         const details = await image.inspect().catch(dockerDaemonErrorHandler);
         if (!details) {
             throw new Error(
-                `Image ${containerOptions.docker_image} not found, could not start container!`,
+                `Image '${containerOptions.docker_image}' not found, could not start container!`,
             );
         }
         const repoDigests = details.RepoDigests;

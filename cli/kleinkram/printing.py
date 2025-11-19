@@ -581,7 +581,7 @@ def follow_run_logs(client: AuthenticatedClient, run_uuid: str) -> int:
                         else typer.colors.RED
                     )
                     typer.secho(
-                        f"\nRun finished with state: {run_details.state}", fg=color
+                        f"\nRun finished with state: {run_details.state} ({run_details.state_cause})", fg=color
                     )
                     if run_details.state.upper() != "DONE":
                         exit_code = 1  # Set failure exit code

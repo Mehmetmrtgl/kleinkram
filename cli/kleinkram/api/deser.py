@@ -71,6 +71,7 @@ class ProjectObjectKeys(str, Enum):
 class RunObjectKeys(str, Enum):
     UUID = "uuid"
     STATE = "state"
+    STATE_CAUSE = "stateCause"
     CREATED_AT = "createdAt"
     MISSION = "mission"
     TEMPLATE = "template"
@@ -303,6 +304,7 @@ def _parse_run(run_object: RunObject) -> Run:
     try:
         uuid_ = UUID(run_object[RunObjectKeys.UUID], version=4)
         state = run_object[RunObjectKeys.STATE]
+        state_cause = run_object[RunObjectKeys.STATE_CAUSE]
         created_at = _parse_datetime(run_object[RunObjectKeys.CREATED_AT])
         updated_at = (
             _parse_datetime(run_object[RunObjectKeys.UPDATED_AT])
@@ -339,6 +341,7 @@ def _parse_run(run_object: RunObject) -> Run:
     return Run(
         uuid=uuid_,
         state=state,
+        state_cause=state_cause,
         created_at=created_at,
         updated_at=updated_at,
         mission_id=mission_id,
