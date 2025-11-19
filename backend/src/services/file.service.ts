@@ -23,7 +23,6 @@ import {
     UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import jwt from 'jsonwebtoken';
 import {
     Brackets,
     DataSource,
@@ -53,25 +52,15 @@ import CategoryEntity from '@common/entities/category/category.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
-import {
-    addTagsToMinioObject,
-    deleteFileMinio,
-    externalMinio,
-    generateTemporaryCredential,
-    getInfoFromMinio,
-    internalMinio,
-} from '@common/minio-helper';
-import axios from 'axios';
+import { StorageService } from '@common/services/storage/storage.service';
 import Queue from 'bull';
 import { BucketItem } from 'minio';
 import Credentials from 'minio/dist/main/Credentials';
-import { TaggingOpts } from 'minio/dist/main/internal/type';
 import {
     addAccessConstraints,
     addAccessConstraintsToFileQuery,
 } from '../endpoints/auth/auth-helper';
-import { parseMinioMetrics } from '../endpoints/file/utilities';
-import logger from '../logger'; // Type guard function to check if the error has a 'code' property
+import logger from '../logger';
 
 // Type guard function to check if the error has a 'code' property
 function isErrorWithCode(error: unknown): error is { code: string } {
@@ -106,6 +95,7 @@ export class FileService implements OnModuleInit {
         private queueRepository: Repository<QueueEntity>,
         @InjectRepository(CategoryEntity)
         private categoryRepository: Repository<CategoryEntity>,
+        private readonly storageService: StorageService,
     ) {}
 
     onModuleInit(): void {
@@ -629,7 +619,8 @@ export class FileService implements OnModuleInit {
                 }
                 throw error;
             });
-        await addTagsToMinioObject(
+
+        await this.storageService.addTags(
             env.MINIO_DATA_BUCKET_NAME,
             databaseFile.uuid,
             {
@@ -665,16 +656,18 @@ export class FileService implements OnModuleInit {
         if (file.uuid === undefined || file.uuid !== uuid)
             throw new BadRequestException('File not found');
 
-        const stats = await getInfoFromMinio(file.type, file.uuid);
+        const stats = await this.storageService.getFileInfo(
+            env.MINIO_DATA_BUCKET_NAME,
+            file.uuid,
+        );
 
         // verify that the file exists in Minio
         if (!stats) throw new NotFoundException('File not found');
 
-        return await externalMinio.presignedUrl(
-            'GET',
+        return await this.storageService.getPresignedDownloadUrl(
             env.MINIO_DATA_BUCKET_NAME,
-            file.uuid, // we use the uuid as the filename in Minio
-            expires ? 4 * 60 * 60 : 604_800, // 604800 seconds = 1 week
+            file.uuid,
+            expires ? 4 * 60 * 60 : 604_800,
             {
                 // set filename in response headers
 
@@ -715,7 +708,7 @@ export class FileService implements OnModuleInit {
                         return;
                     }
 
-                    await addTagsToMinioObject(bucket, file.uuid, {
+                    await this.storageService.addTags(bucket, file.uuid, {
                         filename: file.filename,
                         missionUuid: missionUUID,
                         projectUuid: newFile.mission.project.uuid,
@@ -753,11 +746,13 @@ export class FileService implements OnModuleInit {
 
                 // delete the file from Minio
                 const bucket = env.MINIO_DATA_BUCKET_NAME;
-                await deleteFileMinio(bucket, file.uuid).catch(() => {
-                    logger.error(
-                        `File ${file.uuid} not found in Minio, deleting from database only!`,
-                    );
-                });
+                await this.storageService
+                    .deleteFile(bucket, file.uuid)
+                    .catch(() => {
+                        logger.error(
+                            `File ${file.uuid} not found in Minio, deleting from database only!`,
+                        );
+                    });
 
                 await transactionalEntityManager.remove(file);
             },
@@ -767,36 +762,14 @@ export class FileService implements OnModuleInit {
     }
 
     async getStorage(): Promise<StorageOverviewDto> {
-        const expiredAt = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        const metrics = await this.storageService.getSystemMetrics();
 
-        const payload = {
-            exp: expiredAt,
-            sub: env.MINIO_ACCESS_KEY,
-            iss: 'prometheus',
-        };
-
-        const token = jwt.sign(payload, env.MINIO_SECRET_KEY, {
-            algorithm: 'HS512',
-        });
-
-        const headers = {
-            Authorization: `Bearer ${token}`,
-        };
-
-        return axios
-            .get('http://minio:9000/minio/metrics/v3/system/drive', {
-                headers,
-            })
-            .then((response) => {
-                const metrics: any = parseMinioMetrics(response.data);
-                return {
-                    usedBytes: metrics.minio_system_drive_used_bytes[0].value,
-                    totalBytes: metrics.minio_system_drive_total_bytes[0].value,
-                    usedInodes: metrics.minio_system_drive_used_inodes[0].value,
-                    totalInodes:
-                        metrics.minio_system_drive_total_inodes[0].value,
-                } as StorageOverviewDto;
-            });
+        return {
+            usedBytes: metrics.minio_system_drive_used_bytes[0].value,
+            totalBytes: metrics.minio_system_drive_total_bytes[0].value,
+            usedInodes: metrics.minio_system_drive_used_inodes[0].value,
+            totalInodes: metrics.minio_system_drive_total_inodes[0].value,
+        } as StorageOverviewDto;
     }
 
     async isUploading(userUUID: string): Promise<boolean> {
@@ -804,8 +777,6 @@ export class FileService implements OnModuleInit {
             .findOne({
                 where: {
                     state: FileState.UPLOADING,
-                    // pending uploads get canceled after 12 hours
-                    // however this cleanup is done asynchronously once a day
                     createdAt: MoreThan(
                         new Date(Date.now() - 12 * 60 * 60 * 1000),
                     ),
@@ -859,8 +830,6 @@ export class FileService implements OnModuleInit {
                     // eslint-disable-next-line unicorn/no-null
                     error: null,
                 };
-
-                logger.debug(`Creating temporary access for file: ${filename}`);
 
                 const fileExtensionToFileTypeMap: ReadonlyMap<
                     string,
@@ -919,7 +888,6 @@ export class FileService implements OnModuleInit {
                         size: 0,
                         filename,
                         mission,
-
                         creator: user,
                         type: fileType,
                         state: FileState.UPLOADING,
@@ -930,7 +898,6 @@ export class FileService implements OnModuleInit {
                 const queueEntity = await this.queueRepository.save(
                     this.queueRepository.create({
                         identifier: file.uuid,
-
                         display_name: filename,
                         state: QueueState.AWAITING_UPLOAD,
                         location: FileLocation.MINIO,
@@ -943,10 +910,11 @@ export class FileService implements OnModuleInit {
                     bucket: env.MINIO_DATA_BUCKET_NAME,
                     fileUUID: file.uuid,
                     fileName: filename,
-                    accessCredentials: await generateTemporaryCredential(
-                        file.uuid,
-                        env.MINIO_DATA_BUCKET_NAME,
-                    ),
+                    accessCredentials:
+                        await this.storageService.generateTemporaryCredential(
+                            file.uuid,
+                            env.MINIO_DATA_BUCKET_NAME,
+                        ),
                     queueUUID: queueEntity.uuid,
                 };
             }),
@@ -974,18 +942,6 @@ export class FileService implements OnModuleInit {
         });
     }
 
-    /**
-     * Delete multiple files with the given uuids.
-     *
-     * This function will remove the files from the database and from Minio.
-     * The deletion fails if any of the files is not found in the database or
-     * if any of the files is not found in Minio. It verifies the files in the
-     * database and Minio in a single transaction to ensure consistency.
-     *
-     * @param fileUUIDs The unique identifiers of the files
-     * @param missionUUID The unique identifier of the mission
-     *
-     */
     async deleteMultiple(
         fileUUIDs: string[],
         missionUUID: string,
@@ -994,10 +950,8 @@ export class FileService implements OnModuleInit {
 
         await this.fileRepository.manager.transaction(
             async (transactionalEntityManager) => {
-                // get a list of all files to delete
                 const files = await transactionalEntityManager.find(
                     FileEntity,
-                    // eslint-disable-next-line unicorn/no-array-method-this-argument
                     {
                         where: {
                             uuid: In(uniqueFilesUuids),
@@ -1006,7 +960,6 @@ export class FileService implements OnModuleInit {
                     },
                 );
 
-                // verify that all files are found in the database
                 const uniqueDatabaseFilesUuids = [
                     ...new Set(files.map((f) => f.uuid)),
                 ];
@@ -1021,11 +974,13 @@ export class FileService implements OnModuleInit {
                 await Promise.all(
                     files.map(async (file) => {
                         const bucket = env.MINIO_DATA_BUCKET_NAME;
-                        await deleteFileMinio(bucket, file.uuid).catch(() => {
-                            logger.error(
-                                `File ${file.uuid} not found in Minio, deleting from database only!`,
-                            );
-                        });
+                        await this.storageService
+                            .deleteFile(bucket, file.uuid)
+                            .catch(() => {
+                                logger.error(
+                                    `File ${file.uuid} not found in Minio, deleting from database only!`,
+                                );
+                            });
                     }),
                 );
 
@@ -1034,10 +989,6 @@ export class FileService implements OnModuleInit {
         );
     }
 
-    /**
-     * Check if a file with the given uuid exists.
-     * @param fileUUID
-     */
     async exists(fileUUID: string): Promise<FileExistsResponseDto> {
         return {
             exists: await this.fileRepository.exists({
@@ -1047,9 +998,9 @@ export class FileService implements OnModuleInit {
         };
     }
 
-    async renameTags(bucked: string): Promise<void> {
-        const files = internalMinio.listObjects(bucked, '');
-        const filesList = await files.toArray();
+    async renameTags(bucket: string): Promise<void> {
+        const filesList = await this.storageService.listFiles(bucket);
+
         await Promise.all(
             filesList.map(async (file: BucketItem) => {
                 if (!file.name) {
@@ -1064,20 +1015,16 @@ export class FileService implements OnModuleInit {
                     logger.error(`File ${file.name} not found in database`);
                     return;
                 }
-                await internalMinio.removeObjectTagging(
-                    bucked,
-                    file.name,
-                    {} as TaggingOpts,
-                );
+
+                await this.storageService.removeTags(bucket, file.name);
 
                 if (fileEntity.mission === undefined)
                     throw new Error('Mission not found!');
                 if (fileEntity.mission.project === undefined)
                     throw new Error('Project not found!');
 
-                await addTagsToMinioObject(bucked, file.name, {
+                await this.storageService.addTags(bucket, file.name, {
                     projectUuid: fileEntity.mission.project.uuid,
-
                     missionUuid: fileEntity.mission.uuid,
                     filename: fileEntity.filename,
                 });
@@ -1095,11 +1042,15 @@ export class FileService implements OnModuleInit {
         });
         await Promise.all(
             files.map(async (file) => {
-                const stats = await getInfoFromMinio(file.type, file.uuid);
+                const stats = await this.storageService.getFileInfo(
+                    file.type,
+                    file.uuid,
+                );
+
                 if (stats) {
                     file.size = stats.size;
                     logger.debug(
-                        `Updated size for ${file.filename}: ${file.size.toString()}`,
+                        `Updated size for ${file.filename}: ${file.size?.toString()}`,
                     );
                 } else {
                     logger.error(

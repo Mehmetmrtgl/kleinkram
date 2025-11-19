@@ -22,7 +22,7 @@ import {
     FileType,
     QueueState,
 } from '@common/frontend_shared/enum';
-import { addTagsToMinioObject } from '@common/minio-helper';
+import { StorageService } from '@common/services/storage/storage.service';
 import { drive_v3 } from 'googleapis';
 import fs from 'node:fs';
 import logger from '../logger';
@@ -34,7 +34,6 @@ import {
     listFiles,
 } from './helper/drive-helper';
 import { calculateFileHash } from './helper/hash-helper';
-import { downloadMinioFile, uploadLocalFile } from './helper/minio-helper';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports,unicorn/prefer-module
 const fsPromises = require('node:fs').promises;
@@ -61,6 +60,7 @@ export class FileQueueProcessorProvider implements OnModuleInit {
         private fileRepository: Repository<FileEntity>,
         @InjectRepository(TopicEntity)
         private topicRepository: Repository<TopicEntity>,
+        private readonly storageService: StorageService, // Inject StorageService
     ) {
         logger.debug('FileProcessor created');
     }
@@ -167,7 +167,7 @@ export class FileQueueProcessorProvider implements OnModuleInit {
 
         const temporaryFileName = `/tmp/${file.uuid}.${file.filename.split('.').pop()}`;
 
-        await downloadMinioFile(
+        await this.storageService.downloadFile(
             env.MINIO_DATA_BUCKET_NAME,
             file.uuid,
             temporaryFileName,
@@ -213,11 +213,8 @@ export class FileQueueProcessorProvider implements OnModuleInit {
         if (queue.mission.project === undefined)
             throw new Error('Project is undefined');
 
-        // set tag inside minio
-        await addTagsToMinioObject(
-            sourceIsBag
-                ? env.MINIO_DATA_BUCKET_NAME
-                : env.MINIO_DATA_BUCKET_NAME,
+        await this.storageService.addTags(
+            env.MINIO_DATA_BUCKET_NAME,
             queue.identifier,
             {
                 missionUuid: queue.mission.uuid,
@@ -228,14 +225,15 @@ export class FileQueueProcessorProvider implements OnModuleInit {
         );
 
         const filehash = await traceWrapper(async () => {
-            return await downloadMinioFile(
-                sourceIsBag
-                    ? env.MINIO_DATA_BUCKET_NAME
-                    : env.MINIO_DATA_BUCKET_NAME,
+            await this.storageService.downloadFile(
+                env.MINIO_DATA_BUCKET_NAME,
                 queue.identifier,
                 temporaryFileName,
             );
+
+            return await calculateFileHash(temporaryFileName);
         }, 'downloadMinioFile')();
+
         let bagSize;
         let mcapSize;
         if (sourceIsBag) {
@@ -346,22 +344,25 @@ export class FileQueueProcessorProvider implements OnModuleInit {
                 // ------------- Upload to Minio -------------
                 __queue.state = QueueState.UPLOADING;
                 await this.queueRepository.save(__queue);
-                await uploadLocalFile(
-                    env.MINIO_DATA_BUCKET_NAME,
-                    _mcapFileEntity.uuid,
-                    _mcapFileEntity.filename,
-                    temporaryFileNameMcap,
-                ).catch(async (error: unknown) => {
-                    logger.error(`Error converting file, possibly corrupted!`);
-                    __queue.state = QueueState.ERROR;
-                    await this.queueRepository.save(__queue);
-                    _mcapFileEntity.state = FileState.ERROR;
-                    await this.fileRepository.save(_mcapFileEntity);
-                    throw error;
-                });
 
-                // set tag inside minio
-                await addTagsToMinioObject(
+                await this.storageService
+                    .uploadFile(
+                        env.MINIO_DATA_BUCKET_NAME,
+                        _mcapFileEntity.uuid,
+                        temporaryFileNameMcap,
+                    )
+                    .catch(async (error: unknown) => {
+                        logger.error(
+                            `Error uploading file, possibly corrupted!`,
+                        );
+                        __queue.state = QueueState.ERROR;
+                        await this.queueRepository.save(__queue);
+                        _mcapFileEntity.state = FileState.ERROR;
+                        await this.fileRepository.save(_mcapFileEntity);
+                        throw error;
+                    });
+
+                await this.storageService.addTags(
                     env.MINIO_DATA_BUCKET_NAME,
                     _mcapFileEntity.uuid,
                     {
@@ -648,37 +649,36 @@ export class FileQueueProcessorProvider implements OnModuleInit {
 
             const mcapHash = await calculateFileHash(temporaryFileNameMcap);
 
-            // ------------- Upload to Minio -------------
             queueEntity.state = QueueState.UPLOADING;
             await this.queueRepository.save(queueEntity);
 
-            await uploadLocalFile(
-                env.MINIO_DATA_BUCKET_NAME,
-                mcapFileEntity.uuid,
-                mcapFileEntity.filename,
-                temporaryFileNameMcap,
-            ).catch(async (error: unknown) => {
-                const errorMessage =
-                    error instanceof Error ? error.message : String(error);
+            await this.storageService
+                .uploadFile(
+                    env.MINIO_DATA_BUCKET_NAME,
+                    mcapFileEntity.uuid,
+                    temporaryFileNameMcap,
+                )
+                .catch(async (error: unknown) => {
+                    const errorMessage =
+                        error instanceof Error ? error.message : String(error);
 
-                logger.error(
-                    `Error converting file, possibly corrupted: ${errorMessage}`,
-                );
-                queueEntity.state = QueueState.ERROR;
-                await this.queueRepository.save(queueEntity);
+                    logger.error(
+                        `Error uploading converted file: ${errorMessage}`,
+                    );
+                    queueEntity.state = QueueState.ERROR;
+                    await this.queueRepository.save(queueEntity);
 
-                if (mcapFileEntity !== undefined) {
-                    mcapFileEntity.state = FileState.ERROR;
-                    await this.fileRepository.save(mcapFileEntity);
-                }
-                throw error;
-            });
+                    if (mcapFileEntity !== undefined) {
+                        mcapFileEntity.state = FileState.ERROR;
+                        await this.fileRepository.save(mcapFileEntity);
+                    }
+                    throw error;
+                });
 
             if (queueEntity.mission.project === undefined)
                 throw new Error('Project is undefined');
 
-            // set tag inside minio
-            await addTagsToMinioObject(
+            await this.storageService.addTags(
                 env.MINIO_DATA_BUCKET_NAME,
                 mcapFileEntity.uuid,
                 {
@@ -698,23 +698,18 @@ export class FileQueueProcessorProvider implements OnModuleInit {
         await this.queueRepository.save(queueEntity);
 
         logger.debug(`Uploading file: ${originalFileName} to Minio`);
-        await uploadLocalFile(
-            sourceIsBag
-                ? env.MINIO_DATA_BUCKET_NAME
-                : env.MINIO_DATA_BUCKET_NAME,
+
+        await this.storageService.uploadFile(
+            env.MINIO_DATA_BUCKET_NAME,
             savedFileEntity.uuid,
-            savedFileEntity.filename,
             temporaryFileName,
         );
 
         if (queueEntity.mission.project === undefined)
             throw new Error('Project is undefined');
 
-        // set tag inside minio
-        await addTagsToMinioObject(
-            sourceIsBag
-                ? env.MINIO_DATA_BUCKET_NAME
-                : env.MINIO_DATA_BUCKET_NAME,
+        await this.storageService.addTags(
+            env.MINIO_DATA_BUCKET_NAME,
             savedFileEntity.uuid,
             {
                 missionUuid: queueEntity.mission.uuid,

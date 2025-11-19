@@ -1,5 +1,5 @@
 import env from '@common/environment';
-import { internalMinio } from '@common/minio-helper';
+import { StorageService } from '@common/services/storage/storage.service';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -13,15 +13,17 @@ const unlinkAsync = promisify(fs.unlink);
 
 @Injectable()
 export class DBDumper {
-    constructor(private readonly configService: ConfigService) {
+    constructor(
+        private readonly configService: ConfigService,
+        private readonly storageService: StorageService,
+    ) {
         logger.debug('DBDumper service created');
     }
 
     @Cron(CronExpression.EVERY_2ND_HOUR)
     async handleCron(): Promise<string> {
         logger.debug('Dumping database...');
-        // const { DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME } =
-        //     process.env;
+
         const DB_HOST = this.configService.getOrThrow<string>('database.host');
         const DB_PORT = this.configService.getOrThrow<number>('database.port');
         const DB_USERNAME =
@@ -30,6 +32,7 @@ export class DBDumper {
             this.configService.getOrThrow<string>('database.password');
         const DB_NAME =
             this.configService.getOrThrow<string>('database.database');
+
         const dumpFile = `backup-${Date.now().toString()}.sql`;
 
         // The pg_dump command
@@ -38,15 +41,20 @@ export class DBDumper {
         try {
             // Execute the command
             await execAsync(command);
-            await internalMinio.fPutObject(
+
+            await this.storageService.uploadFile(
                 env.MINIO_DB_BUCKET_NAME,
-                dumpFile,
-                dumpFile,
+                dumpFile, // object name (in bucket)
+                dumpFile, // file path (local system)
             );
+
             await unlinkAsync(dumpFile);
             return dumpFile;
         } catch (error: any) {
-            await unlinkAsync(dumpFile);
+            // Attempt to clean up if the file was created but upload failed
+            if (fs.existsSync(dumpFile)) {
+                await unlinkAsync(dumpFile).catch(() => ({}));
+            }
 
             throw new Error(`Failed to create database dump: ${error.message}`);
         }

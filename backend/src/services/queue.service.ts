@@ -41,8 +41,8 @@ import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { redis } from '@common/consts';
 import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
-import { getInfoFromMinio, internalMinio } from '@common/minio-helper';
 import { addActionQueue } from '@common/scheduling-logic';
+import { StorageService } from '@common/services/storage/storage.service';
 import { InjectMetric } from '@willsoto/nestjs-prometheus';
 import Queue from 'bull';
 import { Gauge } from 'prom-client';
@@ -96,6 +96,7 @@ export class QueueService implements OnModuleInit {
         private completedJobs: Gauge,
         @InjectMetric('backend_failed_jobs')
         private failedJobs: Gauge,
+        private readonly storageService: StorageService,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -215,12 +216,13 @@ export class QueueService implements OnModuleInit {
             relations: ['mission', 'mission.project'],
         });
 
-        const fileInfo = await getInfoFromMinio(file.type, file.uuid).catch(
-            async () => {
+        const fileInfo = await this.storageService
+            .getFileInfo(env.MINIO_DATA_BUCKET_NAME, file.uuid)
+            .catch(async () => {
                 await this.fileRepository.remove(file);
                 throw new ConflictException('File not found in Minio');
-            },
-        );
+            });
+
         if (fileInfo === null) throw new Error('File not found in Minio');
         if (file.state === FileState.UPLOADING) file.state = FileState.OK;
         file.size = fileInfo.size;
@@ -373,7 +375,7 @@ export class QueueService implements OnModuleInit {
         }
         const minioBucket = env.MINIO_DATA_BUCKET_NAME;
         try {
-            await internalMinio.removeObject(minioBucket, file.uuid);
+            await this.storageService.deleteFile(minioBucket, file.uuid);
         } catch (error: any) {
             logger.log(error);
         }
@@ -387,7 +389,7 @@ export class QueueService implements OnModuleInit {
             });
             if (mcap) {
                 try {
-                    await internalMinio.removeObject(
+                    await this.storageService.deleteFile(
                         env.MINIO_DATA_BUCKET_NAME,
                         mcap.uuid,
                     );

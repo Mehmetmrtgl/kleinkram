@@ -17,6 +17,7 @@ import TopicEntity from '@common/entities/topic/topic.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import env from '@common/environment';
+import { StorageModule } from '@common/services/storage/storage.module';
 import configuration from '@common/typeorm-config';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
@@ -125,6 +126,7 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             GroupMembershipEntity,
         ]),
         ScheduleModule.forRoot(),
+        StorageModule,
     ],
     providers: [
         FileQueueProcessorProvider,

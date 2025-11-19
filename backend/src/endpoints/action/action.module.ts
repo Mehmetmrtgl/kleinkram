@@ -5,6 +5,7 @@ import AccountEntity from '@common/entities/auth/account.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
+import { StorageModule } from '@common/services/storage/storage.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActionService } from '../../services/action.service';
@@ -24,6 +25,7 @@ import { ActionController } from './action.controller';
             MetadataEntity,
         ]),
         QueueModule,
+        StorageModule,
     ],
     providers: [ActionService, ActionGuardService],
     exports: [ActionService],

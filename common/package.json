@@ -8,10 +8,13 @@
     },
     "dependencies": {
         "@faker-js/faker": "^10.1.0",
+        "@nestjs/common": "^10.4.20",
         "@nestjs/swagger": "^11.2.2",
+        "axios": "^1.13.2",
         "bull": "^4.16.4",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.2",
+        "jsonwebtoken": "^9.0.2",
         "minio": "8.0.6",
         "pg": "^8.16.3",
         "ts-node": "^10.9.2",

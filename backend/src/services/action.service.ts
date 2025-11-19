@@ -13,7 +13,9 @@ import {
     EntityManager,
     FindOptionsWhere,
     ILike,
+    QueryFailedError,
     Repository,
+    SelectQueryBuilder,
 } from 'typeorm';
 import { actionEntityToDto, actionTemplateEntityToDto } from '../serialization';
 import { QueueService } from './queue.service';
@@ -34,14 +36,16 @@ import {
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
 import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import environment from '@common/environment';
-import { externalMinio } from '@common/minio-helper';
-import { RuntimeDescription } from '@common/types';
+import { StorageService } from '@common/services/storage/storage.service';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 import logger from '../logger';
 
 @Injectable()
 export class ActionService {
+    private readonly DOCKER_NAMESPACE =
+        process.env['VITE_DOCKER_HUB_NAMESPACE'];
+
     constructor(
         @InjectRepository(ActionEntity)
         private actionRepository: Repository<ActionEntity>,
@@ -52,6 +56,7 @@ export class ActionService {
         @InjectRepository(ApikeyEntity)
         private apikeyRepository: Repository<ApikeyEntity>,
         private readonly queueService: QueueService,
+        private readonly storageService: StorageService,
     ) {}
 
     async submit(
@@ -60,37 +65,48 @@ export class ActionService {
     ): Promise<ActionSubmitResponseDto> {
         const template = await this.actionTemplateRepository.findOneOrFail({
             where: { uuid: data.templateUUID },
+            select: [
+                'uuid',
+                'cpuCores',
+                'cpuMemory',
+                'gpuMemory',
+                'maxRuntime',
+            ],
         });
 
+        // Create and Persist
         let action = this.actionRepository.create({
             mission: { uuid: data.missionUUID },
             creator: { uuid: auth.user.uuid },
             state: ActionState.PENDING,
             template,
         });
-        await this.actionRepository.save(action);
+        action = await this.actionRepository.save(action);
 
-        // return the created action mission
-        action = await this.actionRepository.findOneOrFail({
-            where: { uuid: action.uuid },
-            relations: ['mission', 'mission.project', 'template'],
-        });
-        const result = await this.queueService._addActionQueue(action, {
-            cpuCores: template.cpuCores,
-            cpuMemory: template.cpuMemory,
-            gpuMemory: template.gpuMemory,
-            maxRuntime: template.maxRuntime,
-        } as RuntimeDescription);
-        if (!Boolean(result)) {
-            action.state = ActionState.UNPROCESSABLE;
-            await this.actionRepository.save(action);
+        try {
+            const queued = await this.queueService._addActionQueue(action, {
+                cpuCores: template.cpuCores,
+                cpuMemory: template.cpuMemory,
+                gpuMemory: template.gpuMemory,
+                maxRuntime: template.maxRuntime,
+            });
+
+            if (!queued) throw new Error('Queue rejection');
+        } catch (error) {
+            logger.error(`Failed to queue action ${action.uuid}`, error);
+
+            // Fallback: Mark as failed immediately so it isn't stuck in PENDING
+            await this.actionRepository.update(action.uuid, {
+                state: ActionState.UNPROCESSABLE,
+                state_cause: 'Resources unavailable or queue error',
+            });
+
             throw new ConflictException(
-                'No worker available with the required hardware capabilities',
+                'No worker available or queue service unreachable',
             );
         }
-        return {
-            actionUUID: action.uuid,
-        };
+
+        return { actionUUID: action.uuid };
     }
 
     async delete(actionUUID: string): Promise<boolean> {
@@ -116,103 +132,69 @@ export class ActionService {
         data: CreateTemplateDto,
         auth: AuthHeader,
     ): Promise<ActionTemplateDto> {
-        const dockerhub_namespace = process.env['VITE_DOCKER_HUB_NAMESPACE'];
-        // assert that we only run images from a specified namespace
-        if (
-            dockerhub_namespace !== undefined &&
-            !data.dockerImage.startsWith(dockerhub_namespace)
-        ) {
-            throw new ConflictException(
-                `Only images from the ${dockerhub_namespace} namespace are allowed`,
-            );
-        }
-        const exists = await this.actionTemplateRepository.exists({
-            where: {
-                name: data.name,
-            },
-        });
-        if (exists) {
-            throw new ConflictException(
-                'Template with this name already exists',
-            );
-        }
+        this.validateDockerNamespace(data.dockerImage);
 
         const template = this.actionTemplateRepository.create({
+            ...data,
             creator: { uuid: auth.user.uuid },
-            name: data.name,
-            cpuCores: data.cpuCores,
-            cpuMemory: data.cpuMemory,
-            gpuMemory: data.gpuMemory,
-            maxRuntime: data.maxRuntime,
             image_name: data.dockerImage,
             command: data.command ?? '',
-            searchable: data.searchable,
             entrypoint: data.entrypoint ?? '',
-            accessRights: data.accessRights,
         });
 
-        const createdTemplate =
-            await this.actionTemplateRepository.save(template);
-
-        return actionTemplateEntityToDto(createdTemplate);
+        try {
+            const saved = await this.actionTemplateRepository.save(template);
+            return actionTemplateEntityToDto(saved);
+        } catch (error) {
+            // Postgres Error 23505 is Unique Violation
+            if (
+                error instanceof QueryFailedError &&
+                error.driverError?.code === '23505'
+            ) {
+                throw new ConflictException(
+                    'Template with this name already exists',
+                );
+            }
+            throw error;
+        }
     }
 
     async createNewVersion(
         data: UpdateTemplateDto,
         auth: AuthHeader,
     ): Promise<ActionTemplateDto> {
-        //if (!data.dockerImage.startsWith('rslethz/')) {
-        //    throw new ConflictException(
-        //        'Only images from the rslethz namespace are allowed',
-        //    );
-        //}
-        const template = await this.actionTemplateRepository.findOneOrFail({
-            where: { uuid: data.uuid },
-        });
-        if (
-            !template.searchable &&
-            data.searchable &&
-            template.image_name === data.dockerImage &&
-            template.command === data.command &&
-            template.cpuCores === data.cpuCores &&
-            template.cpuMemory === data.cpuMemory &&
-            template.gpuMemory === data.gpuMemory &&
-            template.maxRuntime === data.maxRuntime &&
-            template.entrypoint === data.entrypoint &&
-            template.accessRights === data.accessRights
-        ) {
-            template.searchable = true;
-            const savedTemplate =
-                await this.actionTemplateRepository.save(template);
-            return actionTemplateEntityToDto(savedTemplate);
+        const currentTemplate =
+            await this.actionTemplateRepository.findOneOrFail({
+                where: { uuid: data.uuid },
+            });
+
+        if (this.isMetadataUpdateOnly(currentTemplate, data)) {
+            currentTemplate.searchable = true;
+            return actionTemplateEntityToDto(
+                await this.actionTemplateRepository.save(currentTemplate),
+            );
         }
-        const dbuser = await this.userRepository.findOneOrFail({
+
+        const creator = await this.userRepository.findOneOrFail({
             where: { uuid: auth.user.uuid },
         });
-        const direction = data.searchable ? 'DESC' : 'ASC';
-        const change = data.searchable ? 1 : -1;
-        const previousVersions =
-            await this.actionTemplateRepository.findOneOrFail({
-                where: { name: data.name },
-                order: { version: direction },
-            });
-        template.name = data.name;
-        template.cpuCores = data.cpuCores;
-        template.cpuMemory = data.cpuMemory;
-        template.gpuMemory = data.gpuMemory;
-        template.image_name = data.dockerImage;
-        template.creator = dbuser;
-        template.command = data.command ?? '';
-        template.version = previousVersions[0]?.version ?? 0 + change;
-        template.uuid = '';
-        template.searchable = data.searchable;
-        template.maxRuntime = data.maxRuntime;
-        template.entrypoint = data.entrypoint ?? '';
-        template.accessRights = data.accessRights;
+        const nextVersion = await this.calculateNextVersion(
+            data.name,
+            data.searchable,
+        );
 
-        const savedTemplate =
-            await this.actionTemplateRepository.save(template);
-        return actionTemplateEntityToDto(savedTemplate);
+        const newTemplate = this.actionTemplateRepository.create({
+            ...data,
+            image_name: data.dockerImage,
+            creator,
+            version: nextVersion,
+            command: data.command ?? '',
+            entrypoint: data.entrypoint ?? '',
+        });
+
+        return actionTemplateEntityToDto(
+            await this.actionTemplateRepository.save(newTemplate),
+        );
     }
 
     async listTemplates(
@@ -257,74 +239,37 @@ export class ActionService {
         const user = await this.userRepository.findOneOrFail({
             where: { uuid: userUUID },
         });
+        const isAdmin = user.role === UserRole.ADMIN;
 
-        const baseQuery = this.actionRepository
-            .createQueryBuilder('action')
-            .leftJoinAndSelect('action.mission', 'mission')
-            .leftJoinAndSelect('mission.project', 'project')
-            .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.creator', 'creator');
+        const qb = this.buildBaseActionQuery();
 
-        if (projectUuid !== undefined) {
-            baseQuery.andWhere('project.uuid = :projectUuid', {
-                projectUuid,
-            });
+        // Apply Filters
+        if (projectUuid)
+            qb.andWhere('project.uuid = :projectUuid', { projectUuid });
+        if (missionUuid)
+            qb.andWhere('mission.uuid = :missionUuid', { missionUuid });
+        if (search) this.applySearchFilter(qb, search);
+
+        // Apply Sorting
+        if (sortBy && ['ASC', 'DESC'].includes(sortDirection)) {
+            qb.orderBy(`action.${sortBy}`, sortDirection);
         }
 
-        if (missionUuid !== undefined) {
-            baseQuery.andWhere('mission.uuid = :missionUuid', {
-                missionUuid: missionUuid,
-            });
+        // Apply Security & Pagination
+        if (!isAdmin) {
+            addAccessConstraints(qb, userUUID);
         }
 
-        if (search) {
-            baseQuery.andWhere(
-                new Brackets((qb) => {
-                    qb.where('template.name ILIKE :searchTerm', {
-                        searchTerm: `%${search}%`,
-                    })
-                        .orWhere('action.state_cause ILIKE :searchTerm', {
-                            searchTerm: `%${search}%`,
-                        })
-                        .orWhere('template.image_name ILIKE :searchTerm', {
-                            searchTerm: `%${search}%`,
-                        });
-                }),
-            );
-        }
-
-        if (
-            sortBy !== undefined &&
-            sortBy !== '' &&
-            sortDirection in ['ASC', 'DESC']
-        ) {
-            baseQuery.orderBy(`action.${sortBy}`, sortDirection);
-        }
-
-        if (user.role === UserRole.ADMIN) {
-            const query = baseQuery.skip(skip).take(take);
-
-            const [actions, count] = await query.getManyAndCount();
-            return {
-                count,
-                data: actions.map((element) => actionEntityToDto(element)),
-                skip,
-                take,
-            };
-        }
-
-        baseQuery.skip(skip).take(take);
-
-        const [actions, count] = await addAccessConstraints(
-            baseQuery,
-            userUUID,
-        ).getManyAndCount();
+        const [actions, count] = await qb
+            .skip(skip)
+            .take(take)
+            .getManyAndCount();
 
         return {
             count,
-            data: actions.map((element) => actionEntityToDto(element)),
             skip,
             take,
+            data: actions.map((element) => actionEntityToDto(element)),
         };
     }
 
@@ -340,47 +285,16 @@ export class ActionService {
             ],
         });
 
-        const actionDetailsDto = actionEntityToDto(action);
+        const dto = actionEntityToDto(action);
 
-        // Only process if artifacts are marked as UPLOADED
         if (action.artifacts === ArtifactState.UPLOADED) {
-            const currentUrl = actionDetailsDto.artifactUrl;
-            const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
-
-            // If a URL exists and it is NOT an internal MinIO URL (e.g. it is a Google Drive link),
-            // we return the DTO as is.
-            const isLegacyExternalUrl =
-                currentUrl &&
-                currentUrl.length > 0 &&
-                !currentUrl.includes(bucketName);
-
-            if (isLegacyExternalUrl) {
-                return actionDetailsDto;
-            }
-
-            try {
-                const objectName = `${action.uuid}.tar.gz`;
-                const friendlyFilename = `${action.template?.name ?? 'artifact'}-${action.uuid}.tar.gz`;
-
-                actionDetailsDto.artifactUrl = await externalMinio.presignedUrl(
-                    'GET',
-                    bucketName,
-                    objectName,
-                    4 * 60 * 60, // 4 hours
-                    {
-                        'response-content-disposition': `attachment; filename="${friendlyFilename}"`,
-                    },
-                );
-            } catch (error) {
-                logger.error(
-                    `Failed to generate presigned URL for action ${action.uuid}:`,
-                    error,
-                );
-                actionDetailsDto.artifactUrl = '';
-            }
+            dto.artifactUrl = await this.generateArtifactUrl(
+                dto.artifactUrl,
+                action,
+            );
         }
 
-        return actionDetailsDto;
+        return dto;
     }
 
     async runningActions(
@@ -392,28 +306,25 @@ export class ActionService {
             where: { uuid: userUUID },
         });
 
-        const baseQuery = this.actionRepository
-            .createQueryBuilder('action')
-            .leftJoinAndSelect('action.mission', 'mission')
-            .leftJoinAndSelect('mission.project', 'project')
-            .leftJoinAndSelect('action.template', 'template')
-            .leftJoinAndSelect('action.creator', 'creator')
-            .where(
-                new Brackets((qb) => {
-                    qb.where('action.state = :state', {
-                        state: ActionState.PENDING,
-                    }).orWhere('action.state = :state', {
-                        state: ActionState.PROCESSING,
-                    });
-                }),
-            )
-            .take(take)
-            .skip(skip);
+        const qb = this.buildBaseActionQuery();
+        qb.andWhere('action.state IN (:...states)', {
+            states: [ActionState.PENDING, ActionState.PROCESSING],
+        });
+
         if (user.role !== UserRole.ADMIN) {
-            addAccessConstraints(baseQuery, userUUID);
+            addAccessConstraints(qb, userUUID);
         }
-        const [data, count] = await baseQuery.getManyAndCount();
-        return { data: data as unknown as ActionDto[], count, skip, take };
+
+        const [actions, count] = await qb
+            .skip(skip)
+            .take(take)
+            .getManyAndCount();
+        return {
+            count,
+            data: actions.map((element) => actionEntityToDto(element)),
+            skip,
+            take,
+        };
     }
 
     /**
@@ -448,5 +359,130 @@ export class ActionService {
                 await manager.save(action);
             },
         );
+    }
+
+    private validateDockerNamespace(imageName: string): void {
+        if (
+            this.DOCKER_NAMESPACE &&
+            !imageName.startsWith(this.DOCKER_NAMESPACE)
+        ) {
+            throw new ConflictException(
+                `Only images from the ${this.DOCKER_NAMESPACE} namespace are allowed`,
+            );
+        }
+    }
+
+    private async calculateNextVersion(
+        name: string,
+        isSearchable: boolean,
+    ): Promise<number> {
+        const direction = isSearchable ? 'DESC' : 'ASC';
+        const lastVersionTemplate = await this.actionTemplateRepository.findOne(
+            {
+                where: { name },
+                order: { version: direction },
+            },
+        );
+
+        const currentVersion = lastVersionTemplate?.version ?? 0;
+        const change = isSearchable ? 1 : -1;
+
+        return currentVersion + change;
+    }
+
+    /**
+     * Determines if an update is merely a toggle of the searchable flag
+     * on an otherwise identical template.
+     */
+    private isMetadataUpdateOnly(
+        current: ActionTemplateEntity,
+        incoming: UpdateTemplateDto,
+    ): boolean {
+        // If it was already searchable, we aren't just toggling it on.
+        if (current.searchable) return false;
+        if (!incoming.searchable) return false;
+
+        // Compare critical fields.
+        // Note: Ideally this comparison logic lives on the Entity as a method `isSemanticallyEqual(dto)`
+        return (
+            current.image_name === incoming.dockerImage &&
+            current.command === incoming.command &&
+            current.cpuCores === incoming.cpuCores &&
+            current.cpuMemory === incoming.cpuMemory &&
+            current.gpuMemory === incoming.gpuMemory &&
+            current.maxRuntime === incoming.maxRuntime &&
+            current.entrypoint === incoming.entrypoint &&
+            current.accessRights === incoming.accessRights
+        );
+    }
+
+    private async ensureTemplateNameUnique(name: string): Promise<void> {
+        const exists = await this.actionTemplateRepository.exists({
+            where: { name },
+        });
+        if (exists)
+            throw new ConflictException(
+                'Template with this name already exists',
+            );
+    }
+
+    private buildBaseActionQuery(): SelectQueryBuilder<ActionEntity> {
+        return this.actionRepository
+            .createQueryBuilder('action')
+            .leftJoinAndSelect('action.mission', 'mission')
+            .leftJoinAndSelect('mission.project', 'project')
+            .leftJoinAndSelect('action.template', 'template')
+            .leftJoinAndSelect('action.creator', 'creator');
+    }
+
+    private applySearchFilter(
+        qb: SelectQueryBuilder<ActionEntity>,
+        search: string,
+    ): void {
+        qb.andWhere(
+            new Brackets((sub) => {
+                sub.where('template.name ILIKE :searchTerm', {
+                    searchTerm: `%${search}%`,
+                })
+                    .orWhere('action.state_cause ILIKE :searchTerm', {
+                        searchTerm: `%${search}%`,
+                    })
+                    .orWhere('template.image_name ILIKE :searchTerm', {
+                        searchTerm: `%${search}%`,
+                    });
+            }),
+        );
+    }
+
+    private async generateArtifactUrl(
+        currentUrl: string,
+        action: ActionEntity,
+    ): Promise<string> {
+        const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
+
+        // Check for legacy external URLs (e.g. GDrive)
+        if (currentUrl && !currentUrl.includes(bucketName)) {
+            return currentUrl;
+        }
+
+        try {
+            const friendlyFilename = `${action.template?.name ?? 'artifact'}-${action.uuid}.tar.gz`;
+
+            // Use the injected storage service instead of externalMinio direct import
+            return await this.storageService.getPresignedDownloadUrl(
+                bucketName,
+                `${action.uuid}.tar.gz`,
+                4 * 60 * 60,
+                {
+                    'response-content-disposition': `attachment; filename="${friendlyFilename}"`,
+                },
+            );
+        } catch (error) {
+            logger.error(
+                `Failed to generate presigned URL for action ${action.uuid}:`,
+                error,
+            );
+            return '';
+        }
     }
 }

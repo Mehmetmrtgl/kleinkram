@@ -17,6 +17,7 @@ import { TagService } from '../../services/tag.service';
 
 import CategoryEntity from '@common/entities/category/category.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
+import { StorageModule } from '@common/services/storage/storage.module';
 import { FileGuardService } from '../../services/file-guard.service';
 
 @Module({
@@ -33,6 +34,7 @@ import { FileGuardService } from '../../services/file-guard.service';
             TagTypeEntity,
             CategoryEntity,
         ]),
+        StorageModule,
     ],
     providers: [
         FileService,
