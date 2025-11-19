@@ -1,7 +1,11 @@
 import ActionTemplateEntity from '@common/entities/action/action-template.entity';
 import ActionEntity from '@common/entities/action/action.entity';
 import UserEntity from '@common/entities/user/user.entity';
-import { ActionState, UserRole } from '@common/frontend_shared/enum';
+import {
+    ActionState,
+    ArtifactState,
+    UserRole,
+} from '@common/frontend_shared/enum';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -29,9 +33,12 @@ import {
 } from '@common/api/types/submit-action-response.dto';
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
 import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import environment from '@common/environment';
+import { externalMinio } from '@common/minio-helper';
 import { RuntimeDescription } from '@common/types';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
+import logger from '../logger';
 
 @Injectable()
 export class ActionService {
@@ -333,7 +340,34 @@ export class ActionService {
             ],
         });
 
-        return actionEntityToDto(action);
+        const actionDetailsDto = actionEntityToDto(action);
+
+        // If artifacts are uploaded, generate the signed URL and overwrite the DTO property
+        if (action.artifacts === ArtifactState.UPLOADED) {
+            try {
+                const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
+                const objectName = `${action.uuid}.tar.gz`;
+                const friendlyFilename = `${action.template?.name ?? 'artifact'}-${action.uuid}.tar.gz`;
+
+                actionDetailsDto.artifactUrl = await externalMinio.presignedUrl(
+                    'GET',
+                    bucketName,
+                    objectName,
+                    4 * 60 * 60,
+                    {
+                        'response-content-disposition': `attachment; filename="${friendlyFilename}"`,
+                    },
+                );
+            } catch (error) {
+                logger.error(
+                    `Failed to generate presigned URL for action ${action.uuid}:`,
+                    error,
+                );
+                actionDetailsDto.artifactUrl = '';
+            }
+        }
+
+        return actionDetailsDto;
     }
 
     async runningActions(
