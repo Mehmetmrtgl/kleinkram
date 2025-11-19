@@ -36,7 +36,7 @@ import {
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
 import ApikeyEntity from '@common/entities/auth/apikey.entity';
 import environment from '@common/environment';
-import { StorageService } from '@common/services/storage/storage.service';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 import logger from '../logger';

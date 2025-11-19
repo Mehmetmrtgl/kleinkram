@@ -1,4 +1,4 @@
-import { MinioClientFactory } from '@common/services/storage/storage-config.factory';
+import { MinioClientFactory } from '@common/modules/storage/storage-config.factory';
 import { Module } from '@nestjs/common';
 import { StorageAuthService } from './storage-auth.service';
 import { StorageMetricsService } from './storage-metrics.service';

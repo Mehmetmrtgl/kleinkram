@@ -52,7 +52,7 @@ import CategoryEntity from '@common/entities/category/category.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
-import { StorageService } from '@common/services/storage/storage.service';
+import { StorageService } from '@common/modules/storage/storage.service';
 import Queue from 'bull';
 import { BucketItem } from 'minio';
 import Credentials from 'minio/dist/main/Credentials';

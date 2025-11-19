@@ -10,7 +10,7 @@ import ProjectEntity from '@common/entities/project/project.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
-import { StorageService } from '@common/services/storage/storage.service';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Not, Repository } from 'typeorm';

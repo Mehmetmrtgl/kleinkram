@@ -7,7 +7,7 @@ import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
-import { StorageModule } from '@common/services/storage/storage.module';
+import { StorageModule } from '@common/modules/storage/storage.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { makeGaugeProvider } from '@willsoto/nestjs-prometheus';

@@ -13,7 +13,7 @@ import {
     QueueState,
     UserRole,
 } from '@common/frontend_shared/enum';
-import { StorageService } from '@common/services/storage/storage.service';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
 import { InjectQueue, Process, Processor } from '@nestjs/bull';

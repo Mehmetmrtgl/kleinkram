@@ -22,7 +22,7 @@ import {
     FileType,
     QueueState,
 } from '@common/frontend_shared/enum';
-import { StorageService } from '@common/services/storage/storage.service';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { drive_v3 } from 'googleapis';
 import fs from 'node:fs';
 import logger from '../logger';
