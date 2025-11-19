@@ -9,6 +9,10 @@ Currently, we are only testing the API, those test cases are located in the `bac
 You can run the test suite by first starting the application stack in test mode and then running the tests.
 
 ```bash
+# clear any previous test containers and volumes
+docker compose -f docker-compose.testing.yml down --volumes
+
+# start the application stack in test mode
 docker compose -f docker-compose.testing.yml up --build [--watch]
 ```
 
