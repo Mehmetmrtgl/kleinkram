@@ -342,10 +342,23 @@ export class ActionService {
 
         const actionDetailsDto = actionEntityToDto(action);
 
-        // If artifacts are uploaded, generate the signed URL and overwrite the DTO property
+        // Only process if artifacts are marked as UPLOADED
         if (action.artifacts === ArtifactState.UPLOADED) {
+            const currentUrl = actionDetailsDto.artifactUrl;
+            const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
+
+            // If a URL exists and it is NOT an internal MinIO URL (e.g. it is a Google Drive link),
+            // we return the DTO as is.
+            const isLegacyExternalUrl =
+                currentUrl &&
+                currentUrl.length > 0 &&
+                !currentUrl.includes(bucketName);
+
+            if (isLegacyExternalUrl) {
+                return actionDetailsDto;
+            }
+
             try {
-                const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
                 const objectName = `${action.uuid}.tar.gz`;
                 const friendlyFilename = `${action.template?.name ?? 'artifact'}-${action.uuid}.tar.gz`;
 
@@ -353,7 +366,7 @@ export class ActionService {
                     'GET',
                     bucketName,
                     objectName,
-                    4 * 60 * 60,
+                    4 * 60 * 60, // 4 hours
                     {
                         'response-content-disposition': `attachment; filename="${friendlyFilename}"`,
                     },
