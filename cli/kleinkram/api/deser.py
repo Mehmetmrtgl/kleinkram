@@ -77,25 +77,7 @@ class RunObjectKeys(str, Enum):
     TEMPLATE = "template"
     UPDATED_AT = "updatedAt"
     LOGS = "logs"
-
-
-"""
-@dataclass(frozen=True)
-class ActionTemplate:
-    uuid: UUID
-    access_rights: int
-    command: str
-    cpu_cores: int
-    cpu_memory_gb: int
-    entrypoint: str
-    gpu_memory_gb: int
-    image_name: str
-    max_runtime_minutes: int
-    created_at: datetime
-    name: str
-    version: str
-
-"""
+    ARTIFACT_URL = "artifactUrl"
 
 
 class TemplateObjectKeys(str, Enum):
@@ -305,6 +287,7 @@ def _parse_run(run_object: RunObject) -> Run:
         uuid_ = UUID(run_object[RunObjectKeys.UUID], version=4)
         state = run_object[RunObjectKeys.STATE]
         state_cause = run_object[RunObjectKeys.STATE_CAUSE]
+        artifact_url = run_object.get(RunObjectKeys.ARTIFACT_URL)
         created_at = _parse_datetime(run_object[RunObjectKeys.CREATED_AT])
         updated_at = (
             _parse_datetime(run_object[RunObjectKeys.UPDATED_AT])
@@ -342,6 +325,7 @@ def _parse_run(run_object: RunObject) -> Run:
         uuid=uuid_,
         state=state,
         state_cause=state_cause,
+        artifact_url=artifact_url,
         created_at=created_at,
         updated_at=updated_at,
         mission_id=mission_id,

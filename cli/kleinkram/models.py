@@ -96,6 +96,7 @@ class Run:
     uuid: UUID
     state: str
     state_cause: str | None
+    artifact_url: str | None
     created_at: datetime
     updated_at: datetime | None
     project_name: str

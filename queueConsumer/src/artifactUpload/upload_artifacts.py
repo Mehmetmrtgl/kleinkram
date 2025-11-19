@@ -3,12 +3,14 @@ import tarfile
 from minio import Minio
 from datetime import timedelta
 
+
 def compress_directory(source_dir, output_filename):
     """Compresses the source directory into a .tar.gz file."""
     with tarfile.open(output_filename, "w:gz") as tar:
         # arcname ensures we don't store the full absolute path inside the tar
         tar.add(source_dir, arcname=os.path.basename(source_dir))
     return output_filename
+
 
 def upload_to_minio(file_path, bucket_name, object_name):
     """Uploads the compressed file to MinIO."""
@@ -18,7 +20,7 @@ def upload_to_minio(file_path, bucket_name, object_name):
         os.getenv("MINIO_ENDPOINT", "minio:9000"),
         access_key=os.getenv("MINIO_ACCESS_KEY"),
         secret_key=os.getenv("MINIO_SECRET_KEY"),
-        secure=False # Set to True if using HTTPS inside the network
+        secure=False,  # Set to True if using HTTPS inside the network
     )
 
     # Check if bucket exists
@@ -28,12 +30,10 @@ def upload_to_minio(file_path, bucket_name, object_name):
 
     # Upload
     client.fput_object(
-        bucket_name,
-        object_name,
-        file_path,
-        content_type="application/gzip"
+        bucket_name, object_name, file_path, content_type="application/gzip"
     )
     print(f"Successfully uploaded {object_name} to {bucket_name}")
+
 
 if __name__ == "__main__":
     # Configuration
