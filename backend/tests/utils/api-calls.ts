@@ -10,6 +10,7 @@ import UserEntity from '@common/entities/user/user.entity';
 import { QueueState } from '@common/frontend_shared/enum';
 import crypto from 'node:crypto';
 import * as fs from 'node:fs';
+import { appVersion } from '../../src/app-version';
 import { DEFAULT_URL } from '../auth/utilities';
 import { database, getJwtToken } from './database-utilities';
 import { uploadFileMultipart } from './multipart-upload';
@@ -29,8 +30,7 @@ export class HeaderCreator {
             this.headers.append('cookie', `authtoken=${getJwtToken(user)}`);
         }
         // used to avoid usage of older versions of kleinkram
-        // TODO: load version from package.json
-        this.headers.append('kleinkram-client-version', '0.44.1');
+        this.headers.append('kleinkram-client-version', appVersion);
     }
 
     /**
@@ -39,7 +39,7 @@ export class HeaderCreator {
      * @param {string} key - The name of the header.a
      * @param {string} value - The value of the header.
      */
-    addHeader(key: string, value: string) {
+    addHeader(key: string, value: string): void {
         this.headers.append(key, value);
     }
 
