@@ -1,7 +1,7 @@
 import { ContainerLog } from '@common/entities/action/action.entity';
 import environment from '@common/environment';
 import { Injectable } from '@nestjs/common';
-import Dockerode from 'dockerode';
+import Dockerode, { Image } from 'dockerode';
 import fs from 'node:fs';
 import process from 'node:process';
 import { inspect } from 'node:util';
@@ -209,7 +209,7 @@ export class DockerDaemon {
     }
 
     private errorHandling() {
-        return (error: unknown) => {
+        return (error: unknown): never => {
             let errorString = inspect(error);
 
             // cleanup error message
@@ -236,7 +236,7 @@ export class DockerDaemon {
         container: Dockerode.Container,
         maxRuntimeMs: number,
         clearVolume = false,
-    ) {
+    ): Promise<void> {
         const cancelTimeout = setTimeout(() => {
             logger.info(
                 `Stopping container ${container.id} after ${maxRuntimeMs.toString()}ms`,
@@ -267,7 +267,7 @@ export class DockerDaemon {
     }
 
     @tracing()
-    private async pullImage(dockerImage: string) {
+    private async pullImage(dockerImage: string): Promise<unknown> {
         if (!(await this.docker.ping())) {
             throw new Error('Docker socket not available or not responding');
         }
@@ -302,7 +302,7 @@ export class DockerDaemon {
     }
 
     @tracing()
-    private async getImage(dockerImage: string) {
+    private async getImage(dockerImage: string): Promise<Image> {
         const dockerhub_namespace = process.env['VITE_DOCKER_HUB_NAMESPACE'];
         // assert that we only run images from a specified namespace
         if (
@@ -319,7 +319,9 @@ export class DockerDaemon {
             throw new Error('Docker socket not available or not responding');
         }
 
-        await this.pullImage(dockerImage).catch(this.errorHandling());
+        await this.pullImage(dockerImage)
+            // ignore errors, image might already exist locally
+            .catch(() => ({}));
 
         return this.docker.getImage(dockerImage);
     }
@@ -355,7 +357,7 @@ export class DockerDaemon {
         }
     }
 
-    async removeVolume(containerId: string) {
+    async removeVolume(containerId: string): Promise<void> {
         const volumeName = `vol-${containerId}`;
         const volume = this.docker.getVolume(volumeName);
 
@@ -420,7 +422,7 @@ export class DockerDaemon {
     async subscribeToLogs(
         containerId: string,
         sanitizeCallback?: (string_: string) => string,
-    ) {
+    ): Promise<Observable<ContainerLog>> {
         const container = this.docker.getContainer(containerId);
 
         const dockerodeLogStream = await container.logs({
@@ -460,7 +462,11 @@ export class DockerDaemon {
     async launchArtifactUploadContainer(
         containerId: string,
         actionName: string,
-    ) {
+    ): Promise<{
+        container: Dockerode.Container;
+        repoDigests: string[];
+        parentFolder: string;
+    }> {
         const parentFolder = await createDriveFolder(actionName);
 
         // merge the given container limitations with the default ones
