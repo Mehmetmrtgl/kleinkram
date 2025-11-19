@@ -1,8 +1,7 @@
+import { AuditLog } from '@common/audit/audit.decorator';
+import { FileAuditStrategy } from '@common/audit/audit.strategies';
+import { AuditFileAction } from '@common/audit/audit.types';
 import environment from '@common/environment';
-import {
-    AuditFileAction,
-    AuditFileOp,
-} from '@common/services/storage/audit.decorator';
 import { Inject, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
@@ -19,7 +18,7 @@ export class StorageService {
         private clients: { external: Client; internal: Client },
     ) {}
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async getPresignedDownloadUrl(
         bucketName: string,
         objectName: string,
@@ -35,7 +34,7 @@ export class StorageService {
         );
     }
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async downloadFile(
         bucketName: string,
         objectName: string,
@@ -48,7 +47,7 @@ export class StorageService {
         );
     }
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async getFileStream(
         bucketName: string,
         objectName: string,
@@ -56,7 +55,7 @@ export class StorageService {
         return this.clients.internal.getObject(bucketName, objectName);
     }
 
-    @AuditFileOp(AuditFileAction.WRITE)
+    @AuditLog(AuditFileAction.WRITE, FileAuditStrategy)
     async uploadFile(
         bucketName: string,
         objectName: string,
@@ -71,7 +70,7 @@ export class StorageService {
         );
     }
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async getTags(
         bucketName: string,
         objectName: string,
@@ -85,7 +84,7 @@ export class StorageService {
         return this.normalizeTags(tagList);
     }
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async getFileInfo(bucketName: string, location: string) {
         try {
             return await this.clients.internal.statObject(bucketName, location);
@@ -95,7 +94,7 @@ export class StorageService {
         }
     }
 
-    @AuditFileOp(AuditFileAction.META)
+    @AuditLog(AuditFileAction.META, FileAuditStrategy)
     async addTags(
         bucketName: string,
         objectName: string,
@@ -111,7 +110,7 @@ export class StorageService {
         );
     }
 
-    @AuditFileOp(AuditFileAction.META)
+    @AuditLog(AuditFileAction.META, FileAuditStrategy)
     async removeTags(bucketName: string, objectName: string): Promise<void> {
         await this.clients.internal.removeObjectTagging(
             bucketName,
@@ -120,12 +119,12 @@ export class StorageService {
         );
     }
 
-    @AuditFileOp(AuditFileAction.DELETE)
+    @AuditLog(AuditFileAction.DELETE, FileAuditStrategy)
     async deleteFile(bucketName: string, location: string): Promise<void> {
         await this.clients.internal.removeObject(bucketName, location);
     }
 
-    @AuditFileOp(AuditFileAction.READ)
+    @AuditLog(AuditFileAction.READ, FileAuditStrategy)
     async listFiles(bucketName: string): Promise<BucketItem[]> {
         const stream = this.clients.internal.listObjects(bucketName, '');
         const result: BucketItem[] = [];
@@ -216,6 +215,7 @@ export class StorageService {
         return result;
     }
 
+    @AuditLog(AuditFileAction.WRITE, FileAuditStrategy)
     async generateTemporaryCredential(
         filename: string,
 
