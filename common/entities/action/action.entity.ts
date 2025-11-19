@@ -70,7 +70,7 @@ export default class ActionEntity extends BaseEntity {
     exit_code?: number;
 
     @Column({ nullable: true })
-    artifact_url?: string;
+    artifact_path?: string;
 
     @Column({ nullable: false, default: ArtifactState.AWAITING_ACTION })
     artifacts!: ArtifactState;

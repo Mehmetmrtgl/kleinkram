@@ -207,19 +207,23 @@ export class ActionManagerService {
                 throw new Error('Template is undefined');
             }
 
-            const { container: artifactUploadContainer, parentFolder } =
+            const { container: artifactUploadContainer } =
                 await this.containerDaemon.launchArtifactUploadContainer(
                     action.uuid,
-                    `${action.template.name}-v${action.template.version.toString()}-${action.uuid}`,
                 );
             await artifactUploadContainer.wait();
             this.containerDaemon.removeContainer(artifactUploadContainer.id);
             await this.containerDaemon.removeVolume(action.uuid);
+
+            const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
+            const filename = `${action.uuid}.tar.gz`;
+            const artifactPath = `/${bucketName}/${filename}`;
+
             await this.actionRepository.update(
                 { uuid: action.uuid },
                 {
                     artifacts: ArtifactState.UPLOADED,
-                    artifact_url: `https://drive.google.com/drive/folders/${parentFolder}`,
+                    artifact_path: artifactPath,
                 },
             );
 

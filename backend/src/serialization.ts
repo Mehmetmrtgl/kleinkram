@@ -129,7 +129,7 @@ export const actionEntityToDto = (action: ActionEntity): ActionDto => {
     }
 
     return {
-        artifactUrl: action.artifact_url ?? '',
+        artifactUrl: action.artifact_path ?? '',
         artifacts: action.artifacts,
         auditLogs: (action.auditLogs as unknown as AuditLogDto[]) ?? [],
         createdAt: action.createdAt,
