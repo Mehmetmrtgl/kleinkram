@@ -33,6 +33,9 @@ jobs:
             - name: build_stack
               run: docker compose -f docker-compose.testing.yml build
 
+            - name: clear previous volumes
+              run: docker compose -f docker-compose.testing.yml down -v
+
             - name: launch_stack
               working-directory: ./backend
               run: |
@@ -47,6 +50,7 @@ jobs:
                     fi
                     sleep 1
                     echo "waiting for endpoints"
+                    ls -al ./.endpoints/
                   done
                   echo "Endpoints found. Running tests..."
 
