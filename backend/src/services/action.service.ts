@@ -1,25 +1,3 @@
-import ActionTemplateEntity from '@common/entities/action/action-template.entity';
-import ActionEntity from '@common/entities/action/action.entity';
-import UserEntity from '@common/entities/user/user.entity';
-import {
-    ActionState,
-    ArtifactState,
-    UserRole,
-} from '@common/frontend_shared/enum';
-import { ConflictException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import {
-    Brackets,
-    EntityManager,
-    FindOptionsWhere,
-    ILike,
-    QueryFailedError,
-    Repository,
-    SelectQueryBuilder,
-} from 'typeorm';
-import { actionEntityToDto, actionTemplateEntityToDto } from '../serialization';
-import { QueueService } from './queue.service';
-
 import {
     ActionTemplateDto,
     ActionTemplatesDto,
@@ -34,12 +12,34 @@ import {
     SubmitActionDto,
 } from '@common/api/types/submit-action-response.dto';
 import { SubmitActionMulti } from '@common/api/types/submit-action.dto';
+import ActionTemplateEntity from '@common/entities/action/action-template.entity';
+import ActionEntity from '@common/entities/action/action.entity';
 import ApikeyEntity from '@common/entities/auth/apikey.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
+import UserEntity from '@common/entities/user/user.entity';
 import environment from '@common/environment';
+import {
+    ActionState,
+    ArtifactState,
+    UserRole,
+} from '@common/frontend_shared/enum';
+import { ActionDispatcherService } from '@common/modules/action-dispatcher/action-dispatcher.service';
 import { StorageService } from '@common/modules/storage/storage.service';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+    Brackets,
+    EntityManager,
+    FindOptionsWhere,
+    ILike,
+    QueryFailedError,
+    Repository,
+    SelectQueryBuilder,
+} from 'typeorm';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import { AuthHeader } from '../endpoints/auth/parameter-decorator';
 import logger from '../logger';
+import { actionEntityToDto, actionTemplateEntityToDto } from '../serialization';
 
 @Injectable()
 export class ActionService {
@@ -55,61 +55,41 @@ export class ActionService {
         private actionTemplateRepository: Repository<ActionTemplateEntity>,
         @InjectRepository(ApikeyEntity)
         private apikeyRepository: Repository<ApikeyEntity>,
-        private readonly queueService: QueueService,
+        @InjectRepository(MissionEntity)
+        private missionRepository: Repository<MissionEntity>,
+        private readonly actionDispatcher: ActionDispatcherService,
         private readonly storageService: StorageService,
     ) {}
 
+    /**
+     * Refactored submit: Delegates lifecycle management to the Dispatcher.
+     */
     async submit(
         data: SubmitActionDto,
         auth: AuthHeader,
     ): Promise<ActionSubmitResponseDto> {
-        const template = await this.actionTemplateRepository.findOneOrFail({
-            where: { uuid: data.templateUUID },
-            select: [
-                'uuid',
-                'cpuCores',
-                'cpuMemory',
-                'gpuMemory',
-                'maxRuntime',
-            ],
+        // Resolve Entities (Dispatcher requires Entities, not UUIDs)
+        const creator = await this.userRepository.findOneOrFail({
+            where: { uuid: auth.user.uuid },
         });
 
-        // Create and Persist
-        let action = this.actionRepository.create({
-            mission: { uuid: data.missionUUID },
-            creator: { uuid: auth.user.uuid },
-            state: ActionState.PENDING,
-            template,
+        const mission = await this.missionRepository.findOneOrFail({
+            where: { uuid: data.missionUUID },
         });
-        action = await this.actionRepository.save(action);
 
-        try {
-            const queued = await this.queueService._addActionQueue(action, {
-                cpuCores: template.cpuCores,
-                cpuMemory: template.cpuMemory,
-                gpuMemory: template.gpuMemory,
-                maxRuntime: template.maxRuntime,
-            });
+        const actionUUID = await this.actionDispatcher.dispatch(
+            data.templateUUID,
+            mission,
+            creator,
+            {}, // DTO doesn't currently support dynamic params, passing empty
+        );
 
-            if (!queued) throw new Error('Queue rejection');
-        } catch (error) {
-            logger.error(`Failed to queue action ${action.uuid}`, error);
-
-            // Fallback: Mark as failed immediately so it isn't stuck in PENDING
-            await this.actionRepository.update(action.uuid, {
-                state: ActionState.UNPROCESSABLE,
-                state_cause: 'Resources unavailable or queue error',
-            });
-
-            throw new ConflictException(
-                'No worker available or queue service unreachable',
-            );
-        }
-
-        return { actionUUID: action.uuid };
+        return { actionUUID };
     }
 
     async delete(actionUUID: string): Promise<boolean> {
+        // Note: If the action is running, you might want to call actionDispatcher.stopAction(actionUUID) first.
+        // For now, maintaining existing behavior of entity deletion.
         await this.actionRepository.delete(actionUUID);
         return true;
     }
@@ -327,13 +307,6 @@ export class ActionService {
         };
     }
 
-    /**
-     * Writes an audit log entry for the action associated with the given API key.
-     * Uses a transaction to ensure data integrity.
-     *
-     * @param apiKey - The API key associated with the action.
-     * @param auditLog - The audit log entry containing method and URL.
-     */
     async writeAuditLog(
         apiKey: string,
         auditLog: {
@@ -390,20 +363,13 @@ export class ActionService {
         return currentVersion + change;
     }
 
-    /**
-     * Determines if an update is merely a toggle of the searchable flag
-     * on an otherwise identical template.
-     */
     private isMetadataUpdateOnly(
         current: ActionTemplateEntity,
         incoming: UpdateTemplateDto,
     ): boolean {
-        // If it was already searchable, we aren't just toggling it on.
         if (current.searchable) return false;
         if (!incoming.searchable) return false;
 
-        // Compare critical fields.
-        // Note: Ideally this comparison logic lives on the Entity as a method `isSemanticallyEqual(dto)`
         return (
             current.image_name === incoming.dockerImage &&
             current.command === incoming.command &&
@@ -414,16 +380,6 @@ export class ActionService {
             current.entrypoint === incoming.entrypoint &&
             current.accessRights === incoming.accessRights
         );
-    }
-
-    private async ensureTemplateNameUnique(name: string): Promise<void> {
-        const exists = await this.actionTemplateRepository.exists({
-            where: { name },
-        });
-        if (exists)
-            throw new ConflictException(
-                'Template with this name already exists',
-            );
     }
 
     private buildBaseActionQuery(): SelectQueryBuilder<ActionEntity> {
@@ -460,7 +416,6 @@ export class ActionService {
     ): Promise<string> {
         const bucketName = environment.MINIO_ARTIFACTS_BUCKET_NAME;
 
-        // Check for legacy external URLs (e.g. GDrive)
         if (currentUrl && !currentUrl.includes(bucketName)) {
             return currentUrl;
         }
@@ -468,7 +423,6 @@ export class ActionService {
         try {
             const friendlyFilename = `${action.template?.name ?? 'artifact'}-${action.uuid}.tar.gz`;
 
-            // Use the injected storage service instead of externalMinio direct import
             return await this.storageService.getPresignedDownloadUrl(
                 bucketName,
                 `${action.uuid}.tar.gz`,

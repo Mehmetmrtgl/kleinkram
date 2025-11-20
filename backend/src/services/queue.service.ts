@@ -1,77 +1,56 @@
+import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing-response.dto';
+import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import ActionEntity from '@common/entities/action/action.entity';
+import {
+    FileQueueEntriesDto,
+    FileQueueEntryDto,
+} from '@common/api/types/file/file-queue-entry.dto';
+import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
+import { redis } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
 import QueueEntity from '@common/entities/queue/queue.entity';
-import WorkerEntity from '@common/entities/worker/worker.entity';
+import UserEntity from '@common/entities/user/user.entity';
+import env from '@common/environment';
 import {
-    ActionState,
     FileLocation,
     FileState,
     FileType,
     QueueState,
     UserRole,
 } from '@common/frontend_shared/enum';
-import { RuntimeDescription } from '@common/types';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { ConflictException, Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import Queue from 'bull';
+import { Gauge } from 'prom-client';
 import {
-    EntityManager,
     FindOptionsWhere,
     In,
     IsNull,
-    LessThan,
     Like,
     MoreThan,
     Repository,
 } from 'typeorm';
+import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import logger from '../logger';
 import { missionEntityToDto } from '../serialization';
 import { UserService } from './user.service';
 
-import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing-response.dto';
-import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
-import {
-    FileQueueEntriesDto,
-    FileQueueEntryDto,
-} from '@common/api/types/file/file-queue-entry.dto';
-import { StopJobResponseDto } from '@common/api/types/queue/stop-job-response.dto';
-import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
-import { redis } from '@common/consts';
-import UserEntity from '@common/entities/user/user.entity';
-import env from '@common/environment';
-import { StorageService } from '@common/modules/storage/storage.service';
-import { addActionQueue } from '@common/scheduling-logic';
-import { InjectMetric } from '@willsoto/nestjs-prometheus';
-import Queue from 'bull';
-import { Gauge } from 'prom-client';
-import { addAccessConstraints } from '../endpoints/auth/auth-helper';
-
 function extractFileIdFromUrl(url: string): string | undefined {
-    // Define the regex patterns for file and folder IDs, now including optional /u/[number]/ segments
     const filePattern = /\/file(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]+)/;
     const folderPattern = /\/drive(?:\/u\/\d+)?\/folders\/([a-zA-Z0-9_-]+)/;
-
-    // Test the URL against the file pattern
     let match = filePattern.exec(url);
-    if (match?.[1]) {
-        return match[1];
-    }
-
-    // Test the URL against the folder pattern
+    if (match?.[1]) return match[1];
     match = folderPattern.exec(url);
-    if (match?.[1]) {
-        return match[1];
-    }
-
-    // Return undefined if no match is found
+    if (match?.[1]) return match[1];
     return undefined;
 }
 
 @Injectable()
 export class QueueService implements OnModuleInit {
-    private actionQueues!: Record<string, Queue.Queue>;
     private fileQueue!: Queue.Queue;
 
     constructor(
@@ -82,12 +61,9 @@ export class QueueService implements OnModuleInit {
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
         private userService: UserService,
-        @InjectRepository(WorkerEntity)
-        private workerRepository: Repository<WorkerEntity>,
-        @InjectRepository(ActionEntity)
-        private actionRepository: Repository<ActionEntity>,
-        @InjectMetric('backend_online_workers')
-        private onlineWorkers: Gauge,
+        private readonly storageService: StorageService,
+
+        // Metrics for File Queue
         @InjectMetric('backend_pending_jobs')
         private pendingJobs: Gauge,
         @InjectMetric('backend_active_jobs')
@@ -96,40 +72,11 @@ export class QueueService implements OnModuleInit {
         private completedJobs: Gauge,
         @InjectMetric('backend_failed_jobs')
         private failedJobs: Gauge,
-        private readonly storageService: StorageService,
     ) {}
 
     async onModuleInit(): Promise<void> {
-        this.fileQueue = new Queue('file-queue', {
-            redis,
-        });
-        const availableWorker = await this.workerRepository.find({
-            where: { reachable: true },
-        });
-        this.actionQueues = {};
-        try {
-            await Promise.all(
-                availableWorker.map(async (worker) => {
-                    this.actionQueues[worker.identifier] = new Queue(
-                        `action-queue-${worker.identifier}`,
-                        { redis },
-                    );
-
-                    await this.actionQueues[worker.identifier]?.isReady();
-                }),
-            );
-        } catch (error) {
-            logger.error(error);
-        }
-        await Promise.all(
-            Object.values(this.actionQueues).map(async (queue) => {
-                logger.debug(
-                    `Waiting for ${queue.name} to be ready. Is ${queue.client.status}`,
-                );
-                await queue.isReady();
-            }),
-        );
-        logger.debug('All queues are ready');
+        this.fileQueue = new Queue('file-queue', { redis });
+        logger.debug('File Queue initialized');
     }
 
     async importFromDrive(
@@ -141,7 +88,6 @@ export class QueueService implements OnModuleInit {
         });
         const creator = await this.userService.findOneByUUID(user.uuid, {}, {});
 
-        // get GoogleDrive file id
         const fileId = extractFileIdFromUrl(driveCreate.driveURL);
         if (fileId === undefined)
             throw new ConflictException('Invalid Drive URL');
@@ -149,7 +95,6 @@ export class QueueService implements OnModuleInit {
         const queueEntry = await this.queueRepository.save(
             this.queueRepository.create({
                 identifier: fileId,
-
                 display_name: `GoogleDrive Object (no id=${fileId})`,
                 state: QueueState.AWAITING_PROCESSING,
                 location: FileLocation.DRIVE,
@@ -157,22 +102,19 @@ export class QueueService implements OnModuleInit {
                 creator,
             }),
         );
+
         await this.fileQueue
             .add('processDriveFile', { queueUuid: queueEntry.uuid })
             .catch((error: unknown) => logger.error(error));
-        logger.debug('added to queue');
 
+        logger.debug('Added drive file to queue');
         return {};
     }
 
-    /**
-     * re-calculates the hashes for all files without a valid hash
-     */
     async recalculateHashes(): Promise<{
         success: boolean;
         fileCount: number;
     }> {
-        // search for files with no hash (empty or null) and state OK
         const files = await this.fileRepository.find({
             where: [
                 { hash: IsNull(), state: FileState.OK },
@@ -182,7 +124,6 @@ export class QueueService implements OnModuleInit {
         });
 
         logger.debug(`Add ${files.length} files to queue for hash calculation`);
-        logger.debug(JSON.stringify(files.map((file) => file.uuid)));
 
         for (const file of files) {
             try {
@@ -194,10 +135,7 @@ export class QueueService implements OnModuleInit {
             }
         }
 
-        return {
-            success: true,
-            fileCount: files.length,
-        };
+        return { success: true, fileCount: files.length };
     }
 
     async confirmUpload(uuid: string, md5: string): Promise<void> {
@@ -209,10 +147,9 @@ export class QueueService implements OnModuleInit {
         if (queue.state !== QueueState.AWAITING_UPLOAD) {
             throw new ConflictException('File is not in uploading state');
         }
+
         const file = await this.fileRepository.findOneOrFail({
-            where: {
-                uuid: uuid,
-            },
+            where: { uuid: uuid },
             relations: ['mission', 'mission.project'],
         });
 
@@ -224,6 +161,7 @@ export class QueueService implements OnModuleInit {
             });
 
         if (fileInfo === null) throw new Error('File not found in Minio');
+
         if (file.state === FileState.UPLOADING) file.state = FileState.OK;
         file.size = fileInfo?.size ?? 0;
         await this.fileRepository.save(file);
@@ -262,11 +200,10 @@ export class QueueService implements OnModuleInit {
                 relations: ['mission', 'mission.project', 'creator'],
                 skip,
                 take,
-                order: {
-                    createdAt: 'DESC',
-                },
+                order: { createdAt: 'DESC' },
             });
         }
+
         const query = addAccessConstraints(
             this.queueRepository
                 .createQueryBuilder('queue')
@@ -293,52 +230,36 @@ export class QueueService implements OnModuleInit {
         filename: string,
         missionUUID: string,
     ): Promise<FileQueueEntriesDto> {
-        const entries: FileQueueEntryDto[] = await this.queueRepository
-            .find({
-                where: {
-                    display_name: Like(`${filename}%`),
-                    mission: { uuid: missionUUID },
+        const entries = await this.queueRepository.find({
+            where: {
+                display_name: Like(`${filename}%`),
+                mission: { uuid: missionUUID },
+            },
+            order: { createdAt: 'DESC' },
+            relations: ['creator', 'mission', 'mission.project'],
+        });
+
+        const dtos = entries.map(
+            (queue): FileQueueEntryDto => ({
+                state: queue.state,
+                uuid: queue.uuid,
+                creator: {
+                    uuid: queue.creator!.uuid,
+                    name: queue.creator!.name,
+                    avatarUrl: queue.creator!.avatarUrl ?? '',
+                    email: null,
                 },
-                order: { createdAt: 'DESC' },
-                relations: ['creator', 'mission', 'mission.project'],
-            })
-            .then((fileQueueEntries) =>
-                fileQueueEntries
-                    .map((queue: QueueEntity): FileQueueEntryDto | null => {
-                        if (queue.creator === undefined)
-                            throw new Error('Creator not found');
-                        if (queue.mission === undefined)
-                            throw new Error('Mission not found');
+                createdAt: queue.createdAt,
+                display_name: queue.display_name,
+                identifier: queue.identifier,
+                processingDuration: queue.processingDuration ?? 0,
+                updatedAt: queue.updatedAt,
+                location: queue.location,
+                mission: missionEntityToDto(queue.mission!),
+            }),
+        );
 
-                        return {
-                            state: queue.state,
-                            uuid: queue.uuid,
-                            creator: {
-                                uuid: queue.creator.uuid,
-                                name: queue.creator.name,
-                                avatarUrl: queue.creator.avatarUrl ?? '',
-                                email: null,
-                            },
-                            createdAt: queue.createdAt,
-                            display_name: queue.display_name,
-                            identifier: queue.identifier,
-                            processingDuration: queue.processingDuration ?? 0,
-                            updatedAt: queue.updatedAt,
-                            location: queue.location,
-                            mission: missionEntityToDto(queue.mission),
-                        };
-                    })
-                    .filter(
-                        (entry): entry is FileQueueEntryDto => entry !== null,
-                    ),
-            );
-
-        return {
-            data: entries,
-            count: entries.length,
-            take: entries.length,
-            skip: 0,
-        };
+        return { data: dtos, count: dtos.length, take: dtos.length, skip: 0 };
     }
 
     async delete(
@@ -349,57 +270,47 @@ export class QueueService implements OnModuleInit {
             where: { uuid: queueUUID, mission: { uuid: missionUUID } },
             relations: ['mission', 'mission.project'],
         });
+
         if (
             queue.state >= QueueState.PROCESSING &&
             queue.state < QueueState.COMPLETED
         ) {
             throw new ConflictException('Cannot delete file while processing');
         }
+
         const waitingJobs = await this.fileQueue.getWaiting();
         const jobToRemove = waitingJobs.find(
             (job) => job.data.queueUuid === queueUUID,
         );
-        if (jobToRemove) {
-            logger.debug('Removing job:', jobToRemove.data.queueUuid);
-            await jobToRemove.remove();
-        } else {
-            logger.debug('Job not found');
-        }
+        if (jobToRemove) await jobToRemove.remove();
+
         await this.queueRepository.remove(queue);
 
         const file = await this.fileRepository.findOne({
             where: { uuid: queue.identifier, mission: { uuid: missionUUID } },
         });
-        if (!file) {
-            return {};
-        }
-        const minioBucket = env.MINIO_DATA_BUCKET_NAME;
-        try {
-            await this.storageService.deleteFile(minioBucket, file.uuid);
-        } catch (error: any) {
-            logger.log(error);
-        }
-        await this.fileRepository.remove(file);
-        if (file.type === FileType.BAG) {
-            const mcap = await this.fileRepository.findOne({
-                where: {
-                    uuid: queue.identifier,
-                    mission: { uuid: missionUUID },
-                },
-            });
-            if (mcap) {
-                try {
-                    await this.storageService.deleteFile(
-                        env.MINIO_DATA_BUCKET_NAME,
-                        mcap.uuid,
-                    );
-                } catch (error: any) {
-                    logger.log(error);
+
+        if (file) {
+            await this.storageService
+                .deleteFile(env.MINIO_DATA_BUCKET_NAME, file.uuid)
+                .catch((e) => logger.log(e));
+            await this.fileRepository.remove(file);
+
+            if (file.type === FileType.BAG) {
+                const mcap = await this.fileRepository.findOne({
+                    where: {
+                        uuid: queue.identifier,
+                        mission: { uuid: missionUUID },
+                    },
+                });
+                if (mcap) {
+                    await this.storageService
+                        .deleteFile(env.MINIO_DATA_BUCKET_NAME, mcap.uuid)
+                        .catch((e) => logger.log(e));
+                    await this.fileRepository.remove(mcap);
                 }
-                await this.fileRepository.remove(mcap);
             }
         }
-
         return {};
     }
 
@@ -411,241 +322,34 @@ export class QueueService implements OnModuleInit {
             where: { uuid: queueUUID, mission: { uuid: missionUUID } },
             relations: ['mission', 'mission.project'],
         });
+
         if (queue.state >= QueueState.PROCESSING) {
             throw new ConflictException('File is not in processing state');
         }
+
         const waitingJobs = await this.fileQueue.getWaiting();
         const jobToRemove = waitingJobs.find(
             (job) => job.data.queueUuid === queueUUID,
         );
-        if (jobToRemove) {
-            logger.debug('Removing job:', jobToRemove.data.queueUuid);
-            await jobToRemove.remove();
-        } else {
-            logger.debug('Job not found');
-        }
+        if (jobToRemove) await jobToRemove.remove();
+
         queue.state = QueueState.CANCELED;
         await this.queueRepository.save(queue);
 
         return {};
     }
 
-    async _addActionQueue(
-        action: ActionEntity,
-        runtimeRequirements: RuntimeDescription,
-    ) {
-        logger.debug(
-            `Adding action to queue: ${action.template?.name ?? 'N/A'}`,
-        );
-
-        return await addActionQueue(
-            action,
-            runtimeRequirements,
-            this.workerRepository,
-            this.actionRepository,
-            this.actionQueues,
-            logger,
-        );
-    }
-
-    async bullQueue() {
-        const jobTypes: Queue.JobStatus[] = [
-            'active',
-            'delayed',
-            'waiting',
-            'completed',
-            'failed',
-            'paused',
-        ];
-        const jobs: Queue.Job[] = [];
-        await Promise.all(
-            Object.values(this.actionQueues).map(async (queue) => {
-                if (queue.client.status !== 'ready') {
-                    logger.error(`Queue ${queue.name} is not ready`);
-                }
-                const _jobs = await queue.getJobs(jobTypes);
-                jobs.push(..._jobs);
-            }),
-        );
-        return await Promise.all(
-            jobs.map(async (job) => {
-                const action = await this.actionRepository.findOne({
-                    where: { uuid: job.id as string },
-                    relations: ['template'],
-                });
-                const jobInfo: any = {};
-                jobInfo.state = await job.getState();
-                jobInfo.progress = await job.progress();
-                jobInfo.timestamp = job.timestamp;
-                jobInfo.name = job.name;
-                jobInfo.id = job.id;
-                return { job: jobInfo, action };
-            }),
-        );
-    }
-
     /**
-     * Stops an action run by its ID.
-     *
-     * @param actionRunId - The ID of the action run to stop.
-     * @returns A promise that resolves to a StopJobResponseDto.
-     * @throws ConflictException if the job is not found.
+     * Updates Prometheus metrics for File Queue
      */
-    async stopAction(actionRunId: string): Promise<StopJobResponseDto> {
-        let actionIdentifier: string | undefined = undefined;
-
-        // mark the action as aborted in a transaction
-        await this.actionRepository.manager.transaction(
-            async (manager: EntityManager): Promise<void> => {
-                const action = await manager.findOne(ActionEntity, {
-                    where: { uuid: actionRunId },
-                    relations: ['worker'],
-                });
-
-                if (action?.worker === undefined)
-                    throw new Error('No worker found for this action');
-
-                action.state = ActionState.FAILED;
-                await manager.save(action);
-                actionIdentifier = action.worker.identifier;
-            },
-        );
-
-        // remove the job from the queue
-        if (actionIdentifier === undefined)
-            throw new ConflictException('Action or Worker not found');
-        const job =
-            await this.actionQueues[actionIdentifier]?.getJob(actionRunId);
-        if (!job) throw new ConflictException('Job not found');
-        await job.remove();
-
-        return {};
-    }
-
-    @Cron(CronExpression.EVERY_30_SECONDS)
-    async healthCheck() {
-        const workers = await this.workerRepository.find({
-            where: {
-                reachable: true,
-                lastSeen: LessThan(new Date(Date.now() - 2 * 60 * 1000)),
-            },
-        });
-
-        await Promise.all(
-            workers.map(async (worker) => {
-                if (this.actionQueues[worker.identifier]) {
-                    logger.debug(`${worker.identifier} is now unreachable`);
-                    worker.reachable = false;
-
-                    await this.workerRepository.save(worker);
-                    const actionQueue = this.actionQueues[worker.identifier];
-
-                    if (actionQueue === undefined)
-                        throw new Error('Action queue not found');
-
-                    try {
-                        logger.debug('beforeJobGetting');
-                        const waitingJobs = await actionQueue.getJobs([
-                            'active',
-                            'delayed',
-                            'waiting',
-                        ]);
-
-                        logger.debug('waiting Jobs', waitingJobs);
-                        await Promise.all(
-                            waitingJobs.map(async (job) => {
-                                const action =
-                                    await this.actionRepository.findOneOrFail({
-                                        where: { uuid: job.data.uuid },
-                                        relations: ['template'],
-                                    });
-
-                                if (action.template === undefined)
-                                    throw new Error('Template not found');
-
-                                try {
-                                    await job.remove();
-                                    const runtimeRequirements = {
-                                        cpuCores: action.template.cpuCores,
-                                        cpuMemory: action.template.cpuMemory,
-                                        gpuMemory: action.template.gpuMemory,
-                                        maxRuntime: action.template.maxRuntime,
-                                    };
-
-                                    await addActionQueue(
-                                        action,
-                                        runtimeRequirements,
-                                        this.workerRepository,
-                                        this.actionRepository,
-                                        this.actionQueues,
-                                        logger,
-                                    );
-                                } catch (error) {
-                                    logger.error(error);
-                                }
-                            }),
-                        );
-                        if (this.actionQueues[worker.identifier]) {
-                            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                            delete this.actionQueues[worker.identifier];
-                        }
-                    } catch (error) {
-                        logger.error(error);
-                        return;
-                    }
-                }
-            }),
-        );
-        const activeWorker = await this.workerRepository.find({
-            where: { reachable: true },
-        });
-        activeWorker.map((worker) => {
-            if (!this.actionQueues[worker.identifier]) {
-                this.actionQueues[worker.identifier] = new Queue(
-                    `action-queue-${worker.identifier}`,
-                    { redis },
-                );
-            }
-        });
-
-        this.onlineWorkers.set({}, activeWorker.length);
-    }
-
     @Cron(CronExpression.EVERY_SECOND)
     async checkQueueState() {
-        const actionQueues = Object.values(this.actionQueues);
-        const jobCounts = await Promise.all(
-            actionQueues.map(async (queue) => {
-                return await queue.getJobCounts();
-            }),
-        );
         const jobsCount = await this.fileQueue.getJobCounts();
+        const label = { queue: 'fileQueue' };
 
-        this.pendingJobs.set(
-            { queue: 'fileQueue' },
-            jobsCount.waiting + jobsCount.delayed,
-        );
-        this.activeJobs.set({ queue: 'fileQueue' }, jobsCount.active);
-        this.completedJobs.set({ queue: 'fileQueue' }, jobsCount.completed);
-        this.failedJobs.set({ queue: 'fileQueue' }, jobsCount.failed);
-
-        for (const [index, count] of jobCounts.entries()) {
-            this.pendingJobs.set(
-                { queue: actionQueues[index]?.name },
-                count.waiting + count.delayed,
-            );
-            this.activeJobs.set(
-                { queue: actionQueues[index]?.name },
-                count.active,
-            );
-            this.completedJobs.set(
-                { queue: actionQueues[index]?.name },
-                count.completed,
-            );
-            this.failedJobs.set(
-                { queue: actionQueues[index]?.name },
-                count.failed,
-            );
-        }
+        this.pendingJobs.set(label, jobsCount.waiting + jobsCount.delayed);
+        this.activeJobs.set(label, jobsCount.active);
+        this.completedJobs.set(label, jobsCount.completed);
+        this.failedJobs.set(label, jobsCount.failed);
     }
 }

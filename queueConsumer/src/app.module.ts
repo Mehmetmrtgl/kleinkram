@@ -33,8 +33,8 @@ import { ActionQueueProcessorProvider } from './actions/action-queue-processor.p
 import { ActionManagerService } from './actions/services/action-manager.service';
 import { ContainerCleanupService } from './actions/services/cleanup-containers.service';
 import { DockerDaemon } from './actions/services/docker-daemon.service';
+import { FileProcessorModule } from './file-processor/file-processor.module';
 import { FileCleanupQueueProcessorProvider } from './fileCleanup/file-cleanup-queue-processor.provider';
-import { FileQueueProcessorProvider } from './files/file-queue-processor.provider';
 
 @Module({
     imports: [
@@ -45,9 +45,7 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             },
         }),
 
-        BullModule.registerQueue({
-            name: 'file-queue',
-        }),
+        FileProcessorModule,
 
         BullModule.registerQueue({
             name: `action-queue-${os.hostname()}`,
@@ -59,6 +57,8 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
         BullModule.registerQueue({
             name: 'move',
         }),
+
+        BullModule.registerQueue({ name: 'file-queue' }),
 
         ConfigModule.forRoot({
             isGlobal: true,
@@ -129,7 +129,6 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
         StorageModule,
     ],
     providers: [
-        FileQueueProcessorProvider,
         ActionQueueProcessorProvider,
         FileCleanupQueueProcessorProvider,
         DockerDaemon,

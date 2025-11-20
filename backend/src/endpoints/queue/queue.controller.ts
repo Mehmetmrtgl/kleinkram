@@ -4,8 +4,6 @@ import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-respo
 import { DriveCreate } from '@common/api/types/drive-create.dto';
 import { FileQueueEntriesDto } from '@common/api/types/file/file-queue-entry.dto';
 import { QueueActiveDto } from '@common/api/types/queue-active.dto';
-import { BullQueueDto } from '@common/api/types/queue/bull-queue.dto';
-import { StopJobResponseDto } from '@common/api/types/queue/stop-job-response.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { ApiOkResponse, OutputDto } from '../../decarators';
@@ -133,6 +131,8 @@ export class QueueController {
         return this.queueService.cancelProcessing(queueUUID, missionUUID);
     }
 
+    /**
+
     @Get('bullQueue')
     @AdminOnly()
     @OutputDto(null) // TODO: type API response
@@ -150,4 +150,6 @@ export class QueueController {
     ): Promise<StopJobResponseDto> {
         return this.queueService.stopAction(jobId);
     }
+
+     */
 }
