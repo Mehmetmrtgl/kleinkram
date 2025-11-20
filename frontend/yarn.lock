@@ -767,6 +767,50 @@
   resolved "https://registry.yarnpkg.com/@esbuild/win32-x64/-/win32-x64-0.25.2.tgz#839f72c2decd378f86b8f525e1979a97b920c67d"
   integrity sha512-kM3HKb16VIXZyIeVrM1ygYmZBKybX8N4p754bw390wGO3Tf2j4L2/WYL+4suWujpgf6GBYs3jv7TyUivdd05JA==
 
+"@foxglove/cdr@^3.4.0":
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/@foxglove/cdr/-/cdr-3.5.0.tgz#61fb191166453a7abcec2a40abe18e52dee71cf9"
+  integrity sha512-trj8uB+J71SuW9g8TbbDgTbvqrmUHQjh5uhqBAraBhg4hxm7aG9AFPvz34yJ/XZnl28x0NuLjptJYKNSUlgM9Q==
+
+"@foxglove/crc@^0.0.3":
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/@foxglove/crc/-/crc-0.0.3.tgz#04cd8816454e14f1ec48de17c949199b4b3ec9c2"
+  integrity sha512-DjIZsnL3CyP/yQ/vUYA9cjrD0a/8YXejI5ZmsaOiT16cLfZcTwaCxIN01/ys4jsy+dZCQ/9DnWFn7AEFbiMDaA==
+
+"@foxglove/message-definition@0.5.0":
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/@foxglove/message-definition/-/message-definition-0.5.0.tgz#d95385da762029b5928f19c6b6e29a80441e7df1"
+  integrity sha512-B/2GvWn4wRSsPDywcmy6uNXgAfZRhiOAnmy3qAaS6MHVqiHQqs/RoDsoW6Gw9sXSweJpeH5qAqAihvm1pR9Thg==
+
+"@foxglove/rosmsg-serialization@^2.0.4":
+  version "2.0.4"
+  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg-serialization/-/rosmsg-serialization-2.0.4.tgz#b744a533cfe16458655399e61434829597a424c7"
+  integrity sha512-Vbw9bZFoCi+tt6spWEbAuzdgIE2GhoHjFX/URJFlpv3Q90XvbbaJBhc7187ULZLVRbf4ARRFhUgzGY6B7bmGXw==
+  dependencies:
+    "@foxglove/message-definition" "0.5.0"
+
+"@foxglove/rosmsg2-serialization@^3.0.3":
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg2-serialization/-/rosmsg2-serialization-3.0.3.tgz#54e10c7c54de3db135e158a09e89745b65f08947"
+  integrity sha512-fKxtYQjQr8BrnS3p4EpsDg7kBP+SCJkryQMnCVZGJ4YUkZomT/xSkmOomJY1CDcVI5SGVig47FNQ65c9qAAlEg==
+  dependencies:
+    "@foxglove/cdr" "^3.4.0"
+    "@foxglove/message-definition" "0.5.0"
+    "@foxglove/rostime" "^1.1.2"
+
+"@foxglove/rosmsg@^5.0.5":
+  version "5.0.5"
+  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg/-/rosmsg-5.0.5.tgz#f3b97b162e98022e7f6c19cb70ad66f6f04c0025"
+  integrity sha512-+qY6xW+4HdbPI3ItAlFFMjXgAiplXyRsv+kqdBk8OcWGH38BmEd7s6v/VnCkbYovAoB5rfR5giuKfmPRNzwbrA==
+  dependencies:
+    "@foxglove/message-definition" "0.5.0"
+    md5-typescript "^1.0.5"
+
+"@foxglove/rostime@^1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@foxglove/rostime/-/rostime-1.1.2.tgz#f8e1f10bff115c22be8a3e06791c2ac800449ee8"
+  integrity sha512-vWuTJCuGv0xvgwOlrZ1y2MevmNMVxWcUU/HwlmYXi/jUq/kRaACStU18uyuZ3LzdNKaffkti0rTcXWESaQjwQw==
+
 "@inquirer/figures@^1.0.3":
   version "1.0.11"
   resolved "https://registry.yarnpkg.com/@inquirer/figures/-/figures-1.0.11.tgz#4744e6db95288fea1dead779554859710a959a21"
@@ -828,6 +872,15 @@
   dependencies:
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
+
+"@mcap/core@^2.1.7":
+  version "2.1.7"
+  resolved "https://registry.yarnpkg.com/@mcap/core/-/core-2.1.7.tgz#b2b892c2969a6e9d92d20aa9d103a20cf8215589"
+  integrity sha512-lp+ZfJ/wKCyB9+vzc5yWe9CfnKa7Vh4nN99yazEjp9eC5DG6ACvGaNWQfQsrOC+3QraAWIY912pCwBWrY31QLQ==
+  dependencies:
+    "@foxglove/crc" "^0.0.3"
+    heap-js "^2.2.0"
+    tslib "^2.5.0"
 
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
@@ -2677,6 +2730,11 @@ function-bind@^1.1.2:
   resolved "https://registry.yarnpkg.com/function-bind/-/function-bind-1.1.2.tgz#2c02d864d97f3ea6c8830c464cbd11ab6eab7a1c"
   integrity sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==
 
+fzstd@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/fzstd/-/fzstd-0.1.1.tgz#a3da29f2fff45070ca90073f866d97e0c56a4a52"
+  integrity sha512-dkuVSOKKwh3eas5VkJy1AW1vFpet8TA/fGmVA5krThl8YcOVE/8ZIoEA1+U1vEn5ckxxhLirSdY837azmbaNHA==
+
 get-caller-file@^2.0.5:
   version "2.0.5"
   resolved "https://registry.yarnpkg.com/get-caller-file/-/get-caller-file-2.0.5.tgz#4f94412a82db32f36e3b0b9741f8a97feb031f7e"
@@ -2765,6 +2823,11 @@ hasown@^2.0.2:
   integrity sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==
   dependencies:
     function-bind "^1.1.2"
+
+heap-js@^2.2.0:
+  version "2.7.1"
+  resolved "https://registry.yarnpkg.com/heap-js/-/heap-js-2.7.1.tgz#3f152279e42214725cac405257554b000b178cc4"
+  integrity sha512-EQfezRg0NCZGNlhlDR3Evrw1FVL2G3LhU7EgPoxufQKruNBSYA8MiRPHeWbU+36o+Fhel0wMwM+sLEiBAlNLJA==
 
 html-minifier-terser@^7.2.0:
   version "7.2.0"
@@ -3018,6 +3081,11 @@ math-intrinsics@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/math-intrinsics/-/math-intrinsics-1.1.0.tgz#a0dd74be81e2aa5c2f27e65ce283605ee4e2b7f9"
   integrity sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==
+
+md5-typescript@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/md5-typescript/-/md5-typescript-1.0.5.tgz#68c0b24dff8e5d3162e498fa9893b63be72e038f"
+  integrity sha512-ovAc4EtiNt2dY8JPhPr/wkC9h4U5k/nuClNVcG0Ga3V1rMlYpAY24ZaaymFXJlz+ccJ6UMPo3FSaVKe7czBsXw==
 
 media-typer@0.3.0:
   version "0.3.0"
@@ -3997,7 +4065,7 @@ tslib@2.3.0:
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.3.0.tgz#803b8cdab3e12ba581a4ca41c8839bbb0dacb09e"
   integrity sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==
 
-tslib@^2.0.3, tslib@^2.1.0, tslib@^2.6.2:
+tslib@^2.0.3, tslib@^2.1.0, tslib@^2.5.0, tslib@^2.6.2:
   version "2.8.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.8.1.tgz#612efe4ed235d567e8aba5f2a5fab70280ade83f"
   integrity sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==
