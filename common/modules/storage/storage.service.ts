@@ -1,6 +1,3 @@
-import { AuditLog } from '@common/audit/audit.decorator';
-import { MinioStorageStrategy } from '@common/audit/audit.strategies';
-import { FileEventType } from '@common/frontend_shared/enum';
 import { Inject, Injectable } from '@nestjs/common';
 import { BucketItemStat, Client, ItemBucketMetadata } from 'minio';
 import Credentials from 'minio/dist/main/Credentials';
@@ -18,7 +15,6 @@ export class StorageService {
         private readonly authService: StorageAuthService,
     ) {}
 
-    @AuditLog(FileEventType.DOWNLOADED, MinioStorageStrategy)
     async getPresignedDownloadUrl(
         bucketName: string,
         objectName: string, // This is usually the file UUID
@@ -34,7 +30,6 @@ export class StorageService {
         );
     }
 
-    @AuditLog(FileEventType.DOWNLOADED, MinioStorageStrategy)
     async downloadFile(
         bucketName: string,
         objectName: string,
@@ -47,7 +42,6 @@ export class StorageService {
         );
     }
 
-    @AuditLog(FileEventType.DOWNLOADED, MinioStorageStrategy)
     async getFileStream(
         bucketName: string,
         objectName: string,
@@ -55,7 +49,6 @@ export class StorageService {
         return this.clients.internal.getObject(bucketName, objectName);
     }
 
-    // Removed @AuditLog as listFiles doesn't map to a specific file UUID
     async listFiles(bucketName: string): Promise<BucketItem[]> {
         const stream = this.clients.internal.listObjects(bucketName, '');
         const result: BucketItem[] = [];
@@ -65,7 +58,6 @@ export class StorageService {
         return result;
     }
 
-    // @AuditLog(FileEventType.READ, MinioStorageStrategy)
     async getFileInfo(
         bucketName: string,
         location: string,
@@ -78,7 +70,6 @@ export class StorageService {
         }
     }
 
-    @AuditLog(FileEventType.CREATED, MinioStorageStrategy)
     async uploadFile(
         bucketName: string,
         objectName: string,
@@ -93,7 +84,6 @@ export class StorageService {
         );
     }
 
-    @AuditLog(FileEventType.DELETED, MinioStorageStrategy)
     async deleteFile(bucketName: string, location: string): Promise<void> {
         await this.clients.internal.removeObject(bucketName, location);
     }
@@ -109,7 +99,6 @@ export class StorageService {
         return this.normalizeTags(tagList);
     }
 
-    @AuditLog(FileEventType.METADATA_CHANGED, MinioStorageStrategy)
     async addTags(
         bucketName: string,
         objectName: string,
@@ -123,7 +112,6 @@ export class StorageService {
         );
     }
 
-    @AuditLog(FileEventType.METADATA_CHANGED, MinioStorageStrategy)
     async removeTags(bucketName: string, objectName: string): Promise<void> {
         await this.clients.internal.removeObjectTagging(
             bucketName,
@@ -136,10 +124,6 @@ export class StorageService {
         return this.metricsService.getSystemMetrics();
     }
 
-    @AuditLog(FileEventType.UPLOAD_STARTED, (arguments_) => ({
-        filename: arguments_[0] as string,
-        details: { bucket: arguments_[1] },
-    }))
     async generateTemporaryCredential(
         filename: string,
         bucketName: string,

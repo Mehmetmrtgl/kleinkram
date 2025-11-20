@@ -12,7 +12,7 @@ import { StorageModule } from '@common/modules/storage/storage.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { makeGaugeProvider } from '@willsoto/nestjs-prometheus';
-import { QueueService } from '../../services/queue.service';
+import QueueService from '../../services/queue.service';
 import { QueueController } from './queue.controller';
 
 @Module({

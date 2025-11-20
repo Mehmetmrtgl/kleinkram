@@ -1,7 +1,8 @@
-import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing-response.dto';
+import { CancelProcessingResponseDto } from '@common/api/types/cancel-processing-response.dto';
 import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
 import { DriveCreate } from '@common/api/types/drive-create.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
+import { FileAuditService } from '@common/audit/file-audit.service';
 import { redis } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
 import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
@@ -9,7 +10,9 @@ import MissionEntity from '@common/entities/mission/mission.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
+    FileEventType,
     FileLocation,
+    FileOrigin,
     FileState,
     FileType,
     QueueState,
@@ -38,7 +41,7 @@ function extractFileIdFromUrl(url: string): string | undefined {
 }
 
 @Injectable()
-export class QueueService implements OnModuleInit {
+class QueueService implements OnModuleInit {
     private fileQueue!: Queue.Queue;
 
     constructor(
@@ -50,6 +53,7 @@ export class QueueService implements OnModuleInit {
         private fileRepository: Repository<FileEntity>,
         private userService: UserService,
         private readonly storageService: StorageService,
+        private readonly auditService: FileAuditService,
 
         // Metrics for File Queue
         @InjectMetric('backend_pending_jobs')
@@ -126,14 +130,46 @@ export class QueueService implements OnModuleInit {
         return { success: true, fileCount: files.length };
     }
 
-    async confirmUpload(uuid: string, md5: string): Promise<void> {
-        const queue = await this.queueRepository.findOneOrFail({
+    async confirmUpload(
+        uuid: string,
+        md5: string,
+        actor: UserEntity,
+    ): Promise<void> {
+        let job = await this.queueRepository.findOne({
             where: { identifier: uuid },
             relations: ['mission', 'mission.project'],
         });
 
-        if (queue.state !== QueueState.AWAITING_UPLOAD) {
-            throw new ConflictException('File is not in uploading state');
+        if (!job) {
+            logger.warn(
+                `confirmUpload: Job missing for file ${uuid}. Recreating...`,
+            );
+
+            const file = await this.fileRepository.findOneOrFail({
+                where: { uuid },
+                relations: ['mission', 'mission.project'],
+            });
+
+            job = await this.queueRepository.save(
+                this.queueRepository.create({
+                    identifier: file.uuid,
+                    display_name: file.filename,
+                    state: QueueState.AWAITING_UPLOAD,
+                    location: FileLocation.MINIO,
+                    mission: file.mission,
+                    creator: actor,
+                } as IngestionJobEntity),
+            );
+        }
+
+        if (
+            job.state !== QueueState.AWAITING_UPLOAD &&
+            job.state !== QueueState.ERROR
+        ) {
+            if (job.state >= QueueState.PROCESSING) return;
+            logger.warn(
+                `Resuming upload for job ${job.uuid} in state ${job.state}`,
+            );
         }
 
         const file = await this.fileRepository.findOneOrFail({
@@ -144,23 +180,36 @@ export class QueueService implements OnModuleInit {
         const fileInfo = await this.storageService
             .getFileInfo(env.MINIO_DATA_BUCKET_NAME, file.uuid)
             .catch(async () => {
-                await this.fileRepository.remove(file);
                 throw new ConflictException('File not found in Minio');
             });
 
-        if (fileInfo === null) throw new Error('File not found in Minio');
+        if (!fileInfo) throw new Error('File not found in Minio');
 
         if (file.state === FileState.UPLOADING) file.state = FileState.OK;
-        file.size = fileInfo?.size ?? 0;
+        file.size = fileInfo.size;
         await this.fileRepository.save(file);
 
-        queue.state = QueueState.AWAITING_PROCESSING;
-        await this.queueRepository.save(queue);
+        job.state = QueueState.AWAITING_PROCESSING;
+        await this.queueRepository.save(job);
 
         await this.fileQueue.add('processMinioFile', {
-            queueUuid: queue.uuid,
+            queueUuid: job.uuid,
             md5,
         });
+
+        logger.debug(`Confirmed upload for ${uuid}, job ${job.uuid} queued.`);
+
+        await this.auditService.log(
+            FileEventType.UPLOAD_COMPLETED,
+            {
+                fileUuid: file.uuid,
+                filename: file.filename,
+                ...(job.mission?.uuid ? { missionUuid: job.mission.uuid } : {}),
+                ...(actor ? { actor } : {}),
+                details: { origin: FileOrigin.UPLOAD },
+            },
+            true,
+        );
     }
 
     async active(
@@ -245,7 +294,7 @@ export class QueueService implements OnModuleInit {
         if (file) {
             await this.storageService
                 .deleteFile(env.MINIO_DATA_BUCKET_NAME, file.uuid)
-                .catch((e) => logger.log(e));
+                .catch((error) => logger.log(error));
             await this.fileRepository.remove(file);
 
             if (file.type === FileType.BAG) {
@@ -258,7 +307,7 @@ export class QueueService implements OnModuleInit {
                 if (mcap) {
                     await this.storageService
                         .deleteFile(env.MINIO_DATA_BUCKET_NAME, mcap.uuid)
-                        .catch((e) => logger.log(e));
+                        .catch((error) => logger.log(error));
                     await this.fileRepository.remove(mcap);
                 }
             }
@@ -269,7 +318,7 @@ export class QueueService implements OnModuleInit {
     async cancelProcessing(
         queueUUID: string,
         missionUUID: string,
-    ): Promise<CancleProgessingResponseDto> {
+    ): Promise<CancelProcessingResponseDto> {
         const queue = await this.queueRepository.findOneOrFail({
             where: { uuid: queueUUID, mission: { uuid: missionUUID } },
             relations: ['mission', 'mission.project'],
@@ -295,7 +344,7 @@ export class QueueService implements OnModuleInit {
      * Updates Prometheus metrics for File Queue
      */
     @Cron(CronExpression.EVERY_SECOND)
-    async checkQueueState() {
+    async checkQueueState(): Promise<void> {
         const jobsCount = await this.fileQueue.getJobCounts();
         const label = { queue: 'fileQueue' };
 
@@ -305,3 +354,5 @@ export class QueueService implements OnModuleInit {
         this.failedJobs.set(label, jobsCount.failed);
     }
 }
+
+export default QueueService;

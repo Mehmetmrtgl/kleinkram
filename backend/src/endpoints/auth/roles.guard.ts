@@ -17,8 +17,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import Queue from '@common/entities/file/ingestion-job.entity';
-
 import ActionTemplateEntity from '@common/entities/action/action-template.entity';
 import ActionEntity from '@common/entities/action/action.entity';
 import { FileGuardService } from '../../services/file-guard.service';
@@ -470,47 +468,6 @@ export class DeleteTagGuard extends BaseGuard {
             user,
             taguuid,
             AccessGroupRights.WRITE,
-        );
-    }
-}
-
-@Injectable()
-export class CreateQueueByBodyGuard extends BaseGuard {
-    constructor(
-        private missionGuardService: MissionGuardService,
-        @InjectRepository(Queue)
-        private queueRepository: Repository<Queue>,
-        private reflector: Reflector,
-    ) {
-        super();
-    }
-
-    async canActivate(context: ExecutionContext): Promise<boolean> {
-        const { user, apiKey, request } = await this.getUser(context);
-        const identifier = request.body.uuid;
-        const queue = await this.queueRepository.findOneOrFail({
-            where: { identifier },
-            relations: ['mission'],
-        });
-        if (!queue) {
-            throw new BadRequestException('Queue not found');
-        }
-
-        if (queue.mission === undefined)
-            throw new BadRequestException('Queue does not have a mission');
-
-        if (apiKey) {
-            return this.missionGuardService.canKeyAccessMission(
-                apiKey,
-                queue.mission.uuid,
-                AccessGroupRights.CREATE,
-            );
-        }
-
-        return this.missionGuardService.canAccessMission(
-            user,
-            queue.mission.uuid,
-            AccessGroupRights.CREATE,
         );
     }
 }

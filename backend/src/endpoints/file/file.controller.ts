@@ -170,9 +170,10 @@ export class FileController {
             'Whether the download link should stay valid for on week (false) or 4h (true)',
         )
         expires: boolean,
+        @AddUser() auth: AuthHeader,
     ): Promise<string> {
         logger.debug(`download ${uuid}: expires=${expires.toString()}`);
-        return this.fileService.generateDownload(uuid, expires);
+        return this.fileService.generateDownload(uuid, expires, auth.user);
     }
 
     // TODO: replace this with /file/:uuid
@@ -194,8 +195,9 @@ export class FileController {
     async update(
         @ParameterUID('uuid') uuid: string,
         @Body() dto: UpdateFile,
+        @AddUser() auth: AuthHeader,
     ): Promise<FileEntity | null> {
-        return this.fileService.update(uuid, dto);
+        return this.fileService.update(uuid, dto, auth.user);
     }
 
     @Post('moveFiles')

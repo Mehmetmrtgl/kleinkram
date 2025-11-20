@@ -17,7 +17,6 @@ import {
     CreateGuard,
     CreateInMissionByBodyGuard,
     CreateInProjectByBodyGuard,
-    CreateQueueByBodyGuard,
     DeleteActionGuard,
     DeleteFileGuard,
     DeleteProjectGuard,
@@ -295,19 +294,6 @@ export function CanDeleteFile() {
             type: ForbiddenException,
             description:
                 'User does not have Delete permissions on the specified project.',
-        }),
-    );
-}
-
-export function CanCreateQueueByBody() {
-    return applyDecorators(
-        SetMetadata('CanCreateQueueByBody', true),
-        UseGuards(CreateQueueByBodyGuard),
-        ApiResponse({
-            status: 403,
-            type: ForbiddenException,
-            description:
-                'User does not have Create permissions on the specified project.',
         }),
     );
 }
