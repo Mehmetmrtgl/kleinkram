@@ -1,10 +1,10 @@
-import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import { Column, Entity, ManyToOne, OneToMany, Unique } from 'typeorm';
 import ActionEntity from '../action/action.entity';
 import ApikeyEntity from '../auth/apikey.entity';
 import MissionAccessEntity from '../auth/mission-access.entity';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
+import IngestionJobEntity from '../file/ingestion-job.entity';
 import MetadataEntity from '../metadata/metadata.entity';
 import ProjectEntity from '../project/project.entity';
 import UserEntity from '../user/user.entity';

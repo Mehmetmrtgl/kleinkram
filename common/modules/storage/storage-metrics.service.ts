@@ -57,7 +57,7 @@ export class StorageMetricsService {
                 continue;
             }
 
-            const match = line.match(/^(\w+)\{(.+)}\s+(.+)$/);
+            const match = /^(\w+)\{(.+)}\s+(.+)$/.exec(line);
 
             if (match) {
                 const metricName = match[1];

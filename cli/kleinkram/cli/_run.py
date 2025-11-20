@@ -136,7 +136,10 @@ def download_artifacts(
         None, "--output", "-o", help="Path or filename to save the artifacts to."
     ),
     extract: bool = typer.Option(
-        False, "--extract", "-x", help="Automatically extract the archive after downloading."
+        False,
+        "--extract",
+        "-x",
+        help="Automatically extract the archive after downloading.",
     ),
 ) -> None:
     """
@@ -203,7 +206,7 @@ def download_artifacts(
                     # Determine extraction directory (based on filename without extension)
                     # e.g., "downloads/my-run.tar" -> "downloads/my-run"
                     base_name = os.path.basename(filename)
-                    folder_name = base_name.split('.')[0]
+                    folder_name = base_name.split(".")[0]
 
                     # Get the parent directory of the downloaded file
                     parent_dir = os.path.dirname(os.path.abspath(filename))
@@ -215,8 +218,8 @@ def download_artifacts(
 
                         # Safety check: filter_data prevents extraction outside target dir (CVE-2007-4559)
                         # Available in Python 3.12+, for older python use generic extractall
-                        if hasattr(tarfile, 'data_filter'):
-                            tar.extractall(path=extract_path, filter='data')
+                        if hasattr(tarfile, "data_filter"):
+                            tar.extractall(path=extract_path, filter="data")
                         else:
                             tar.extractall(path=extract_path)
 

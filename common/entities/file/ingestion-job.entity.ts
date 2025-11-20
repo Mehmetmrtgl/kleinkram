@@ -1,7 +1,7 @@
-import FileEntity from '@common/entities/file/file.entity';
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { FileLocation, QueueState } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
+import FileEntity from '../file/file.entity';
 import MissionEntity from '../mission/mission.entity';
 import UserEntity from '../user/user.entity';
 

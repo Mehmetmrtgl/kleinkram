@@ -44,7 +44,7 @@ export class GoogleDriveStrategy implements FileSourceStrategy {
             stream: streamRequest.data,
             filename: meta.data.name ?? 'unknown',
             size,
-            mimeType: mimeType as string,
+            mimeType: mimeType,
         };
     }
 }

@@ -1,4 +1,3 @@
-import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
 import { UserRole } from '../../frontend_shared/enum';
 import ActionTemplateEntity from '../action/action-template.entity';
@@ -9,6 +8,7 @@ import GroupMembershipEntity from '../auth/group-membership.entity';
 import BaseEntity from '../base-entity.entity';
 import CategoryEntity from '../category/category.entity';
 import FileEntity from '../file/file.entity';
+import IngestionJobEntity from '../file/ingestion-job.entity';
 import MetadataEntity from '../metadata/metadata.entity';
 import MissionEntity from '../mission/mission.entity';
 import ProjectEntity from '../project/project.entity';

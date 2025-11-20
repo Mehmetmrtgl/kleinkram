@@ -1,5 +1,5 @@
-import { FileEventType } from '@common/frontend_shared/enum';
 import { Column, CreateDateColumn, Entity, Index, ManyToOne } from 'typeorm';
+import { FileEventType } from '../../frontend_shared/enum';
 import FileEntity from '../file/file.entity';
 import MissionEntity from '../mission/mission.entity';
 import UserEntity from '../user/user.entity';
