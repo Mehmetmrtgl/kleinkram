@@ -1,11 +1,12 @@
 import ActionEntity from '@common/entities/action/action.entity';
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
 import AccountEntity from '@common/entities/auth/account.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import { StorageModule } from '@common/modules/storage/storage.module';
 import { Module } from '@nestjs/common';
@@ -18,7 +19,8 @@ import { QueueController } from './queue.controller';
     imports: [
         StorageModule,
         TypeOrmModule.forFeature([
-            QueueEntity,
+            IngestionJobEntity,
+            FileEventEntity,
             MissionEntity,
             AccountEntity,
             AccessGroupEntity,

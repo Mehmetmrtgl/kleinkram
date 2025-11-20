@@ -1,51 +1,68 @@
+import { Logger } from '@nestjs/common';
+import { DefaultAuditStrategy } from './audit.strategies';
 import {
     AuditActionType,
     AuditContext,
     AuditContextExtractor,
-} from '@common/audit/audit.types';
-import { Logger } from '@nestjs/common';
-import { DefaultAuditStrategy } from './audit.strategies';
+} from './audit.types';
+import { FileAuditService } from './file-audit.service';
+
+export const AUDIT_LOGGER = new Logger('AuditLogger');
 
 export function AuditLog(
     action: AuditActionType,
     strategy: AuditContextExtractor = DefaultAuditStrategy,
 ) {
     return function (
-        target: object,
+        target: any,
         propertyKey: string,
         descriptor: PropertyDescriptor,
     ): PropertyDescriptor {
         const originalMethod = descriptor.value;
-        const logger = new Logger('AuditLogger');
 
-        descriptor.value = async function <T>(...arguments_: T[]): Promise<T> {
-            const start = Date.now();
-            const className = target.constructor.name;
+        descriptor.value = async function (...arguments_: any[]) {
+            // 'this' refers to the instance of the service (e.g. StorageService)
+            // We attempt to access the injected audit service.
+            const auditService: FileAuditService | undefined = (this as any)
+                .fileAuditService;
 
-            let context: AuditContext;
+            if (!auditService) {
+                AUDIT_LOGGER.warn(
+                    `[AuditLog] @AuditLog used on ${target.constructor.name}.${propertyKey} but 'fileAuditService' was not found on the instance. Make sure to inject FileAuditService as a public property.`,
+                );
+                return originalMethod.apply(this, arguments_);
+            }
+
+            let context: AuditContext = {};
             try {
                 context = strategy(arguments_);
-            } catch {
-                context = { resource: 'STRATEGY_ERROR' };
+            } catch (error) {
+                context = { details: { strategyError: String(error) } };
             }
 
             try {
                 const result = await originalMethod.apply(this, arguments_);
 
-                const duration = Date.now() - start;
-                logger.log(
-                    `[AUDIT] Action: ${action} | Resource: ${context.resource} | Method: ${className}.${propertyKey} | Time: ${duration}ms`,
-                );
+                auditService
+                    .log(action, context, true)
+                    .catch((error) =>
+                        AUDIT_LOGGER.error(
+                            `Failed to persist audit log: ${error}`,
+                        ),
+                    );
 
                 return result;
             } catch (error) {
-                const duration = Date.now() - start;
                 const errorMessage =
                     error instanceof Error ? error.message : String(error);
 
-                logger.error(
-                    `[AUDIT-FAIL] Action: ${action} | Resource: ${context.resource} | Method: ${className}.${propertyKey} | Time: ${duration}ms | Error: ${errorMessage}`,
-                );
+                auditService
+                    .log(action, context, false, errorMessage)
+                    .catch((error_) =>
+                        AUDIT_LOGGER.error(
+                            `Failed to persist audit log (error case): ${error_}`,
+                        ),
+                    );
 
                 throw error;
             }

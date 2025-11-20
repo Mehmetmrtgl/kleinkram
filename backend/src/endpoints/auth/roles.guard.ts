@@ -17,7 +17,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import Queue from '@common/entities/queue/queue.entity';
+import Queue from '@common/entities/file/ingestion-job.entity';
 
 import ActionTemplateEntity from '@common/entities/action/action-template.entity';
 import ActionEntity from '@common/entities/action/action.entity';
@@ -558,7 +558,8 @@ export class ReadFileGuard extends BaseGuard {
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const { user, apiKey, request } = await this.getUser(context);
-        const fileUUID = request.query.uuid;
+        const fileUUID = request.query.uuid ?? request.params.uuid;
+
         if (apiKey) {
             return this.fileGuardService.canKeyAccessFile(
                 apiKey,

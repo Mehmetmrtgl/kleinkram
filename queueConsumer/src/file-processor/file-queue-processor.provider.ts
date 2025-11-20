@@ -1,4 +1,4 @@
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import { FileLocation } from '@common/frontend_shared/enum';
 import { Process, Processor } from '@nestjs/bull';
 import { Injectable } from '@nestjs/common';
@@ -14,8 +14,8 @@ import { MinioStrategy } from './strategies/minio.strategy';
 @Injectable()
 export class FileQueueProcessorProvider {
     constructor(
-        @InjectRepository(QueueEntity)
-        private queueRepo: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepo: Repository<IngestionJobEntity>,
         private readonly fileIngestionService: FileIngestionService,
         private readonly driveStrategy: GoogleDriveStrategy,
         private readonly minioStrategy: MinioStrategy,

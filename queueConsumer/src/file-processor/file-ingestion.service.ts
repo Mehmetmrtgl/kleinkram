@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { Repository } from 'typeorm';
 
 import FileEntity from '@common/entities/file/file.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import env from '@common/environment';
 import {
     FileLocation,
@@ -38,13 +38,13 @@ export class FileIngestionService {
     constructor(
         @Inject(FILE_HANDLER) private readonly fileHandlers: FileHandler[],
         @InjectRepository(FileEntity) private fileRepo: Repository<FileEntity>,
-        @InjectRepository(QueueEntity)
-        private queueRepo: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepo: Repository<IngestionJobEntity>,
         private readonly storageService: StorageService,
     ) {}
 
     async processJob(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         strategy: FileSourceStrategy,
     ): Promise<void> {
         await this.runWithWorkspace(
@@ -88,7 +88,7 @@ export class FileIngestionService {
     }
 
     private async downloadAndHash(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         strategy: FileSourceStrategy,
         workDirectory: string,
     ): Promise<DownloadResult> {
@@ -133,7 +133,7 @@ export class FileIngestionService {
     }
 
     private async createAndSaveFileEntity(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         data: DownloadResult,
     ): Promise<FileEntity> {
         const existingFile = await this.fileRepo.findOne({
@@ -165,7 +165,7 @@ export class FileIngestionService {
     }
 
     private async ensureFileIsInMinio(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         file: FileEntity,
         filePath: string,
     ): Promise<void> {
@@ -179,7 +179,7 @@ export class FileIngestionService {
     }
 
     private async executeFileHandlers(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         primaryFile: FileEntity,
         fileData: DownloadResult,
         workDirectory: string,
@@ -205,7 +205,7 @@ export class FileIngestionService {
     }
 
     private async updateQueueState(
-        queueItem: QueueEntity,
+        queueItem: IngestionJobEntity,
         state: QueueState,
     ): Promise<void> {
         queueItem.state = state;

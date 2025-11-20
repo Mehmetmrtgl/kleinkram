@@ -52,6 +52,7 @@ import {
 } from '../auth/roles.decorator';
 
 import { CancelFileUploadDto } from '@common/api/types/cancel-file-upload.dto';
+import { FileEventsDto } from '@common/api/types/file/file-event.dto';
 import { FileQueryDto } from '@common/api/types/file/file-query.dto';
 import FileEntity from '@common/entities/file/file.entity';
 import { HealthStatus } from '@common/frontend_shared/enum';
@@ -322,5 +323,17 @@ export class FileController {
         logger.debug('Recomputing file sizes');
         await this.fileService.recomputeFileSizes();
         logger.debug('Recomputing file sizes done');
+    }
+
+    @Get(':uuid/events')
+    @CanReadFile()
+    @ApiOkResponse({
+        description: 'Get history/events for a file',
+        type: FileEventsDto,
+    })
+    async getEvents(
+        @ParameterUID('uuid') uuid: string,
+    ): Promise<FileEventsDto> {
+        return this.fileService.getFileEvents(uuid);
     }
 }

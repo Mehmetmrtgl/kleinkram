@@ -11,8 +11,9 @@ import { MinioStrategy } from './strategies/minio.strategy';
 
 import ActionTemplateEntity from '@common/entities/action/action-template.entity';
 import ActionEntity from '@common/entities/action/action.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import FileEntity from '@common/entities/file/file.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import { StorageModule } from '@common/modules/storage/storage.module';
@@ -24,10 +25,11 @@ import { RosBagHandler } from './handlers/bag.hander';
     imports: [
         TypeOrmModule.forFeature([
             FileEntity,
-            QueueEntity,
+            IngestionJobEntity,
             TopicEntity,
             ActionEntity,
             ActionTemplateEntity,
+            FileEventEntity,
             WorkerEntity,
         ]),
         BullModule.registerQueue({ name: 'file-queue' }),

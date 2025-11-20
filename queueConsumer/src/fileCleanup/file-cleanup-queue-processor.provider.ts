@@ -1,7 +1,7 @@
 import { redis, systemUser } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
@@ -48,8 +48,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
     constructor(
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
-        @InjectRepository(QueueEntity)
-        private queueRepository: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepository: Repository<IngestionJobEntity>,
         @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
         @InjectRepository(MissionEntity)

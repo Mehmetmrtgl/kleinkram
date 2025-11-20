@@ -5,7 +5,7 @@ import { CreateProject } from '@common/api/types/create-project.dto';
 import { CreateTemplateDto } from '@common/api/types/create-template.dto';
 import { CreateTagTypeDto } from '@common/api/types/tags/create-tag-type.dto';
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { QueueState } from '@common/frontend_shared/enum';
 import crypto from 'node:crypto';
@@ -204,7 +204,7 @@ export async function uploadFile(
         const active = await responseActive.json();
         if (
             active.some(
-                (x: QueueEntity) =>
+                (x: IngestionJobEntity) =>
                     x.uuid === fileresponseponse.queueUUID &&
                     x.state === QueueState.COMPLETED,
             )

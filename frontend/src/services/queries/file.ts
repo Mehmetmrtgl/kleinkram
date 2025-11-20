@@ -1,3 +1,4 @@
+import { FileEventsDto } from '@api/types/file/file-event.dto';
 import { FileWithTopicDto } from '@api/types/file/file.dto';
 import { FilesDto } from '@api/types/file/files.dto';
 import { IsUploadingDto } from '@api/types/file/is-uploading.dto';
@@ -145,4 +146,13 @@ export const existsFile = async (uuid: string): Promise<any> => {
     } catch {
         return false;
     }
+};
+
+export const getFileEvents = async (
+    fileUuid: string,
+): Promise<FileEventsDto> => {
+    const response = await axios.get<FileEventsDto>(
+        `/files/${fileUuid}/events`,
+    );
+    return response.data;
 };

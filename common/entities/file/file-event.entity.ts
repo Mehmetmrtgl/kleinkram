@@ -1,0 +1,55 @@
+import { FileEventType } from '@common/frontend_shared/enum';
+import { Column, CreateDateColumn, Entity, Index, ManyToOne } from 'typeorm';
+import FileEntity from '../file/file.entity';
+import MissionEntity from '../mission/mission.entity';
+import UserEntity from '../user/user.entity';
+
+@Entity({ name: 'file_event' })
+export default class FileEventEntity {
+    @Column({ primary: true, generated: 'uuid' })
+    uuid!: string;
+
+    @CreateDateColumn({
+        type: 'timestamptz',
+        default: () => 'CURRENT_TIMESTAMP',
+    })
+    createdAt!: Date;
+
+    @Column({
+        type: 'enum',
+        enum: FileEventType,
+    })
+    type!: FileEventType;
+
+    /**
+     * JSON payload for specific details.
+     * e.g. { oldName: "foo.bag", newName: "bar.bag" } or { error: "Corrupted header" }
+     */
+    @Column({ type: 'jsonb', default: {} })
+    details!: Record<string, any>;
+
+    /**
+     * Snapshot of the filename at the time of the event.
+     * Useful if the FileEntity is deleted later.
+     */
+    @Column()
+    filenameSnapshot!: string;
+
+    @ManyToOne(() => UserEntity, { nullable: true })
+    actor?: UserEntity;
+
+    /**
+     * Relation to the file. Nullable explicitly so we can keep logs
+     * after a file is deleted.
+     */
+    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'SET NULL' })
+    file?: FileEntity;
+
+    /**
+     * Relation to Mission. Useful for filtering logs by mission
+     * even if the file is gone.
+     */
+    @ManyToOne(() => MissionEntity, { nullable: true, onDelete: 'CASCADE' })
+    @Index()
+    mission?: MissionEntity;
+}

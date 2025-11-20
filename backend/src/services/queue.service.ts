@@ -1,15 +1,11 @@
 import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing-response.dto';
 import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import {
-    FileQueueEntriesDto,
-    FileQueueEntryDto,
-} from '@common/api/types/file/file-queue-entry.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { redis } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
@@ -26,17 +22,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { InjectMetric } from '@willsoto/nestjs-prometheus';
 import Queue from 'bull';
 import { Gauge } from 'prom-client';
-import {
-    FindOptionsWhere,
-    In,
-    IsNull,
-    Like,
-    MoreThan,
-    Repository,
-} from 'typeorm';
+import { FindOptionsWhere, In, IsNull, MoreThan, Repository } from 'typeorm';
 import { addAccessConstraints } from '../endpoints/auth/auth-helper';
 import logger from '../logger';
-import { missionEntityToDto } from '../serialization';
 import { UserService } from './user.service';
 
 function extractFileIdFromUrl(url: string): string | undefined {
@@ -54,8 +42,8 @@ export class QueueService implements OnModuleInit {
     private fileQueue!: Queue.Queue;
 
     constructor(
-        @InjectRepository(QueueEntity)
-        private queueRepository: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepository: Repository<IngestionJobEntity>,
         @InjectRepository(MissionEntity)
         private missionRepository: Repository<MissionEntity>,
         @InjectRepository(FileEntity)
@@ -184,7 +172,7 @@ export class QueueService implements OnModuleInit {
     ): Promise<any[]> {
         // @ts-ignore
         const user = await this.userService.findOneByUUID(userUUID);
-        const where: FindOptionsWhere<QueueEntity> = {
+        const where: FindOptionsWhere<IngestionJobEntity> = {
             updatedAt: MoreThan(startDate),
         };
 
@@ -206,60 +194,24 @@ export class QueueService implements OnModuleInit {
 
         const query = addAccessConstraints(
             this.queueRepository
-                .createQueryBuilder('queue')
-                .leftJoinAndSelect('queue.mission', 'mission')
+                .createQueryBuilder('ingestion_job')
+                .leftJoinAndSelect('ingestion_job.mission', 'mission')
                 .leftJoinAndSelect('mission.project', 'project')
-                .leftJoinAndSelect('queue.creator', 'creator')
-                .where('queue.updatedAt > :startDate', { startDate }),
+                .leftJoinAndSelect('ingestion_job.creator', 'creator')
+                .where('ingestion_job.updatedAt > :startDate', { startDate }),
             userUUID,
         )
             .skip(skip)
             .take(take)
-            .orderBy('queue.createdAt', 'DESC');
+            .orderBy('ingestion_job.createdAt', 'DESC');
 
         if (stateFilter) {
             const filter = stateFilter
                 .split(',')
                 .map((state) => Number.parseInt(state));
-            query.andWhere('queue.state IN (:...filter)', { filter });
+            query.andWhere('ingestion_job.state IN (:...filter)', { filter });
         }
         return query.getMany();
-    }
-
-    async forFile(
-        filename: string,
-        missionUUID: string,
-    ): Promise<FileQueueEntriesDto> {
-        const entries = await this.queueRepository.find({
-            where: {
-                display_name: Like(`${filename}%`),
-                mission: { uuid: missionUUID },
-            },
-            order: { createdAt: 'DESC' },
-            relations: ['creator', 'mission', 'mission.project'],
-        });
-
-        const dtos = entries.map(
-            (queue): FileQueueEntryDto => ({
-                state: queue.state,
-                uuid: queue.uuid,
-                creator: {
-                    uuid: queue.creator!.uuid,
-                    name: queue.creator!.name,
-                    avatarUrl: queue.creator!.avatarUrl ?? '',
-                    email: null,
-                },
-                createdAt: queue.createdAt,
-                display_name: queue.display_name,
-                identifier: queue.identifier,
-                processingDuration: queue.processingDuration ?? 0,
-                updatedAt: queue.updatedAt,
-                location: queue.location,
-                mission: missionEntityToDto(queue.mission!),
-            }),
-        );
-
-        return { data: dtos, count: dtos.length, take: dtos.length, skip: 0 };
     }
 
     async delete(

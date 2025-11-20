@@ -44,12 +44,14 @@ import {
     TemporaryFileAccessDto,
     TemporaryFileAccessesDto,
 } from '@common/api/types/file/access.dto';
+import { FileEventsDto } from '@common/api/types/file/file-event.dto';
 import { FileWithTopicDto } from '@common/api/types/file/file.dto';
 import { FilesDto } from '@common/api/types/file/files.dto';
 import { StorageOverviewDto } from '@common/api/types/storage-overview.dto';
 import { redis } from '@common/consts';
 import CategoryEntity from '@common/entities/category/category.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { StorageService } from '@common/modules/storage/storage.service';
@@ -91,11 +93,13 @@ export class FileService implements OnModuleInit {
         private readonly dataSource: DataSource,
         @InjectRepository(TagTypeEntity)
         private tagTypeRepository: Repository<TagTypeEntity>,
-        @InjectRepository(QueueEntity)
-        private queueRepository: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepository: Repository<IngestionJobEntity>,
         @InjectRepository(CategoryEntity)
         private categoryRepository: Repository<CategoryEntity>,
         private readonly storageService: StorageService,
+        @InjectRepository(FileEventEntity)
+        private eventRepo: Repository<FileEventEntity>,
     ) {}
 
     onModuleInit(): void {
@@ -527,7 +531,6 @@ export class FileService implements OnModuleInit {
             }
         }
     }
-
     async findOne(uuid: string): Promise<FileWithTopicDto> {
         const file = await this.fileRepository.findOneOrFail({
             where: { uuid },
@@ -536,13 +539,42 @@ export class FileService implements OnModuleInit {
                 'topics',
                 'mission.project',
                 'creator',
-                'relatedFile',
-                'relatedFile.topics',
                 'categories',
+                'parent',
+                'parent.topics',
+                'derivedFiles',
+                'derivedFiles.topics',
             ],
         });
 
         return fileEntityToDtoWithTopic(file);
+    }
+
+    async getFileEvents(fileUuid: string): Promise<FileEventsDto> {
+        const events = await this.eventRepo.find({
+            where: {
+                file: { uuid: fileUuid },
+            },
+            relations: ['actor'],
+            order: { createdAt: 'DESC' },
+        });
+
+        return {
+            count: events.length,
+            data:
+                events.map((event) => ({
+                    uuid: event.uuid,
+                    type: event.type,
+                    createdAt: event.createdAt,
+                    details: event.details,
+                    actor: event.actor
+                        ? {
+                              uuid: event.actor.uuid,
+                              name: event.actor.name,
+                          }
+                        : undefined,
+                })) ?? [],
+        } as FileEventsDto;
     }
 
     /**

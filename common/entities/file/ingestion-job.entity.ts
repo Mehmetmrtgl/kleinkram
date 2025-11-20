@@ -1,11 +1,12 @@
-import { Column, Entity, ManyToOne } from 'typeorm';
+import FileEntity from '@common/entities/file/file.entity';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { FileLocation, QueueState } from '../../frontend_shared/enum';
 import BaseEntity from '../base-entity.entity';
 import MissionEntity from '../mission/mission.entity';
 import UserEntity from '../user/user.entity';
 
-@Entity({ name: 'queue' })
-export default class QueueEntity extends BaseEntity {
+@Entity({ name: 'ingestion_job' })
+export default class IngestionJobEntity extends BaseEntity {
     /**
      * The unique identifier of the file.
      *
@@ -30,7 +31,7 @@ export default class QueueEntity extends BaseEntity {
     })
     state!: QueueState;
 
-    @ManyToOne(() => MissionEntity, (project) => project.queues, {
+    @ManyToOne(() => MissionEntity, (project) => project.ingestionJobs, {
         onDelete: 'CASCADE',
     })
     mission?: MissionEntity;
@@ -47,4 +48,12 @@ export default class QueueEntity extends BaseEntity {
 
     @ManyToOne(() => UserEntity, (user) => user.queues)
     creator?: UserEntity;
+
+    /**
+     * Link to the actual FileEntity once created.
+     * This allows us to easily join Queue -> File.
+     */
+    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'file_uuid' })
+    file?: FileEntity;
 }

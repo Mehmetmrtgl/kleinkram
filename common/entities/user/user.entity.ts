@@ -1,3 +1,4 @@
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
 import { UserRole } from '../../frontend_shared/enum';
 import ActionTemplateEntity from '../action/action-template.entity';
@@ -11,7 +12,6 @@ import FileEntity from '../file/file.entity';
 import MetadataEntity from '../metadata/metadata.entity';
 import MissionEntity from '../mission/mission.entity';
 import ProjectEntity from '../project/project.entity';
-import QueueEntity from '../queue/queue.entity';
 
 @Entity({ name: 'user' })
 export default class UserEntity extends BaseEntity {
@@ -89,8 +89,8 @@ export default class UserEntity extends BaseEntity {
     @OneToMany(() => FileEntity, (file) => file.creator)
     files?: FileEntity[];
 
-    @OneToMany(() => QueueEntity, (queue) => queue.creator)
-    queues?: QueueEntity[];
+    @OneToMany(() => IngestionJobEntity, (queue) => queue.creator)
+    queues?: IngestionJobEntity[];
 
     @OneToMany(() => ActionEntity, (action) => action.mission)
     submittedActions?: ActionEntity[];

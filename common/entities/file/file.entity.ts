@@ -1,12 +1,10 @@
 import {
     Column,
     Entity,
-    JoinColumn,
     JoinTable,
     ManyToMany,
     ManyToOne,
     OneToMany,
-    OneToOne,
     Unique,
 } from 'typeorm';
 import { FileOrigin, FileState, FileType } from '../../frontend_shared/enum';
@@ -62,16 +60,20 @@ export default class FileEntity extends BaseEntity {
     categories?: CategoryEntity[];
 
     /**
-     * Saves the reference to the bag or mcap file the current file was converted
-     * to or from. May be null if the file was not converted or the reference is
-     * not available.
+     * The parent file this file was derived from.
+     * e.g., If this is a .mcap converted from a .bag, the .bag is the parent.
      */
-    @OneToOne(() => FileEntity, (file) => file.relatedFile, {
+    @ManyToOne(() => FileEntity, (file) => file.derivedFiles, {
         nullable: true,
         onDelete: 'SET NULL',
     })
-    @JoinColumn({ name: 'related_file_uuid' })
-    relatedFile?: FileEntity;
+    parent?: FileEntity;
+
+    /**
+     * Files derived from this file.
+     */
+    @OneToMany(() => FileEntity, (file) => file.parent)
+    derivedFiles?: FileEntity[];
 
     @Column({ nullable: true })
     origin?: FileOrigin;

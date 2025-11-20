@@ -155,3 +155,21 @@ export enum AccessGroupRights {
     DELETE = 30,
     _ADMIN = 100,
 }
+
+export enum FileEventType {
+    // Lifecycle
+    CREATED = 'CREATED',
+    DELETED = 'DELETED',
+
+    // Ingestion
+    UPLOAD_STARTED = 'UPLOAD_STARTED',
+    PROCESSING_STARTED = 'PROCESSING_STARTED',
+    PROCESSING_COMPLETED = 'PROCESSING_COMPLETED',
+    PROCESSING_FAILED = 'PROCESSING_FAILED',
+
+    // User Actions
+    DOWNLOADED = 'DOWNLOADED',
+    RENAMED = 'RENAMED',
+    MOVED = 'MOVED',
+    METADATA_CHANGED = 'METADATA_CHANGED',
+}

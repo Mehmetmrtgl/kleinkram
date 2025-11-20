@@ -1,11 +1,11 @@
 import FileEntity from '@common/entities/file/file.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 
 export interface FileProcessingContext {
     workDirectory: string;
     filePath: string;
     fileType: string;
-    queueItem: QueueEntity;
+    queueItem: IngestionJobEntity;
     primaryFile: FileEntity;
 }
 

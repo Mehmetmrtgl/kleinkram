@@ -1,10 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as fs from 'node:fs';
-import { Repository } from 'typeorm';
-
 import FileEntity from '@common/entities/file/file.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
 import env from '@common/environment';
 import {
@@ -14,9 +9,13 @@ import {
     QueueState,
 } from '@common/frontend_shared/enum';
 import { StorageService } from '@common/modules/storage/storage.service';
-import logger from 'src/logger';
-
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as fs from 'node:fs';
 import path from 'node:path';
+import logger from 'src/logger';
+import { Repository } from 'typeorm';
+
 import { calculateFileHash } from '../helper/hash-helper';
 import { McapParser } from '../helper/mcap-parser';
 import { FileHandler, FileProcessingContext } from './file-handler.interface';
@@ -28,8 +27,8 @@ export class RosBagHandler implements FileHandler {
         @InjectRepository(FileEntity) private fileRepo: Repository<FileEntity>,
         @InjectRepository(TopicEntity)
         private topicRepo: Repository<TopicEntity>,
-        @InjectRepository(QueueEntity)
-        private queueRepo: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private jobRepo: Repository<IngestionJobEntity>,
         private readonly storageService: StorageService,
     ) {}
 
@@ -39,43 +38,38 @@ export class RosBagHandler implements FileHandler {
 
     async process(context: FileProcessingContext): Promise<void> {
         const { primaryFile, filePath, workDirectory, queueItem } = context;
+        const job = queueItem as unknown as IngestionJobEntity;
 
         // Check Auto-Convert Policy
-        if (queueItem.mission?.project?.autoConvert === false) {
+        if (job.mission?.project?.autoConvert === false) {
             logger.debug(`Auto-convert disabled for ${primaryFile.filename}`);
             return;
         }
 
         logger.debug(`Starting ROS Bag pipeline for ${primaryFile.filename}`);
 
-        // Update Queue State
-        queueItem.state = QueueState.CONVERTING_AND_EXTRACTING_TOPICS;
-        await this.queueRepo.save(queueItem);
+        // Update Job State
+        job.state = QueueState.CONVERTING_AND_EXTRACTING_TOPICS;
+        await this.jobRepo.save(job);
 
         // Prepare Target (MCAP) Entity
         const mcapFilename = primaryFile.filename.replace('.bag', '.mcap');
         const mcapOutputPath = path.join(workDirectory, mcapFilename);
 
         const mcapEntity = this.fileRepo.create({
-            date: new Date(), // Will be updated after parsing
-            mission: queueItem.mission,
-            size: 0, // Will be updated
+            date: new Date(),
+            mission: job.mission,
+            size: 0,
             filename: mcapFilename,
-            creator: queueItem.creator,
+            creator: job.creator,
             type: FileType.MCAP,
             state: FileState.CONVERTING,
             origin: FileOrigin.CONVERTED,
-            relatedFile: primaryFile,
+            parent: primaryFile,
         } as FileEntity);
 
-        // Save early to generate UUID
+        // Save to generate UUID
         const savedMcapEntity = await this.fileRepo.save(mcapEntity);
-
-        // Link Bag -> Mcap
-        primaryFile.relatedFile = savedMcapEntity;
-        await this.fileRepo.update(primaryFile.uuid, {
-            relatedFile: savedMcapEntity,
-        });
 
         try {
             await RosBagConverter.convert(filePath, mcapOutputPath);
@@ -96,8 +90,8 @@ export class RosBagHandler implements FileHandler {
             }
 
             // Upload Converted File
-            queueItem.state = QueueState.UPLOADING;
-            await this.queueRepo.save(queueItem);
+            job.state = QueueState.UPLOADING;
+            await this.jobRepo.save(job);
 
             await this.storageService.uploadFile(
                 env.MINIO_DATA_BUCKET_NAME,
@@ -107,7 +101,7 @@ export class RosBagHandler implements FileHandler {
 
             await this.storageService
                 .addTags(env.MINIO_DATA_BUCKET_NAME, savedMcapEntity.uuid, {
-                    missionUuid: queueItem.mission?.uuid ?? '',
+                    missionUuid: job.mission?.uuid ?? '',
                     filename: mcapFilename,
                 })
                 .catch((error: unknown) =>

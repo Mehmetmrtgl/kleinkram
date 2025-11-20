@@ -255,29 +255,36 @@
             </q-table>
 
             <div class="text-grey-8">
-                <h2 class="text-h5 q-mb-xs q-mt-lg text-grey-9">
-                    File History
-                    <q-badge color="green" outline>BETA</q-badge>
-                </h2>
+                <h2 class="text-h5 q-mb-xs q-mt-lg text-grey-9">File Events</h2>
 
-                <div v-for="queue in queues?.data" :key="queue.uuid">
-                    <b>{{ formatDate(queue.updatedAt) }}:</b>
-                    {{ getSimpleFileStateName(queue.state) }}
-
-                    <br />
-                    &nbsp; » {{ getDetailedFileState(queue.state) }}
+                <div v-if="events?.count && events.count > 0" class="q-px-sm">
+                    <q-timeline color="primary">
+                        <q-timeline-entry
+                            v-for="event in events.data"
+                            :key="event.uuid"
+                            :title="formatEventType(event.type)"
+                            :subtitle="formatDate(event.createdAt, true)"
+                        >
+                            <div class="text-body2 text-grey-8">
+                                <span
+                                    v-if="event.actor"
+                                    class="text-weight-bold text-primary"
+                                >
+                                    {{ event.actor.name }}
+                                </span>
+                                <span v-else class="text-italic">System</span>
+                            </div>
+                        </q-timeline-entry>
+                    </q-timeline>
                 </div>
 
-                <span v-if="queues?.count === 0">
-                    No file history available for this file.
-                </span>
+                <div v-else>No file history available for this file.</div>
             </div>
         </div>
     </div>
 </template>
 <script setup lang="ts">
-import { FileDto } from '@api/types/file/file.dto';
-import { FileState, FileType } from '@common/enum';
+import { FileEventType, FileState, FileType } from '@common/enum';
 import DeleteFileDialogOpener from 'components/button-wrapper/delete-file-dialog-opener.vue';
 import ButtonGroup from 'components/buttons/button-group.vue';
 import EditFileButton from 'components/buttons/edit-file-button.vue';
@@ -287,7 +294,7 @@ import { copyToClipboard, Notify, QTable } from 'quasar';
 import {
     registerNoPermissionErrorHandler,
     useFile,
-    useQueueForFile,
+    useFileEvents,
 } from 'src/hooks/query-hooks';
 import { useFileUUID } from 'src/hooks/router-hooks';
 import ROUTES from 'src/router/routes';
@@ -296,9 +303,7 @@ import { formatSize } from 'src/services/general-formatting';
 import {
     _downloadFile,
     getColorFileState,
-    getDetailedFileState,
     getIcon,
-    getSimpleFileStateName,
     getTooltip,
     hashUUIDtoColor,
 } from 'src/services/generic';
@@ -317,10 +322,22 @@ const fileUuid = useFileUUID();
 const { isLoading, data: file, error, isLoadingError } = useFile(fileUuid);
 registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 
-// TODO: fix this type cast; this should be unnecessary...
-const { data: queues } = useQueueForFile(
-    file as unknown as Ref<FileDto> | undefined,
-);
+const { data: events } = useFileEvents(fileUuid);
+
+function formatEventType(type: FileEventType): string {
+    // Map Enum to Human Readable
+    const map: Record<string, string> = {
+        [FileEventType.CREATED]: 'File Created',
+        [FileEventType.UPLOAD_STARTED]: 'Upload Started',
+        [FileEventType.PROCESSING_STARTED]: 'Processing Started',
+        [FileEventType.PROCESSING_COMPLETED]: 'Processing Completed',
+        [FileEventType.PROCESSING_FAILED]: 'Processing Failed',
+        [FileEventType.DOWNLOADED]: 'Downloaded',
+        [FileEventType.RENAMED]: 'Renamed',
+        [FileEventType.MOVED]: 'Moved',
+    };
+    return map[type] ?? type;
+}
 
 const displayTopics = computed(() => {
     if (file.value === undefined) {

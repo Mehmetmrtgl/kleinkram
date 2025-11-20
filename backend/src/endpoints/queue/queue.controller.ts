@@ -2,7 +2,6 @@ import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing
 import { ConfirmUploadDto } from '@common/api/types/confirm-upload.dto';
 import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import { FileQueueEntriesDto } from '@common/api/types/file/file-queue-entry.dto';
 import { QueueActiveDto } from '@common/api/types/queue-active.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
@@ -14,9 +13,7 @@ import {
     QueryDate,
     QueryOptionalString,
     QuerySkip,
-    QueryString,
     QueryTake,
-    QueryUUID,
 } from '../../validation/query-decorators';
 import { AddUser, AuthHeader } from '../auth/parameter-decorator';
 import {
@@ -24,7 +21,6 @@ import {
     CanCreateInMissionByBody,
     CanCreateQueueByBody,
     CanDeleteMission,
-    CanReadMission,
     LoggedIn,
 } from '../auth/roles.decorator';
 
@@ -92,19 +88,6 @@ export class QueueController {
             skip,
             take,
         );
-    }
-
-    @Get('forFile')
-    @CanReadMission()
-    @ApiOkResponse({
-        description: 'Get all queues for a specific file',
-        type: FileQueueEntriesDto,
-    })
-    async forFile(
-        @QueryString('filename', 'Filename') filename: string,
-        @QueryUUID('uuid', 'Mission UUID') uuid: string,
-    ): Promise<FileQueueEntriesDto> {
-        return this.queueService.forFile(filename, uuid);
     }
 
     @Delete(':uuid')

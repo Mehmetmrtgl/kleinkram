@@ -1,15 +1,14 @@
-export type AuditActionType = string;
+import UserEntity from '@common/entities/user/user.entity';
+import { FileEventType } from '@common/frontend_shared/enum';
+
+export type AuditActionType = FileEventType;
 
 export interface AuditContext {
-    resource: string;
-    metadata?: Record<string, string>;
+    fileUuid?: string;
+    filename?: string;
+    missionUuid?: string;
+    actor?: UserEntity;
+    details?: Record<string, any>;
 }
 
-export type AuditContextExtractor = (arguments_: unknown[]) => AuditContext;
-
-export enum AuditFileAction {
-    READ = 'FILE_READ',
-    WRITE = 'FILE_WRITE',
-    DELETE = 'FILE_DELETE',
-    META = 'FILE_META',
-}
+export type AuditContextExtractor = (arguments_: any[]) => AuditContext;

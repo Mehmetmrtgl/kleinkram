@@ -1,29 +1,24 @@
 import { AuditContext, AuditContextExtractor } from './audit.types';
 
-/**
- * Strategy for MinIO/Storage operations.
- * Assumes: args[0] = bucketName, args[1] = objectName
- */
-export const FileAuditStrategy: AuditContextExtractor = (
+export const MinioStorageStrategy: AuditContextExtractor = (
     arguments_: unknown[],
 ): AuditContext => {
-    const bucket =
-        typeof arguments_[0] === 'string' ? arguments_[0] : 'UNKNOWN_BUCKET';
-    const object =
-        typeof arguments_[1] === 'string' ? arguments_[1] : 'UNKNOWN_OBJECT';
-
+    // MinIO methods usually follow (bucketName, objectName, ...args)
+    // objectName in your system corresponds to the fileUUID
     return {
-        resource: `${bucket}/${object}`,
-        metadata: { bucket, object },
+        fileUuid: typeof arguments_[1] === 'string' ? arguments_[1] : '',
+        details: { bucket: arguments_[0] },
     };
 };
 
-/**
- * Fallback Strategy.
- * Just logs that the method was called.
- */
-export const DefaultAuditStrategy: AuditContextExtractor = (): AuditContext => {
+export const DefaultAuditStrategy: AuditContextExtractor = (
+    arguments_,
+): AuditContext => {
     return {
-        resource: 'SYSTEM',
+        details: {
+            rawArgs: arguments_.map((a) =>
+                typeof a === 'string' ? a : typeof a,
+            ),
+        },
     };
 };

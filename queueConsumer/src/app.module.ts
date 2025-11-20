@@ -7,11 +7,12 @@ import GroupMembershipEntity from '@common/entities/auth/group-membership.entity
 import MissionAccessEntity from '@common/entities/auth/mission-access.entity';
 import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
 import CategoryEntity from '@common/entities/category/category.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
 import UserEntity from '@common/entities/user/user.entity';
@@ -78,7 +79,8 @@ import { FileCleanupQueueProcessorProvider } from './fileCleanup/file-cleanup-qu
                     database:
                         configService.getOrThrow<string>('database.database'),
                     entities: [
-                        QueueEntity,
+                        IngestionJobEntity,
+                        FileEventEntity,
                         MissionEntity,
                         FileEntity,
                         ProjectEntity,
@@ -106,7 +108,8 @@ import { FileCleanupQueueProcessorProvider } from './fileCleanup/file-cleanup-qu
             inject: [ConfigService],
         }),
         TypeOrmModule.forFeature([
-            QueueEntity,
+            IngestionJobEntity,
+            FileEventEntity,
             MissionEntity,
             FileEntity,
             TopicEntity,

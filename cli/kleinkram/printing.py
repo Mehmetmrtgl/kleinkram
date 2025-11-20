@@ -36,6 +36,7 @@ FILE_STATE_COLOR = {
     FileState.CORRUPTED: "red",
     FileState.UPLOADING: "yellow",
     FileState.ERROR: "red",
+    FileState.CONVERTING: "blue",
     FileState.CONVERSION_ERROR: "red",
     FileState.LOST: "bold red",
     FileState.FOUND: "yellow",
