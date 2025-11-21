@@ -74,12 +74,12 @@ const {
 const displayTopics = computed(() => file.value?.state === FileState.OK);
 
 // --- Actions ---
-const handleDownload = () =>
+const handleDownload = (): Promise<void> =>
     _downloadFile(file.value?.uuid ?? '', file.value?.filename ?? '');
-const copyHash = () => copyToClipboard(file.value?.hash ?? '');
-const copyUuid = () => copyToClipboard(file.value?.uuid ?? '');
+const copyHash = (): Promise<void> => copyToClipboard(file.value?.hash ?? '');
+const copyUuid = (): Promise<void> => copyToClipboard(file.value?.uuid ?? '');
 
-async function copyPublicLink() {
+async function copyPublicLink(): Promise<void> {
     const link = await downloadFile(fileUuid.value ?? '', false);
     await copyToClipboard(link);
     Notify.create({
@@ -89,7 +89,7 @@ async function copyPublicLink() {
     });
 }
 
-async function redirectToRelated() {
+async function redirectToRelated(): Promise<void> {
     if (!file.value?.relatedFileUuid) return;
     await $router.push({
         name: ROUTES.FILE.routeName,
@@ -111,10 +111,10 @@ onMounted(async () => {
         )
             return;
 
-        const dynamicUrl = await downloadFile(fileUuid.value, false);
+        const dynamicUrl = await downloadFile(fileUuid.value, false, true);
         await initMcap(dynamicUrl);
-    } catch (err) {
-        console.error('Error setting up preview:', err);
+    } catch (downloading_error: unknown) {
+        console.error('Error setting up preview:', downloading_error);
     }
 });
 </script>

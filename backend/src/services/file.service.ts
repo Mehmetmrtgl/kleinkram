@@ -699,6 +699,7 @@ export class FileService implements OnModuleInit {
     async generateDownload(
         uuid: string,
         expires: boolean,
+        preview_only: boolean,
         actor?: UserEntity,
     ): Promise<string> {
         // verify that an uuid is provided
@@ -721,17 +722,21 @@ export class FileService implements OnModuleInit {
         // verify that the file exists in Minio
         if (!stats) throw new NotFoundException('File not found');
 
-        await this.auditService.log(
-            FileEventType.DOWNLOADED,
-            {
-                fileUuid: file.uuid,
-                filename: file.filename,
-                missionUuid: file.mission?.uuid ?? '',
-                details: { expiresIn: expires ? '4 hours' : '1 week' },
-                ...(actor ? { actor } : {}),
-            },
-            true,
-        );
+        // TODO: find a better solution to avoid leaking download links without logging
+        //    we use that to preview the messages without spamming the audit log
+        if (!preview_only) {
+            await this.auditService.log(
+                FileEventType.DOWNLOADED,
+                {
+                    fileUuid: file.uuid,
+                    filename: file.filename,
+                    missionUuid: file.mission?.uuid ?? '',
+                    details: { expiresIn: expires ? '4 hours' : '1 week' },
+                    ...(actor ? { actor } : {}),
+                },
+                true,
+            );
+        }
 
         return await this.storageService.getPresignedDownloadUrl(
             env.MINIO_DATA_BUCKET_NAME,

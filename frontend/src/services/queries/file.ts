@@ -69,11 +69,16 @@ export const fetchFile = async (uuid: string): Promise<FileWithTopicDto> => {
         throw error; // Rethrow or handle as appropriate
     }
 };
-export const downloadFile = async (uuid: string, expires: boolean) => {
+export const downloadFile = async (
+    uuid: string,
+    expires: boolean,
+    preview_only = false,
+): Promise<string> => {
     const response = await axios.get('file/download', {
         params: {
             uuid,
             expires,
+            preview_only,
         },
     });
     return response.data;

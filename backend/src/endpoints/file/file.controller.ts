@@ -170,10 +170,21 @@ export class FileController {
             'Whether the download link should stay valid for on week (false) or 4h (true)',
         )
         expires: boolean,
+
+        @QueryBoolean(
+            'preview_only',
+            'Whether the download link is for preview only (true) or full download (false)',
+        )
+        preview_only = false,
         @AddUser() auth: AuthHeader,
     ): Promise<string> {
         logger.debug(`download ${uuid}: expires=${expires.toString()}`);
-        return this.fileService.generateDownload(uuid, expires, auth.user);
+        return this.fileService.generateDownload(
+            uuid,
+            expires,
+            preview_only,
+            auth.user,
+        );
     }
 
     // TODO: replace this with /file/:uuid
