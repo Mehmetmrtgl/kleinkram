@@ -18,7 +18,7 @@ class LocalFileReader implements IReadable {
         private _size: number,
     ) {}
     async size(): Promise<bigint> {
-        return BigInt(this._size);
+        return new Promise((resolve) => resolve(BigInt(this._size)));
     }
     async read(offset: bigint, length: bigint): Promise<Uint8Array> {
         const buffer = new Uint8Array(Number(length));
