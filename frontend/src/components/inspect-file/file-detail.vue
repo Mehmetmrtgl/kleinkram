@@ -16,6 +16,7 @@
                 :reader-ready="preview.isReaderReady.value"
                 :previews="preview.topicPreviews"
                 :loading-state="preview.topicLoadingState"
+                :topic-errors="preview.topicErrors"
                 :format-payload="preview.formatPayload"
                 @load-preview="preview.fetchTopicMessages"
                 @redirect-related="redirectToRelated"
@@ -100,8 +101,8 @@ watch(
 
             // 3. Init Single Reader
             await preview.init(dynamicUrl, strategyType);
-        } catch (e) {
-            console.error('Error setting up preview:', e);
+        } catch (init_error: unknown) {
+            console.error('Error setting up preview:', init_error);
         }
     },
     { immediate: true },

@@ -7,6 +7,7 @@ export function useRosmsgPreview(): {
     readerError: Ref<string | null, string | null>;
     topicPreviews: Record<string, any[]>;
     topicLoadingState: Record<string, boolean>;
+    topicErrors: Record<string, string | null>;
     init: (url: string, type: 'mcap' | 'rosbag') => Promise<void>;
     fetchTopicMessages: (topicName: string) => Promise<void>;
     formatPayload: (data: any) => string;
@@ -16,18 +17,21 @@ export function useRosmsgPreview(): {
     const topicPreviews = reactive<Record<string, any[]>>({});
     const topicLoadingState = reactive<Record<string, boolean>>({});
 
-    // Strategy is shallowRef because it contains complex class instances
+    const topicErrors = reactive<Record<string, string | null>>({});
+
     const strategy = shallowRef<LogStrategy | null>(null);
 
     async function init(url: string, type: 'mcap' | 'rosbag'): Promise<void> {
         isReaderReady.value = false;
         readerError.value = null;
+        // Clear previous errors on new file load
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        for (const k of Object.keys(topicErrors)) delete topicErrors[k];
 
         try {
             const httpReader = new UniversalHttpReader(url);
             await httpReader.init();
 
-            // Strategy selection happens dynamically now
             const impl =
                 type === 'mcap' ? new McapStrategy() : new RosbagStrategy();
             await impl.init(httpReader);
@@ -42,13 +46,19 @@ export function useRosmsgPreview(): {
 
     async function fetchTopicMessages(topicName: string): Promise<void> {
         if (!strategy.value) return;
+
         topicLoadingState[topicName] = true;
+        topicErrors[topicName] = null; // Reset error for this topic
+
         try {
             topicPreviews[topicName] =
                 await strategy.value.getMessages(topicName);
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Error reading ${topicName}`, error);
             topicPreviews[topicName] = [];
+
+            topicErrors[topicName] =
+                error instanceof Error ? error.message : String(error);
         } finally {
             topicLoadingState[topicName] = false;
         }
@@ -59,6 +69,7 @@ export function useRosmsgPreview(): {
         readerError,
         topicPreviews,
         topicLoadingState,
+        topicErrors,
         init,
         fetchTopicMessages,
         formatPayload,

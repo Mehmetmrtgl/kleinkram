@@ -19,7 +19,7 @@
                     flat
                     class="button-border full-height"
                     icon="sym_o_note_stack"
-                    @click="emit('redirect-related')"
+                    @click="goToRelatedFile"
                 />
                 <q-btn
                     v-else
@@ -102,15 +102,15 @@
                                 color="primary"
                                 outline
                                 icon="sym_o_download"
+                                :loading="loadingState[props.row.name]"
+                                :disable="!readerReady"
                                 @click="
                                     () => emit('load-preview', props.row.name)
                                 "
-                                :loading="loadingState[props.row.name]"
-                                :disable="!readerReady"
                             >
-                                <q-tooltip v-if="!readerReady"
-                                    >Initializing Reader...</q-tooltip
-                                >
+                                <q-tooltip v-if="!readerReady">
+                                    Initializing Reader...
+                                </q-tooltip>
                             </q-btn>
                         </div>
 
@@ -120,6 +120,14 @@
                         >
                             <q-spinner-dots size="1.5em" />
                             <span>Fetching...</span>
+                        </div>
+
+                        <div
+                            v-else-if="topicErrors[props.row.name]"
+                            class="text-negative q-pa-sm bg-red-1 rounded-borders"
+                        >
+                            <q-icon name="sym_o_error" class="q-mr-xs" />
+                            Failed to load: {{ topicErrors[props.row.name] }}
                         </div>
 
                         <div
@@ -193,10 +201,9 @@
 
                         <div
                             v-else-if="previews[props.row.name]"
-                            class="text-italic text-negative q-py-sm"
+                            class="text-italic text-grey q-py-sm"
                         >
-                            <q-icon name="sym_o_warning" /> No messages found or
-                            failed to read.
+                            No messages found.
                         </div>
                     </div>
                 </q-td>
@@ -224,6 +231,7 @@ defineProps<{
     previews: Record<string, any[]>;
     loadingState: Record<string, boolean>;
     formatPayload: (data: any) => string;
+    topicErrors: Record<string, string | null>;
 }>();
 
 const emit = defineEmits(['load-preview', 'redirect-related']);
@@ -267,32 +275,22 @@ function formatLogTime(nanosec: bigint): string {
 }
 
 function getByteLength(data: any): number {
-    // Handle Uint8Array
     if (data instanceof Uint8Array) return data.byteLength;
-    // Handle the object form {0: 255, 1: 216...}
     if (data?.data && typeof data.data === 'object')
         return Object.keys(data.data).length;
     return 0;
 }
 
-/**
- * Checks if the message is a compressed image with jpeg format
- */
 function isJpegImage(messageData: any): boolean {
     if (!messageData) return false;
-    // Check for standard ROS CompressedImage fields
     const hasFormat =
         messageData.format && typeof messageData.format === 'string';
     const isJpeg =
         hasFormat && messageData.format.toLowerCase().includes('jpeg');
     const hasData = messageData.data !== undefined;
-
     return isJpeg && hasData;
 }
 
-/**
- * Converts the message data into a Base64 string for the img src
- */
 function getJpegSource(messageData: any): string {
     try {
         let bytes: Uint8Array | null = null;
@@ -303,10 +301,6 @@ function getJpegSource(messageData: any): string {
         } else if (Array.isArray(rawData)) {
             bytes = new Uint8Array(rawData);
         } else if (typeof rawData === 'object') {
-            // Handle the object format { "0": 255, "1": 216 ... }
-            // We can use Object.values, but we must ensure order.
-            // Since keys are usually numeric indices, Object.values works in modern JS engines for array-like objects,
-            // but creating an array of specific length is safer.
             const keys = Object.keys(rawData)
                 .map(Number)
                 .sort((a, b) => a - b);
@@ -318,20 +312,22 @@ function getJpegSource(messageData: any): string {
 
         if (!bytes) return '';
 
-        // Convert Uint8Array to Binary String
         let binary = '';
         const length_ = bytes.byteLength;
         for (let index = 0; index < length_; index++) {
             binary += String.fromCodePoint(bytes[index] ?? 0);
         }
 
-        // Convert to Base64
         return `data:image/jpeg;base64,${globalThis.btoa(binary)}`;
     } catch (error) {
         console.error('Failed to render JPEG preview', error);
         return '';
     }
 }
+
+const goToRelatedFile = (): void => {
+    emit('redirect-related');
+};
 </script>
 
 <style scoped>
