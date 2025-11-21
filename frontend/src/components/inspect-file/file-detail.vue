@@ -9,6 +9,22 @@
     />
 
     <div class="q-my-lg" v-if="file">
+        <div v-if="isYaml" class="q-mb-lg">
+            <h2 class="text-h4 q-mb-md">Content Preview</h2>
+            <div
+                v-if="yamlContent"
+                class="bg-grey-1 q-pa-md rounded-borders border-solid"
+            >
+                <pre class="q-ma-none text-code" style="overflow-x: auto">{{
+                    yamlContent
+                }}</pre>
+            </div>
+            <div v-else class="row items-center q-gutter-sm text-grey-7">
+                <q-spinner-dots size="1.5em" />
+                <span>Loading YAML content...</span>
+            </div>
+        </div>
+
         <div v-if="displayTopics && preview.isReaderReady.value">
             <FileTopicList
                 :file="file"
@@ -26,7 +42,7 @@
         <FileHistory :events="events" />
 
         <div
-            v-if="preview.readerError.value"
+            v-if="preview.readerError.value && !isYaml"
             class="q-my-md text-negative text-center"
         >
             <q-icon name="sym_o_warning" />
@@ -53,7 +69,7 @@ import { useFileUUID } from 'src/hooks/router-hooks';
 import ROUTES from 'src/router/routes';
 import { _downloadFile } from 'src/services/generic';
 import { downloadFile } from 'src/services/queries/file';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import FileHeader from './file-header.vue';
 import FileHistory from './file-history.vue';
@@ -68,8 +84,18 @@ registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 const { data: events } = useFileEvents(fileUuid);
 
 const preview = useRosmsgPreview();
+const yamlContent = ref<string | null>(null);
 
-const displayTopics = computed(() => file.value?.state === FileState.OK);
+// Detect YAML by extension
+const isYaml = computed(() => {
+    const name = file.value?.filename?.toLowerCase() ?? '';
+    return name.endsWith('.yml') || name.endsWith('.yaml');
+});
+
+// Only show topics if it is NOT a yaml file
+const displayTopics = computed(
+    () => file.value?.state === FileState.OK && !isYaml.value,
+);
 
 // --- Initialization Logic ---
 watch(
@@ -79,7 +105,7 @@ watch(
         if (
             !currentFile ||
             currentFile.state !== FileState.OK ||
-            preview.isReaderReady.value // Prevent re-init if already ready
+            preview.isReaderReady.value
         ) {
             return;
         }
@@ -87,19 +113,24 @@ watch(
         try {
             console.log(`Initializing preview for ${currentFile.type}...`);
 
-            // 1. Get Download URL
             const dynamicUrl = await downloadFile(
                 currentFile.uuid,
                 false,
                 true,
             );
 
-            // 2. Determine Strategy
-            // Map your internal FileType enum to the strategy strings
+            if (isYaml.value) {
+                const response = await fetch(dynamicUrl);
+                yamlContent.value = response.ok
+                    ? await response.text()
+                    : `Error loading content: ${response.statusText}`;
+                return;
+            }
+
+            // Only proceed if it is actually a binary format
             const strategyType =
                 currentFile.type === FileType.BAG ? 'rosbag' : 'mcap';
 
-            // 3. Init Single Reader
             await preview.init(dynamicUrl, strategyType);
         } catch (init_error: unknown) {
             console.error('Error setting up preview:', init_error);
@@ -137,3 +168,15 @@ async function redirectToRelated(): Promise<void> {
     });
 }
 </script>
+
+<style scoped>
+.text-code {
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+}
+.border-solid {
+    border: 1px solid #e0e0e0;
+}
+</style>
