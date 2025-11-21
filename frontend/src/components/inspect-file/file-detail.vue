@@ -9,15 +9,15 @@
     />
 
     <div class="q-my-lg" v-if="file">
-        <div v-if="displayTopics && activeReader">
+        <div v-if="displayTopics && preview.isReaderReady.value">
             <FileTopicList
                 :file="file"
                 :is-loading="isLoading"
-                :reader-ready="activeReader.isReaderReady.value"
-                :previews="activeReader.topicPreviews"
-                :loading-state="activeReader.topicLoadingState"
-                :format-payload="activeReader.formatPayload"
-                @load-preview="activeReader.fetchTopicMessages"
+                :reader-ready="preview.isReaderReady.value"
+                :previews="preview.topicPreviews"
+                :loading-state="preview.topicLoadingState"
+                :format-payload="preview.formatPayload"
+                @load-preview="preview.fetchTopicMessages"
                 @redirect-related="redirectToRelated"
             />
         </div>
@@ -25,11 +25,11 @@
         <FileHistory :events="events" />
 
         <div
-            v-if="activeReader?.readerError.value"
+            v-if="preview.readerError.value"
             class="q-my-md text-negative text-center"
         >
             <q-icon name="sym_o_warning" />
-            {{ activeReader.readerError.value }}
+            {{ preview.readerError.value }}
         </div>
     </div>
 
@@ -40,14 +40,9 @@
 </template>
 
 <script setup lang="ts">
-import { copyToClipboard, Notify } from 'quasar';
-import { computed, watch } from 'vue'; // Changed onMounted to watch
-import { useRouter } from 'vue-router';
-
-// Hooks & Services
 import { FileState, FileType } from '@common/enum';
-import { useMcapPreview } from 'src/composables/use-mcap-preview';
-import { useRosbagPreview } from 'src/composables/use-rosbag-preview';
+import { copyToClipboard, Notify } from 'quasar';
+import { useRosmsgPreview } from 'src/composables/use-rosmsg-preview';
 import {
     registerNoPermissionErrorHandler,
     useFile,
@@ -57,8 +52,8 @@ import { useFileUUID } from 'src/hooks/router-hooks';
 import ROUTES from 'src/router/routes';
 import { _downloadFile } from 'src/services/generic';
 import { downloadFile } from 'src/services/queries/file';
-
-// Subcomponents
+import { computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import FileHeader from './file-header.vue';
 import FileHistory from './file-history.vue';
 import FileTopicList from './file-topic-list.vue';
@@ -71,52 +66,40 @@ const { isLoading, data: file, error, isLoadingError } = useFile(fileUuid);
 registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 const { data: events } = useFileEvents(fileUuid);
 
-// --- Preview Logic ---
-const mcapPreview = useMcapPreview();
-const rosbagPreview = useRosbagPreview();
-
-// 1. Computed Reader Selector
-// Returns NULL if the file isn't loaded yet, preventing early initialization.
-const activeReader = computed(() => {
-    if (!file.value) return null;
-
-    if (file.value.type === FileType.BAG) {
-        return rosbagPreview;
-    }
-    // Default to MCAP only if we are sure it's not a BAG
-    return mcapPreview;
-});
+const preview = useRosmsgPreview();
 
 const displayTopics = computed(() => file.value?.state === FileState.OK);
 
 // --- Initialization Logic ---
-// 2. Use `watch` instead of `onMounted`.
-// This waits for 'file' to be populated from the API before doing anything.
 watch(
-    () => [file.value, activeReader.value] as const,
-    async ([currentFile, currentReader]) => {
-        // Guard clauses:
-        // - File must exist
-        // - Reader must be selected
-        // - File state must be OK
-        // - Reader shouldn't already be ready (prevent double init)
+    () => file.value,
+    async (currentFile) => {
+        // Guard clauses
         if (
             !currentFile ||
-            !currentReader ||
             currentFile.state !== FileState.OK ||
-            currentReader.isReaderReady.value
+            preview.isReaderReady.value // Prevent re-init if already ready
         ) {
             return;
         }
 
         try {
             console.log(`Initializing preview for ${currentFile.type}...`);
+
+            // 1. Get Download URL
             const dynamicUrl = await downloadFile(
                 currentFile.uuid,
                 false,
                 true,
             );
-            await currentReader.init(dynamicUrl);
+
+            // 2. Determine Strategy
+            // Map your internal FileType enum to the strategy strings
+            const strategyType =
+                currentFile.type === FileType.BAG ? 'rosbag' : 'mcap';
+
+            // 3. Init Single Reader
+            await preview.init(dynamicUrl, strategyType);
         } catch (e) {
             console.error('Error setting up preview:', e);
         }
