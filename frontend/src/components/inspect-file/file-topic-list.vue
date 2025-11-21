@@ -282,7 +282,8 @@ const columns: QTableColumn[] = [
         label: 'Frequency',
         field: (row: any) => row.frequency || 0,
         sortable: true,
-        format: (value: number) => String(Math.round(value * 100) / 100),
+        format: (value: number) =>
+            value === 0 ? 'N/A' : String(Math.round(value * 100) / 100),
         align: 'left',
     },
 ];
