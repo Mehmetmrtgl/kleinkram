@@ -35,7 +35,7 @@ export class GoogleDriveStrategy implements FileSourceStrategy {
 
         const mimeType: string | null | undefined = meta.data.mimeType;
         if (mimeType === null || mimeType === undefined) {
-            throw new Error('unknwon mimeType');
+            throw new Error('unknown mimeType');
         }
 
         const size = Number(meta.data.size);
