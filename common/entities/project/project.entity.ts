@@ -43,6 +43,6 @@ export default class ProjectEntity extends BaseEntity {
     @OneToMany(() => CategoryEntity, (category) => category.project)
     categories?: CategoryEntity[];
 
-    @Column({ default: true })
+    @Column({ default: false })
     autoConvert?: boolean;
 }
