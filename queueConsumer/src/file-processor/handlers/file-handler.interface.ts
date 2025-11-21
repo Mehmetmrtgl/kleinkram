@@ -13,4 +13,15 @@ export interface FileHandler {
     canHandle(filename: string): boolean;
     process(context: FileProcessingContext): Promise<void>;
 }
+
 export const FILE_HANDLER = 'FILE_HANDLER_TOKEN';
+
+/**
+ * Standardized structure for a topic found during extraction.
+ * Hoisted here to be shared between Mcap and Rosbag services.
+ */
+export interface ExtractedTopicInfo {
+    name: string;
+    type: string;
+    nrMessages: bigint;
+}
