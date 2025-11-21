@@ -16,7 +16,9 @@ import { MissionService } from '../../services/mission.service';
 import { TagService } from '../../services/tag.service';
 
 import CategoryEntity from '@common/entities/category/category.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
+import { StorageModule } from '@common/modules/storage/storage.module';
 import { FileGuardService } from '../../services/file-guard.service';
 
 @Module({
@@ -25,14 +27,16 @@ import { FileGuardService } from '../../services/file-guard.service';
             MissionEntity,
             FileEntity,
             TopicEntity,
-            QueueEntity,
+            IngestionJobEntity,
             ProjectEntity,
             AccountEntity,
             AccessGroupEntity,
             MetadataEntity,
             TagTypeEntity,
             CategoryEntity,
+            FileEventEntity,
         ]),
+        StorageModule,
     ],
     providers: [
         FileService,

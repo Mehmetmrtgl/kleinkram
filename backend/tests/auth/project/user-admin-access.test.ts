@@ -1,4 +1,5 @@
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { AccessGroupRights } from '@common/frontend_shared/enum';
@@ -57,7 +58,7 @@ describe('Verify project user/admin access', () => {
     beforeEach(async () => {
         // get access group for creator
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -72,7 +73,7 @@ describe('Verify project user/admin access', () => {
 
         // generate projects with creator
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         globalThis.projectUuids = await Promise.all(
             Array.from({ length: 10 }, async (_, index) => {
                 const project = await projectRepository.save(
@@ -106,7 +107,7 @@ describe('Verify project user/admin access', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<UserEntity>('User');
+        const userRepository = database.getRepository<UserEntity>(UserEntity);
         const users = await userRepository.find();
         expect(users.length).toBe(4);
 
@@ -121,7 +122,8 @@ describe('Verify project user/admin access', () => {
         expect(actualUserUuids.sort()).toEqual(expectedUserUuids.sort());
 
         // delete all missions
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const allMissions = await missionRepository.find();
         await missionRepository.remove(allMissions);
         const remainingMissions = await missionRepository.find();
@@ -130,7 +132,7 @@ describe('Verify project user/admin access', () => {
 
         // delete project
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const allProjects = await projectRepository.find();
         await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -196,15 +198,16 @@ describe('Verify project user/admin access', () => {
             expect(response.status).toBe(200);
         }
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const projects = await projectRepository.find();
         expect(projects.length).toBe(0);
     });
 
     test('if user with admin role can delete any mission', async () => {
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const headerCreator = new HeaderCreator(globalThis.admin);
         headerCreator.addHeader('Content-Type', 'application/json');
 
@@ -219,8 +222,6 @@ describe('Verify project user/admin access', () => {
                         creator: { uuid: globalThis.creator.uuid },
                         name: `test_mission${index + 1}`,
                         project: project,
-                        tags: {},
-                        ignoreTags: true,
                     }),
                 );
                 return mission['uuid'];
@@ -272,7 +273,7 @@ describe('Verify project user/admin access', () => {
         const headersBuilder = new HeaderCreator(globalThis.externalUser);
         headersBuilder.addHeader('Content-Type', 'application/json');
 
-        const response = await fetch(`${DEFAULT_URL}/project`, {
+        const response = await fetch(`${DEFAULT_URL}/projects`, {
             method: 'POST',
             headers: headersBuilder.getHeaders(),
             body: JSON.stringify({
@@ -286,7 +287,7 @@ describe('Verify project user/admin access', () => {
         expect(response.status).toBe(403);
 
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const projectCount = await projectRepository.count();
         expect(projectCount).toBe(10);
     });
@@ -303,7 +304,7 @@ describe('Verify project user/admin access', () => {
             expect(response.status).toBe(403);
         }
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const projects = await projectRepository.find();
         expect(projects.length).toBe(10);
     });

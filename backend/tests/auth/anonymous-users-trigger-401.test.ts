@@ -7,6 +7,8 @@ const UNAUTHENTICATED_ENDPOINTS: string[] = [
     '/auth/google/callback',
     '/auth/github',
     '/auth/github/callback',
+    '/auth/fake-oauth',
+    '/auth/fake-oauth/callback',
     '/auth/logout',
     '/metrics',
     '/swagger',
@@ -39,6 +41,7 @@ describe('Unauthenticated users trigger 401', () => {
         test(`test if rejects unauthorized request (401): \t${endpoint.method.toUpperCase()}\t ${endpoint.url}`, async () => {
             const headersBuilder = new HeaderCreator();
             headersBuilder.addHeader('Content-Type', 'application/json');
+            headersBuilder.addHeader('Connection', 'close');
             const response = await fetch(
                 `http://localhost:3000${endpoint.url}`,
                 {

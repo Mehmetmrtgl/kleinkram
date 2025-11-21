@@ -21,7 +21,7 @@ describe('Verify JWT Handling', () => {
         headersBuilder.addHeader('Content-Type', 'application/json');
         headersBuilder.addHeader('cookie', `authtoken=${token}`);
 
-        const response = await fetch(`http://localhost:3000/project`, {
+        const response = await fetch(`http://localhost:3000/projects`, {
             method: 'POST',
             headers: headersBuilder.getHeaders(),
             body: JSON.stringify({
@@ -45,7 +45,7 @@ describe('Verify JWT Handling', () => {
         headersBuilder.addHeader('Content-Type', 'application/json');
         headersBuilder.addHeader('cookie', `authtoken=${token}`);
 
-        const response = await fetch(`http://localhost:3000/project`, {
+        const response = await fetch(`http://localhost:3000/projects`, {
             method: 'POST',
             headers: headersBuilder.getHeaders(),
             body: JSON.stringify({

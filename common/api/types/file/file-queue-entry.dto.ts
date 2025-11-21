@@ -9,10 +9,7 @@ import {
     ValidateNested,
 } from 'class-validator';
 import { FileLocation, QueueState } from '../../../frontend_shared/enum';
-import { IsSkip } from '../../../validation/skip-validation';
-import { IsTake } from '../../../validation/take-validation';
 import { MissionDto } from '../mission/mission.dto';
-import { Paginated } from '../pagination';
 import { UserDto } from '../user.dto';
 
 export class FileQueueEntryDto {
@@ -57,26 +54,4 @@ export class FileQueueEntryDto {
     @ValidateNested()
     @Type(() => MissionDto)
     mission!: MissionDto;
-}
-
-export class FileQueueEntriesDto implements Paginated<FileQueueEntryDto> {
-    @ApiProperty({
-        type: () => [FileQueueEntryDto],
-        description: 'List of file queue entries',
-    })
-    @ValidateNested()
-    @Type(() => FileQueueEntryDto)
-    data!: FileQueueEntryDto[];
-
-    @ApiProperty()
-    @IsNumber()
-    count!: number;
-
-    @ApiProperty()
-    @IsSkip()
-    skip!: number;
-
-    @ApiProperty()
-    @IsTake()
-    take!: number;
 }

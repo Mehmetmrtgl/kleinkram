@@ -52,6 +52,7 @@ import {
 } from '../auth/roles.decorator';
 
 import { CancelFileUploadDto } from '@common/api/types/cancel-file-upload.dto';
+import { FileEventsDto } from '@common/api/types/file/file-event.dto';
 import { FileQueryDto } from '@common/api/types/file/file-query.dto';
 import FileEntity from '@common/entities/file/file.entity';
 import { HealthStatus } from '@common/frontend_shared/enum';
@@ -169,9 +170,21 @@ export class FileController {
             'Whether the download link should stay valid for on week (false) or 4h (true)',
         )
         expires: boolean,
+
+        @QueryBoolean(
+            'preview_only',
+            'Whether the download link is for preview only (true) or full download (false)',
+        )
+        preview_only = false,
+        @AddUser() auth: AuthHeader,
     ): Promise<string> {
         logger.debug(`download ${uuid}: expires=${expires.toString()}`);
-        return this.fileService.generateDownload(uuid, expires);
+        return this.fileService.generateDownload(
+            uuid,
+            expires,
+            preview_only,
+            auth.user,
+        );
     }
 
     // TODO: replace this with /file/:uuid
@@ -193,8 +206,9 @@ export class FileController {
     async update(
         @ParameterUID('uuid') uuid: string,
         @Body() dto: UpdateFile,
+        @AddUser() auth: AuthHeader,
     ): Promise<FileEntity | null> {
-        return this.fileService.update(uuid, dto);
+        return this.fileService.update(uuid, dto, auth.user);
     }
 
     @Post('moveFiles')
@@ -322,5 +336,26 @@ export class FileController {
         logger.debug('Recomputing file sizes');
         await this.fileService.recomputeFileSizes();
         logger.debug('Recomputing file sizes done');
+    }
+
+    @Get(':uuid/events')
+    @CanReadFile()
+    @ApiOkResponse({
+        description: 'Get history/events for a file',
+        type: FileEventsDto,
+    })
+    async getEvents(
+        @ParameterUID('uuid') uuid: string,
+    ): Promise<FileEventsDto> {
+        return this.fileService.getFileEvents(uuid);
+    }
+
+    @Post('reextractTopics')
+    @AdminOnly()
+    @OutputDto(null) // TODO: type API response
+    async reextractTopics(): Promise<{ count: number }> {
+        logger.debug('Triggering manual topic extraction for missing files');
+        const count = await this.fileService.reextractMissingTopics();
+        return { count };
     }
 }

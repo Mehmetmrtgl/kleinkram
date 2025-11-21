@@ -59,7 +59,7 @@ export async function getMetadata(fileId: string) {
 export async function listFiles(folderId: string) {
     const response = await drive.files.list({
         q: `'${folderId}' in parents`,
-        fields: 'nextPageToken, files(id,name,mimeType)',
+        fields: 'nextPageToken, file-processor(id,name,mimeType)',
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
     });

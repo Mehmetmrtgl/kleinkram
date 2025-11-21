@@ -43,6 +43,20 @@
                 no confirmation!
             </div>
         </div>
+
+        <div style="width: 300px; margin-left: 20px">
+            <q-btn
+                label="Fix Missing Topics"
+                class="button-border bg-button-primary full-width"
+                icon="sym_o_topic"
+                flat
+                @click="reextractTopics"
+            />
+            <div class="help-text q-pt-sm">
+                Finds all healthy .bag files that have 0 topics and re-runs
+                metadata extraction (without conversion).
+            </div>
+        </div>
     </div>
 </template>
 <script setup lang="ts">
@@ -81,6 +95,17 @@ async function recalculateHashes(): Promise<void> {
         color: 'positive',
         position: 'bottom',
         timeout: 2000,
+    });
+}
+
+async function reextractTopics(): Promise<void> {
+    const { data } = await axios.post('file/reextractTopics');
+
+    $q.notify({
+        message: `Topic extraction started. ${data.count} files queued.`,
+        color: 'positive',
+        position: 'bottom',
+        timeout: 3000,
     });
 }
 </script>

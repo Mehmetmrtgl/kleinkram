@@ -1,8 +1,7 @@
 import { ContainerLog } from '@common/entities/action/action.entity';
 import environment from '@common/environment';
 import { Injectable } from '@nestjs/common';
-import Dockerode from 'dockerode';
-import fs from 'node:fs';
+import Dockerode, { Image } from 'dockerode';
 import process from 'node:process';
 import { inspect } from 'node:util';
 import { Observable } from 'rxjs';
@@ -15,7 +14,6 @@ import {
     PidsLimit,
     SecurityOpt,
 } from '../helper/container-configs';
-import { createDriveFolder } from '../helper/drive-helper';
 
 export interface ContainerLimits {
     /**
@@ -130,7 +128,7 @@ export class DockerDaemon {
         const details = await image.inspect().catch(dockerDaemonErrorHandler);
         if (!details) {
             throw new Error(
-                `Image ${containerOptions.docker_image} not found, could not start container!`,
+                `Image '${containerOptions.docker_image}' not found, could not start container!`,
             );
         }
         const repoDigests = details.RepoDigests;
@@ -209,7 +207,7 @@ export class DockerDaemon {
     }
 
     private errorHandling() {
-        return (error: unknown) => {
+        return (error: unknown): never => {
             let errorString = inspect(error);
 
             // cleanup error message
@@ -236,7 +234,7 @@ export class DockerDaemon {
         container: Dockerode.Container,
         maxRuntimeMs: number,
         clearVolume = false,
-    ) {
+    ): Promise<void> {
         const cancelTimeout = setTimeout(() => {
             logger.info(
                 `Stopping container ${container.id} after ${maxRuntimeMs.toString()}ms`,
@@ -267,7 +265,7 @@ export class DockerDaemon {
     }
 
     @tracing()
-    private async pullImage(dockerImage: string) {
+    private async pullImage(dockerImage: string): Promise<unknown> {
         if (!(await this.docker.ping())) {
             throw new Error('Docker socket not available or not responding');
         }
@@ -302,7 +300,7 @@ export class DockerDaemon {
     }
 
     @tracing()
-    private async getImage(dockerImage: string) {
+    private async getImage(dockerImage: string): Promise<Image> {
         const dockerhub_namespace = process.env['VITE_DOCKER_HUB_NAMESPACE'];
         // assert that we only run images from a specified namespace
         if (
@@ -319,7 +317,9 @@ export class DockerDaemon {
             throw new Error('Docker socket not available or not responding');
         }
 
-        await this.pullImage(dockerImage).catch(this.errorHandling());
+        await this.pullImage(dockerImage)
+            // ignore errors, image might already exist locally
+            .catch(() => ({}));
 
         return this.docker.getImage(dockerImage);
     }
@@ -355,7 +355,7 @@ export class DockerDaemon {
         }
     }
 
-    async removeVolume(containerId: string) {
+    async removeVolume(containerId: string): Promise<void> {
         const volumeName = `vol-${containerId}`;
         const volume = this.docker.getVolume(volumeName);
 
@@ -420,7 +420,7 @@ export class DockerDaemon {
     async subscribeToLogs(
         containerId: string,
         sanitizeCallback?: (string_: string) => string,
-    ) {
+    ): Promise<Observable<ContainerLog>> {
         const container = this.docker.getContainer(containerId);
 
         const dockerodeLogStream = await container.logs({
@@ -457,16 +457,11 @@ export class DockerDaemon {
     }
 
     @tracing()
-    async launchArtifactUploadContainer(
-        containerId: string,
-        actionName: string,
-    ) {
-        const parentFolder = await createDriveFolder(actionName);
-
-        // merge the given container limitations with the default ones
-        const containerOptions = {
-            limits: defaultContainerLimitations,
-        };
+    async launchArtifactUploadContainer(containerId: string): Promise<{
+        container: Dockerode.Container;
+        repoDigests: string[];
+    }> {
+        const containerOptions = { limits: defaultContainerLimitations };
 
         logger.debug(
             `Starting container with options: ${JSON.stringify(containerOptions)}`,
@@ -476,9 +471,11 @@ export class DockerDaemon {
         if (!this.docker || !(await this.docker.ping())) {
             throw new Error('Docker socket not available or not responding');
         }
+
         let image = this.docker.getImage(artifactUploaderImage);
         let details = await image.inspect().catch(dockerDaemonErrorHandler);
         logger.info(`Checking if image ${artifactUploaderImage} exists...`);
+
         if (!details) {
             logger.info('Image does not exist, pulling image...');
             const pullResult = await this.pullImage(
@@ -497,27 +494,18 @@ export class DockerDaemon {
             );
         }
         const repoDigests = details.RepoDigests;
-        const googleKey = fs.readFileSync(
-            environment.GOOGLE_ARTIFACT_UPLOADER_KEY_FILE,
-            'utf8',
-        );
-
-        // assert non empty env variables
-        if (!googleKey || googleKey === '') {
-            throw new Error('Google key not found');
-        }
-
-        if (!parentFolder || parentFolder === '') {
-            throw new Error('Parent folder not found');
-        }
 
         logger.info('Creating artifact uploader container...');
+
         const containerCreateOptions: Dockerode.ContainerCreateOptions = {
             Image: artifactUploaderImage,
             name: `kleinkram-artifact-uploader-${containerId}`,
             Env: [
-                `DRIVE_PARENT_FOLDER_ID=${parentFolder}`,
-                `GOOGLE_KEY=${googleKey}`,
+                `KLEINKRAM_ACTION_UUID=${containerId}`,
+                `MINIO_ENDPOINT=${environment.MINIO_ENDPOINT}${environment.DEV ? ':9000' : ''}`,
+                `MINIO_ACCESS_KEY=${environment.MINIO_USER}`,
+                `MINIO_SECRET_KEY=${environment.MINIO_PASSWORD}`,
+                `MINIO_ARTIFACTS_BUCKET_NAME=${environment.MINIO_ARTIFACTS_BUCKET_NAME}`,
             ],
 
             HostConfig: {
@@ -542,13 +530,14 @@ export class DockerDaemon {
         const container: Dockerode.Container = await this.docker
             .createContainer(containerCreateOptions)
             .catch(this.errorHandling());
+
         if (!container) {
             throw new Error('Failed to create container');
         }
 
         logger.info('Container created! Starting container...');
         await container.start();
-        logger.info(`Container started wit id: ${container.id}`);
+        logger.info(`Container started with id: ${container.id}`);
 
         // stop the container after max_runtime seconds
         await this.killContainerAfterMaxRuntime(
@@ -557,6 +546,7 @@ export class DockerDaemon {
             true,
         );
 
-        return { container, repoDigests, parentFolder };
+        // 4. Update return type (removed parentFolder)
+        return { container, repoDigests };
     }
 }

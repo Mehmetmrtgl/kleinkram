@@ -1,32 +1,25 @@
-import { CancleProgessingResponseDto } from '@common/api/types/cancle-progessing-response.dto';
+import { CancelProcessingResponseDto } from '@common/api/types/cancel-processing-response.dto';
 import { ConfirmUploadDto } from '@common/api/types/confirm-upload.dto';
 import { DeleteMissionResponseDto } from '@common/api/types/delete-mission-response.dto';
 import { DriveCreate } from '@common/api/types/drive-create.dto';
-import { FileQueueEntriesDto } from '@common/api/types/file/file-queue-entry.dto';
 import { QueueActiveDto } from '@common/api/types/queue-active.dto';
-import { BullQueueDto } from '@common/api/types/queue/bull-queue.dto';
-import { StopJobResponseDto } from '@common/api/types/queue/stop-job-response.dto';
 import { UpdateTagTypeDto } from '@common/api/types/update-tag-type.dto';
 import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { ApiOkResponse, OutputDto } from '../../decarators';
-import { QueueService } from '../../services/queue.service';
+import QueueService from '../../services/queue.service';
 import { BodyString, BodyUUID } from '../../validation/body-decorators';
 import { ParameterUuid as ParameterUID } from '../../validation/parameter-decorators';
 import {
     QueryDate,
     QueryOptionalString,
     QuerySkip,
-    QueryString,
     QueryTake,
-    QueryUUID,
 } from '../../validation/query-decorators';
 import { AddUser, AuthHeader } from '../auth/parameter-decorator';
 import {
     AdminOnly,
     CanCreateInMissionByBody,
-    CanCreateQueueByBody,
     CanDeleteMission,
-    CanReadMission,
     LoggedIn,
 } from '../auth/roles.decorator';
 
@@ -47,7 +40,7 @@ export class QueueController {
     }
 
     @Post('confirmUpload')
-    @CanCreateQueueByBody()
+    @LoggedIn()
     @ApiOkResponse({
         type: ConfirmUploadDto,
     })
@@ -56,8 +49,9 @@ export class QueueController {
         uuid: string,
         @BodyString('md5', 'MD5 hash to validate uncorrupted upload')
         md5: string,
+        @AddUser() auth: AuthHeader,
     ): Promise<ConfirmUploadDto> {
-        await this.queueService.confirmUpload(uuid, md5);
+        await this.queueService.confirmUpload(uuid, md5, auth.user);
         return {
             success: true,
         };
@@ -96,19 +90,6 @@ export class QueueController {
         );
     }
 
-    @Get('forFile')
-    @CanReadMission()
-    @ApiOkResponse({
-        description: 'Get all queues for a specific file',
-        type: FileQueueEntriesDto,
-    })
-    async forFile(
-        @QueryString('filename', 'Filename') filename: string,
-        @QueryUUID('uuid', 'Mission UUID') uuid: string,
-    ): Promise<FileQueueEntriesDto> {
-        return this.queueService.forFile(filename, uuid);
-    }
-
     @Delete(':uuid')
     @CanDeleteMission()
     @ApiOkResponse({
@@ -124,14 +105,16 @@ export class QueueController {
     @Post('cancelProcessing')
     @CanDeleteMission()
     @ApiOkResponse({
-        type: CancleProgessingResponseDto,
+        type: CancelProcessingResponseDto,
     })
     async cancelProcessing(
         @BodyUUID('queueUUID', 'Queue UUID to cancel') queueUUID: string,
         @BodyUUID('missionUUID', 'Mission UUID of Queue') missionUUID: string,
-    ): Promise<CancleProgessingResponseDto> {
+    ): Promise<CancelProcessingResponseDto> {
         return this.queueService.cancelProcessing(queueUUID, missionUUID);
     }
+
+    /**
 
     @Get('bullQueue')
     @AdminOnly()
@@ -150,4 +133,6 @@ export class QueueController {
     ): Promise<StopJobResponseDto> {
         return this.queueService.stopAction(jobId);
     }
+
+     */
 }

@@ -1,3 +1,4 @@
+import { FileEventsDto } from '@api/types/file/file-event.dto';
 import { FileWithTopicDto } from '@api/types/file/file.dto';
 import { FilesDto } from '@api/types/file/files.dto';
 import { IsUploadingDto } from '@api/types/file/is-uploading.dto';
@@ -68,11 +69,16 @@ export const fetchFile = async (uuid: string): Promise<FileWithTopicDto> => {
         throw error; // Rethrow or handle as appropriate
     }
 };
-export const downloadFile = async (uuid: string, expires: boolean) => {
+export const downloadFile = async (
+    uuid: string,
+    expires: boolean,
+    preview_only = false,
+): Promise<string> => {
     const response = await axios.get('file/download', {
         params: {
             uuid,
             expires,
+            preview_only,
         },
     });
     return response.data;
@@ -145,4 +151,13 @@ export const existsFile = async (uuid: string): Promise<any> => {
     } catch {
         return false;
     }
+};
+
+export const getFileEvents = async (
+    fileUuid: string,
+): Promise<FileEventsDto> => {
+    const response = await axios.get<FileEventsDto>(
+        `/files/${fileUuid}/events`,
+    );
+    return response.data;
 };

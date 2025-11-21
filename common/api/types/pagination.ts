@@ -34,6 +34,7 @@ export class SortablePaginatedQueryDto extends PaginatedQueryDto {
     @ApiProperty({ required: false })
     sortBy?: string;
 
+    // @ts-ignore
     @Transform(({ value }) => SortOrder[value.toUpperCase()])
     @IsEnum(SortOrder)
     @ApiProperty({ required: false })

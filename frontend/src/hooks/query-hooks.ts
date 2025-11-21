@@ -5,8 +5,8 @@ import { ProjectAccessListDto } from '@api/types/access-control/project-access.d
 import { ActionWorkersDto } from '@api/types/action-workers.dto';
 import { ActionsDto } from '@api/types/actions/action.dto';
 import { CategoriesDto } from '@api/types/category.dto';
-import { FileQueueEntriesDto } from '@api/types/file/file-queue-entry.dto';
-import { FileDto, FileWithTopicDto } from '@api/types/file/file.dto';
+import { FileEventsDto } from '@api/types/file/file-event.dto';
+import { FileWithTopicDto } from '@api/types/file/file.dto';
 import {
     MissionsDto,
     MissionWithFilesDto,
@@ -45,6 +45,7 @@ import { getActions, getRunningActions } from 'src/services/queries/action';
 import { getCategories } from 'src/services/queries/categories';
 import {
     fetchFile,
+    getFileEvents,
     getIsUploading,
     getStorage,
 } from 'src/services/queries/file';
@@ -58,7 +59,6 @@ import {
     getProject,
     getProjectDefaultAccess,
 } from 'src/services/queries/project';
-import { getQueueForFile } from 'src/services/queries/queue';
 import { getFilteredTagTypes, getTagTypes } from 'src/services/queries/tag';
 import { getPermissions, searchUsers } from 'src/services/queries/user';
 import { allWorkers } from 'src/services/queries/worker';
@@ -508,20 +508,14 @@ export const useActions = (
     });
 };
 
-export const useQueueForFile = (
-    file: Ref<FileDto> | undefined,
-): UseQueryReturnType<FileQueueEntriesDto | undefined, Error> =>
-    useQuery<FileQueueEntriesDto>({
-        queryKey: ['queue', file],
-        queryFn: () =>
-            getQueueForFile(
-                file?.value.filename ?? '',
-                file?.value.mission.uuid ?? '',
-            ),
-        enabled: () =>
-            !(file?.value?.filename === undefined) &&
-            !(file?.value?.mission.uuid === undefined),
-        refetchInterval: 1000,
+export const useFileEvents = (
+    fileUuid: Ref<string | undefined>,
+): UseQueryReturnType<FileEventsDto | undefined, Error> =>
+    useQuery<FileEventsDto>({
+        queryKey: ['file-events', fileUuid],
+        queryFn: () => getFileEvents(unref(fileUuid) ?? ''),
+        enabled: () => !!fileUuid.value,
+        refetchInterval: 5000,
     });
 
 export const useFilteredTag = (

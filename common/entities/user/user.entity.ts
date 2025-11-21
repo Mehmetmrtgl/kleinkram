@@ -8,10 +8,10 @@ import GroupMembershipEntity from '../auth/group-membership.entity';
 import BaseEntity from '../base-entity.entity';
 import CategoryEntity from '../category/category.entity';
 import FileEntity from '../file/file.entity';
+import IngestionJobEntity from '../file/ingestion-job.entity';
 import MetadataEntity from '../metadata/metadata.entity';
 import MissionEntity from '../mission/mission.entity';
 import ProjectEntity from '../project/project.entity';
-import QueueEntity from '../queue/queue.entity';
 
 @Entity({ name: 'user' })
 export default class UserEntity extends BaseEntity {
@@ -89,8 +89,8 @@ export default class UserEntity extends BaseEntity {
     @OneToMany(() => FileEntity, (file) => file.creator)
     files?: FileEntity[];
 
-    @OneToMany(() => QueueEntity, (queue) => queue.creator)
-    queues?: QueueEntity[];
+    @OneToMany(() => IngestionJobEntity, (queue) => queue.creator)
+    queues?: IngestionJobEntity[];
 
     @OneToMany(() => ActionEntity, (action) => action.mission)
     submittedActions?: ActionEntity[];

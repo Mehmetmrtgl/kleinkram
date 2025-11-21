@@ -36,6 +36,7 @@ FILE_STATE_COLOR = {
     FileState.CORRUPTED: "red",
     FileState.UPLOADING: "yellow",
     FileState.ERROR: "red",
+    FileState.CONVERTING: "blue",
     FileState.CONVERSION_ERROR: "red",
     FileState.LOST: "bold red",
     FileState.FOUND: "yellow",
@@ -556,7 +557,7 @@ def follow_run_logs(client: AuthenticatedClient, run_uuid: str) -> int:
     """
     typer.echo(f"Following logs for run {run_uuid}...")
 
-    TERMINAL_STATES = {"DONE", "ERROR", "UNPROCESSABLE"}
+    TERMINAL_STATES = {"DONE", "FAILED", "UNPROCESSABLE"}
     printed_log_count = 0
     current_run_state = None
     exit_code = 0  # Assume success
@@ -581,7 +582,8 @@ def follow_run_logs(client: AuthenticatedClient, run_uuid: str) -> int:
                         else typer.colors.RED
                     )
                     typer.secho(
-                        f"\nRun finished with state: {run_details.state}", fg=color
+                        f"\nRun finished with state: {run_details.state} ({run_details.state_cause})",
+                        fg=color,
                     )
                     if run_details.state.upper() != "DONE":
                         exit_code = 1  # Set failure exit code

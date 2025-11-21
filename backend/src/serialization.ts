@@ -25,12 +25,15 @@ import {
     MissionWithFilesDto,
 } from '@common/api/types/mission/mission.dto';
 import { ProjectDto } from '@common/api/types/project/base-project.dto';
-import { ProjectWithMissionCountDto } from '@common/api/types/project/project-with-mission-count.dto';
 import { ProjectWithMissionsDto } from '@common/api/types/project/project-with-missions.dto';
 import { ProjectWithRequiredTagsDto } from '@common/api/types/project/project-with-required-tags.dto';
 import { TagDto, TagTypeDto } from '@common/api/types/tags/tags.dto';
 import { TopicDto } from '@common/api/types/topic.dto';
 import { GroupMembershipDto, UserDto } from '@common/api/types/user.dto';
+import {
+    AccessGroupRights,
+    AccessGroupType,
+} from '@common/frontend_shared/enum';
 
 export const missionEntityToDto = (mission: MissionEntity): MissionDto => {
     if (!mission.project) {
@@ -129,7 +132,7 @@ export const actionEntityToDto = (action: ActionEntity): ActionDto => {
     }
 
     return {
-        artifactUrl: action.artifact_url ?? '',
+        artifactUrl: action.artifact_path ?? '',
         artifacts: action.artifacts,
         auditLogs: (action.auditLogs as unknown as AuditLogDto[]) ?? [],
         createdAt: action.createdAt,
@@ -166,6 +169,8 @@ export const fileEntityToDto = (file: FileEntity): FileDto => {
         throw new Error('File mission is not set');
     }
 
+    const relatedUuid = file.parent?.uuid ?? file.derivedFiles?.[0]?.uuid;
+
     return {
         uuid: file.uuid,
         state: file.state,
@@ -176,7 +181,7 @@ export const fileEntityToDto = (file: FileEntity): FileDto => {
         type: file.type,
         size: file.size ?? 0,
         hash: file.hash ?? '',
-        relatedFileUuid: file.relatedFile?.uuid,
+        relatedFileUuid: relatedUuid,
         creator: userEntityToDto(file.creator),
         mission: missionEntityToDto(file.mission),
         categories:
@@ -190,11 +195,25 @@ export const fileEntityToDto = (file: FileEntity): FileDto => {
 export const fileEntityToDtoWithTopic = (
     file: FileEntity,
 ): FileWithTopicDto => {
-    // extract topics from file or relatedFile
-    let topics = file.topics;
-    if (topics?.length === 0) topics = file.relatedFile?.topics ?? [];
+    let topics = file.topics ?? [];
 
-    if (!topics) throw new Error('File topics are not set');
+    // Fallback: no topics on this file, check derived files
+    if (topics.length === 0 && file.derivedFiles?.length) {
+        const derivedWithTopics = file.derivedFiles.find(
+            (f) => f.topics && f.topics.length > 0,
+        );
+        if (derivedWithTopics) {
+            topics = derivedWithTopics.topics ?? [];
+        }
+    }
+
+    // Fallback: child file without topics, check parent
+    if (topics.length === 0 && file.parent?.topics?.length) {
+        topics = file.parent.topics;
+    }
+
+    if (!topics) topics = [];
+
     return {
         ...(fileEntityToDto(file) as FileWithTopicDto),
         topics: topics.map((element) => topicEntityToDto(element)),
@@ -203,7 +222,13 @@ export const fileEntityToDtoWithTopic = (
 
 export const projectAccessEntityToDto = (
     projectAccess: ProjectAccessEntity,
-) => {
+): {
+    memberCount: number;
+    type: AccessGroupType;
+    name: string;
+    rights: AccessGroupRights;
+    uuid: string;
+} => {
     if (projectAccess.accessGroup === undefined) {
         throw new Error('Access group not found');
     }
@@ -251,20 +276,6 @@ export const projectEntityToDto = (project: ProjectEntity): ProjectDto => {
     };
 };
 
-export const projectEntityToDtoWithMissionCount = (
-    project: ProjectEntity,
-): ProjectWithMissionCountDto => {
-    if (project.creator === undefined) {
-        throw new Error('Creator can never be undefined');
-    }
-
-    return {
-        ...(projectEntityToDto(project) as ProjectWithMissionCountDto),
-        creator: userEntityToDto(project.creator),
-        missionCount: project.missionCount ?? 0,
-    };
-};
-
 export const projectEntityToDtoWithRequiredTags = (
     project: ProjectEntity,
     missionCount: number,
@@ -295,23 +306,6 @@ export const projectEntityToDtoWithMissionCountAndTags = (
         creator: userEntityToDto(project.creator),
         missionCount: project.missionCount ?? 0,
         requiredTags: project.requiredTags?.map(tagTypeEntityToDto) ?? [],
-    };
-};
-
-export const projectEntityToDtoWithMissions = (
-    project: ProjectEntity,
-): ProjectWithMissionsDto => {
-    if (project.creator === undefined) {
-        throw new Error('Creator can never be undefined');
-    }
-
-    return {
-        ...(projectEntityToDto(project) as ProjectWithMissionsDto),
-        creator: userEntityToDto(project.creator),
-        requiredTags: project.requiredTags.map((element) =>
-            tagTypeEntityToDto(element),
-        ),
-        missions: project.missions?.map(missionEntityToFlatDto) ?? [],
     };
 };
 

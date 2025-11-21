@@ -5,11 +5,12 @@ import { CreateProject } from '@common/api/types/create-project.dto';
 import { CreateTemplateDto } from '@common/api/types/create-template.dto';
 import { CreateTagTypeDto } from '@common/api/types/tags/create-tag-type.dto';
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { QueueState } from '@common/frontend_shared/enum';
 import crypto from 'node:crypto';
 import * as fs from 'node:fs';
+import { appVersion } from '../../src/app-version';
 import { DEFAULT_URL } from '../auth/utilities';
 import { database, getJwtToken } from './database-utilities';
 import { uploadFileMultipart } from './multipart-upload';
@@ -29,8 +30,7 @@ export class HeaderCreator {
             this.headers.append('cookie', `authtoken=${getJwtToken(user)}`);
         }
         // used to avoid usage of older versions of kleinkram
-        // TODO: load version from package.json
-        this.headers.append('kleinkram-client-version', '0.44.1');
+        this.headers.append('kleinkram-client-version', appVersion);
     }
 
     /**
@@ -39,7 +39,7 @@ export class HeaderCreator {
      * @param {string} key - The name of the header.a
      * @param {string} value - The value of the header.
      */
-    addHeader(key: string, value: string) {
+    addHeader(key: string, value: string): void {
         this.headers.append(key, value);
     }
 
@@ -70,7 +70,7 @@ export const createProjectUsingPost = async (
     const headersBuilder = new HeaderCreator(user);
     headersBuilder.addHeader('Content-Type', 'application/json');
 
-    const response = await fetch(`${DEFAULT_URL}/project`, {
+    const response = await fetch(`${DEFAULT_URL}/projects`, {
         method: 'POST',
         headers: headersBuilder.getHeaders(),
         body: JSON.stringify(project),
@@ -204,7 +204,7 @@ export async function uploadFile(
         const active = await responseActive.json();
         if (
             active.some(
-                (x: QueueEntity) =>
+                (x: IngestionJobEntity) =>
                     x.uuid === fileresponseponse.queueUUID &&
                     x.state === QueueState.COMPLETED,
             )

@@ -29,7 +29,7 @@ services:
             - database
 
     database:
-        image: postgres:16
+        image: postgres:17
         container_name: kleinkram-postgres
         ports:
             - '5432:5432'
@@ -55,11 +55,12 @@ services:
         # and add service worker access key after startup of the minio server
         command: >
             -c "mkdir -p /data/${MINIO_DATA_BUCKET_NAME} &&
-            mkdir -p /data/${MINIO_DATA_BUCKET_NAME} && 
             mkdir -p /data/${MINIO_DB_BUCKET_NAME} &&
+            mkdir -p /data/${MINIO_ARTIFACTS_BUCKET_NAME} && 
             /usr/bin/minio server --console-address ':9001' /data & 
             sleep 10 &&
             mc alias set myminio http://minio:9000 ${MINIO_USER} ${MINIO_PASSWORD} &&
+            mc ilm rule add myminio/${MINIO_ARTIFACTS_BUCKET_NAME} --expire-days 90 || true &&
             mc admin user svcacct add --access-key '${MINIO_ACCESS_KEY}' --secret-key '${MINIO_SECRET_KEY}' myminio ${MINIO_USER} || true &&
             echo 'minio is ready' &&
             sleep infinity"

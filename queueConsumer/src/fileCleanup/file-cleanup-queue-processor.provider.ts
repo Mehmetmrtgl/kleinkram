@@ -1,7 +1,7 @@
 import { redis, systemUser } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
@@ -13,7 +13,7 @@ import {
     QueueState,
     UserRole,
 } from '@common/frontend_shared/enum';
-import { internalMinio } from '@common/minio-helper';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
 import { InjectQueue, Process, Processor } from '@nestjs/bull';
@@ -22,7 +22,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Job, Queue } from 'bull';
 import { Redis } from 'ioredis';
-import { Tag } from 'minio';
 import crypto from 'node:crypto';
 import Redlock from 'redlock';
 import {
@@ -49,8 +48,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
     constructor(
         @InjectRepository(FileEntity)
         private fileRepository: Repository<FileEntity>,
-        @InjectRepository(QueueEntity)
-        private queueRepository: Repository<QueueEntity>,
+        @InjectRepository(IngestionJobEntity)
+        private queueRepository: Repository<IngestionJobEntity>,
         @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
         @InjectRepository(MissionEntity)
@@ -60,6 +59,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         @InjectRepository(MissionAccessViewEntity)
         private missionAccessView: Repository<MissionAccessViewEntity>,
         @InjectQueue('file-queue') private readonly fileQueue: Queue,
+        private readonly storageService: StorageService,
     ) {}
 
     onModuleInit(): void {
@@ -144,7 +144,8 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
                         continue;
                     }
 
-                    const datastream = await internalMinio.getObject(
+                    // REFACTORED: Use StorageService to get stream
+                    const datastream = await this.storageService.getFileStream(
                         env.MINIO_DATA_BUCKET_NAME,
                         `${file.mission.project.name}/${file.mission.name}/${file.filename}`,
                     );
@@ -291,7 +292,9 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
                     }),
                 );
 
-                // ##################### search for files present in minio but missing in DB #####################
+                // #####################
+                // search for files present in minio but missing in DB
+                // #####################
                 await this.missingInDB(FileType.BAG);
                 await this.missingInDB(FileType.MCAP);
             })
@@ -302,11 +305,12 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
 
     async missingInDB(fileType: FileType): Promise<void> {
         const bucket = env.MINIO_DATA_BUCKET_NAME;
-        const minioObjects = internalMinio.listObjects(bucket, ''); // ObjectStream
+        const minioObjects = await this.storageService.listFiles(bucket);
 
         const minioObjectNamesSet = new Set<string>(
-            await minioObjects.map((object) => object.name as string).toArray(),
-        ); // Set of UUIDs
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            minioObjects.map((object) => object.name!),
+        );
 
         const databaseObjects = await this.fileRepository.find({
             where: { type: fileType },
@@ -315,30 +319,27 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
             databaseObjects.map((object) => object.uuid),
         );
         const missingObjects =
-            minioObjectNamesSet.difference(databaseObjectNames); // Set of UUIDs found in minio but not in DB
+            minioObjectNamesSet.difference(databaseObjectNames);
 
         await Promise.all(
             [...missingObjects].map(async (object) => {
-                const result = await internalMinio.getObjectTagging(
-                    bucket,
-                    object,
-                );
-                const tags = result[0] as unknown as Tag[];
+                const tags = await this.storageService.getTags(bucket, object);
 
-                const missionUUID = tags.find(
-                    (tag: Tag) => tag.Key === 'missionUuid',
-                )?.Value;
-                const filename = tags.find(
-                    (tag: Tag) => tag.Key === 'filename',
-                )?.Value;
-                const minioObject = await internalMinio.statObject(
+                const missionUUID = tags['missionUuid'];
+                const filename = tags['filename'];
+
+                const minioObject = await this.storageService.getFileInfo(
                     bucket,
                     object,
                 );
 
-                if (missionUUID === undefined || filename === undefined) {
+                if (
+                    missionUUID === undefined ||
+                    filename === undefined ||
+                    !minioObject
+                ) {
                     logger.error(
-                        `Missing tags in minio object: UUID: ${object}, has Tags:${tags.map((tag: Tag) => `${tag.Key}:${tag.Value}`).toString()} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
+                        `Missing tags or stats in minio object: UUID: ${object}, has Tags:${JSON.stringify(tags)} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
                     );
                     return;
                 }
@@ -388,7 +389,7 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
                     );
                 }
                 logger.error(
-                    `Found missing object in minio: UUID: ${object}, has Tags:${tags.map((tag: Tag) => `${tag.Key}:${tag.Value}`).toString()} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
+                    `Found missing object in minio: UUID: ${object}, has Tags:${JSON.stringify(tags)} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
                 );
             }),
         );
@@ -453,17 +454,10 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
         bucketName: string,
         objectName: string,
     ): Promise<boolean> {
-        try {
-            await internalMinio.statObject(bucketName, objectName);
-            return true;
-        } catch (error: unknown) {
-            const errorCode = (error as { code: string }).code;
-
-            if (errorCode === 'NotFound') {
-                return false;
-            }
-            // Handle other potential errors (e.g., network issues)
-            throw error;
-        }
+        const info = await this.storageService.getFileInfo(
+            bucketName,
+            objectName,
+        );
+        return !!info;
     }
 }

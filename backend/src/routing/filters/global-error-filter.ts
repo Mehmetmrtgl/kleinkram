@@ -10,9 +10,9 @@ import {
 import { HttpException } from '@nestjs/common/exceptions/http.exception';
 import { Response } from 'express';
 import { appVersion } from 'src/app-version';
-import { AuthFlowException } from 'src/types/auth-flow-exception';
 import { EntityNotFoundError } from 'typeorm';
 import logger from '../../logger';
+import { AuthFlowException } from '../../types/auth-flow-exception';
 
 /**
  * A global error filter that catches all errors and logs them.

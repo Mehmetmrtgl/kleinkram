@@ -29,6 +29,7 @@ class FileState(str, Enum):
     CORRUPTED = "CORRUPTED"
     UPLOADING = "UPLOADING"
     ERROR = "ERROR"
+    CONVERTING = "CONVERTING"
     CONVERSION_ERROR = "CONVERSION_ERROR"
     LOST = "LOST"
     FOUND = "FOUND"
@@ -95,6 +96,8 @@ class LogEntry:
 class Run:
     uuid: UUID
     state: str
+    state_cause: str | None
+    artifact_url: str | None
     created_at: datetime
     updated_at: datetime | None
     project_name: str

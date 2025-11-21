@@ -1,9 +1,9 @@
 <template>
-    <InspectFile />
+    <FileDetail />
 </template>
 
 <script setup lang="ts">
-import InspectFile from 'components/inspect-file.vue';
+import FileDetail from 'components/inspect-file/file-detail.vue';
 </script>
 
 <style scoped></style>

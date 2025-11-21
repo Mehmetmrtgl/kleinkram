@@ -7,16 +7,18 @@ import GroupMembershipEntity from '@common/entities/auth/group-membership.entity
 import MissionAccessEntity from '@common/entities/auth/mission-access.entity';
 import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
 import CategoryEntity from '@common/entities/category/category.entity';
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import FileEntity from '@common/entities/file/file.entity';
+import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MetadataEntity from '@common/entities/metadata/metadata.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
-import QueueEntity from '@common/entities/queue/queue.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import env from '@common/environment';
+import { StorageModule } from '@common/modules/storage/storage.module';
 import configuration from '@common/typeorm-config';
 import { MissionAccessViewEntity } from '@common/viewEntities/mission-access-view.entity';
 import { ProjectAccessViewEntity } from '@common/viewEntities/project-access-view.entity';
@@ -32,8 +34,8 @@ import { ActionQueueProcessorProvider } from './actions/action-queue-processor.p
 import { ActionManagerService } from './actions/services/action-manager.service';
 import { ContainerCleanupService } from './actions/services/cleanup-containers.service';
 import { DockerDaemon } from './actions/services/docker-daemon.service';
+import { FileProcessorModule } from './file-processor/file-processor.module';
 import { FileCleanupQueueProcessorProvider } from './fileCleanup/file-cleanup-queue-processor.provider';
-import { FileQueueProcessorProvider } from './files/file-queue-processor.provider';
 
 @Module({
     imports: [
@@ -44,9 +46,7 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             },
         }),
 
-        BullModule.registerQueue({
-            name: 'file-queue',
-        }),
+        FileProcessorModule,
 
         BullModule.registerQueue({
             name: `action-queue-${os.hostname()}`,
@@ -58,6 +58,8 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
         BullModule.registerQueue({
             name: 'move',
         }),
+
+        BullModule.registerQueue({ name: 'file-queue' }),
 
         ConfigModule.forRoot({
             isGlobal: true,
@@ -77,7 +79,8 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
                     database:
                         configService.getOrThrow<string>('database.database'),
                     entities: [
-                        QueueEntity,
+                        IngestionJobEntity,
+                        FileEventEntity,
                         MissionEntity,
                         FileEntity,
                         ProjectEntity,
@@ -105,7 +108,8 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             inject: [ConfigService],
         }),
         TypeOrmModule.forFeature([
-            QueueEntity,
+            IngestionJobEntity,
+            FileEventEntity,
             MissionEntity,
             FileEntity,
             TopicEntity,
@@ -125,9 +129,9 @@ import { FileQueueProcessorProvider } from './files/file-queue-processor.provide
             GroupMembershipEntity,
         ]),
         ScheduleModule.forRoot(),
+        StorageModule,
     ],
     providers: [
-        FileQueueProcessorProvider,
         ActionQueueProcessorProvider,
         FileCleanupQueueProcessorProvider,
         DockerDaemon,

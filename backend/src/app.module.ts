@@ -1,4 +1,5 @@
 import env from '@common/environment';
+import { StorageModule } from '@common/modules/storage/storage.module';
 import configuration from '@common/typeorm-config';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -75,6 +76,7 @@ import { AccessGroupConfig } from './types/access-group-config';
         WorkerModule,
         CategoryModule,
         ScheduleModule.forRoot(),
+        StorageModule,
     ],
     providers: [DBDumper],
 })

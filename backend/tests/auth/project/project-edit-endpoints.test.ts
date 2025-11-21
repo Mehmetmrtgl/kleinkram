@@ -1,5 +1,6 @@
 import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
 import ProjectAccessEntity from '@common/entities/auth/project-access.entity';
+import MissionEntity from '@common/entities/mission/mission.entity';
 import ProjectEntity from '@common/entities/project/project.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
@@ -48,7 +49,7 @@ describe('Verify project manipulation endpoints', () => {
     beforeEach(async () => {
         // get access group for creator
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupCreator = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.creator.name },
         });
@@ -69,7 +70,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // check if it is generated
         const tagTypeRepository =
-            database.getRepository<TagTypeEntity>('TagType');
+            database.getRepository<TagTypeEntity>(TagTypeEntity);
         const tagTypes = await tagTypeRepository.findOneOrFail({
             where: { uuid: globalThis.metadataUuid },
         });
@@ -99,7 +100,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // check if project is created
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const project = await projectRepository.findOneOrFail({
             where: { uuid: globalThis.projectUuid },
         });
@@ -110,7 +111,7 @@ describe('Verify project manipulation endpoints', () => {
 
     afterEach(async () => {
         // check if users are still in the database
-        const userRepository = database.getRepository<UserEntity>('User');
+        const userRepository = database.getRepository<UserEntity>(UserEntity);
         const users = await userRepository.find();
         expect(users.length).toBe(2);
 
@@ -123,7 +124,8 @@ describe('Verify project manipulation endpoints', () => {
         expect(actualUserUuids.sort()).toEqual(expectedUserUuids.sort());
 
         // delete all missions
-        const missionRepository = database.getRepository('Mission');
+        const missionRepository =
+            database.getRepository<MissionEntity>(MissionEntity);
         const allMissions = await missionRepository.find();
         const responseMission = await missionRepository.remove(allMissions);
         const remainingMissions = await missionRepository.find();
@@ -132,7 +134,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // delete project
         const projectRepository =
-            database.getRepository<ProjectEntity>('Project');
+            database.getRepository<ProjectEntity>(ProjectEntity);
         const allProjects = await projectRepository.find();
         const response = await projectRepository.remove(allProjects);
         const remainingProjects = await projectRepository.find();
@@ -141,7 +143,8 @@ describe('Verify project manipulation endpoints', () => {
         console.log(`[DEBUG]: All Projects removed: ${response}`);
 
         // delete tags
-        const tagsRepository = database.getRepository<TagTypeEntity>('TagType');
+        const tagsRepository =
+            database.getRepository<TagTypeEntity>(TagTypeEntity);
         const allTagss = await tagsRepository.find();
         const metadataResponse = await tagsRepository.remove(allTagss);
         const remainingTags = await tagsRepository.find();
@@ -160,7 +163,7 @@ describe('Verify project manipulation endpoints', () => {
     test('if metadata can be added to project by creator of project', async () => {
         // check if link between project and TagType is correct
         const TagTypeRepository =
-            database.getRepository<TagTypeEntity>('TagType');
+            database.getRepository<TagTypeEntity>(TagTypeEntity);
         const tagType = await TagTypeRepository.findOneOrFail({
             where: { uuid: globalThis.metadataUuid },
             relations: ['project'],
@@ -196,7 +199,7 @@ describe('Verify project manipulation endpoints', () => {
         );
 
         const TagTypeRepository =
-            database.getRepository<TagTypeEntity>('TagType');
+            database.getRepository<TagTypeEntity>(TagTypeEntity);
         const tagType = await TagTypeRepository.findOneOrFail({
             where: { uuid: metadataUuid },
             relations: ['project'],
@@ -209,7 +212,7 @@ describe('Verify project manipulation endpoints', () => {
 
     test('if access management of project can be edited by creator', async () => {
         const accessGroupRepository =
-            database.getRepository<AccessGroupEntity>('access_group');
+            database.getRepository<AccessGroupEntity>(AccessGroupEntity);
         const accessGroupUser = await accessGroupRepository.findOneOrFail({
             where: { name: globalThis.user.name },
         });
@@ -219,7 +222,7 @@ describe('Verify project manipulation endpoints', () => {
 
         // check if access group has correct access to project
         const projectAccessRepository =
-            database.getRepository<ProjectAccessEntity>('project_access');
+            database.getRepository<ProjectAccessEntity>(ProjectAccessEntity);
         const projectUserAccess = await projectAccessRepository.findOneOrFail({
             where: { accessGroup: { uuid: accessGroupUser.uuid } },
             relations: ['accessGroup'],
@@ -260,6 +263,7 @@ describe('Verify project manipulation endpoints', () => {
                         rights: AccessGroupRights.WRITE,
                         type: accessGroupCreator.type,
                         uuid: accessGroupCreator.uuid,
+                        name: accessGroupCreator.name,
                     },
                 ]),
             },

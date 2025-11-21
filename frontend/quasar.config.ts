@@ -12,7 +12,7 @@ export default defineConfig((/* ctx */) => {
         // app boot file (/src/boot)
         // --> boot files are part of "main.js"
         // https://v2.quasar.dev/quasar-cli-vite/boot-files
-        boot: ['router', 'query'],
+        boot: ['router', 'query', 'wasm-polyfill'], // <--- Add it here
 
         // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
         css: ['app.scss'],
@@ -64,7 +64,20 @@ export default defineConfig((/* ctx */) => {
             // polyfillModulePreload: true,
             // distDir
 
-            // extendViteConf (viteConf) {},
+            extendViteConf(viteConfig) {
+                viteConfig.optimizeDeps = viteConfig.optimizeDeps || {};
+                viteConfig.optimizeDeps.include =
+                    viteConfig.optimizeDeps.include || [];
+
+                // FIX: Use the VALID package names
+                viteConfig.optimizeDeps.include.push(
+                    '@foxglove/rosmsg',
+                    '@foxglove/rosmsg-serialization', // ROS 1
+                    '@foxglove/rosmsg2-serialization', // ROS 2 (CDR)
+                    '@mcap/core',
+                    'fzstd',
+                );
+            },
             // viteVuePluginOptions: {},
 
             // vitePlugins: [

@@ -1,3 +1,5 @@
+import AccessGroupEntity from '@common/entities/auth/accessgroup.entity';
+import AccountEntity from '@common/entities/auth/account.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
 import {
@@ -22,7 +24,7 @@ describe('Test Suite Utils', () => {
         // Insert some data
         const user = new UserEntity();
         user.name = 'John Doe';
-        user.email = 'test-01@leggedrobotics.com';
+        user.email = 'test-01@kleinkram.leggedrobotics.com';
         user.role = UserRole.USER;
 
         await database.getRepository(UserEntity).save(user);
@@ -42,41 +44,21 @@ describe('Test Suite Utils', () => {
     test('Create User with Valid Token', async () => {
         // TODO: Finish this test
 
-        await mockDatabaseUser('test-01@leggedrobotics.com');
+        await mockDatabaseUser('test-01@kleinkram.leggedrobotics.com');
 
         const userRepository = database.getRepository(UserEntity);
         const users = await userRepository.find({
             select: ['email', 'uuid'],
         });
         expect(users.length).toBe(1);
-        expect(users[0]?.email).toBe('test-01@leggedrobotics.com');
+        expect(users[0]?.email).toBe('test-01@kleinkram.leggedrobotics.com');
 
-        const accountRepository = database.getRepository('Account');
+        const accountRepository = database.getRepository(AccountEntity);
         const accounts = await accountRepository.find();
         expect(accounts.length).toBe(1);
 
-        const accessGroupRepository = database.getRepository('AccessGroup');
+        const accessGroupRepository = database.getRepository(AccessGroupEntity);
         const accessGroups = await accessGroupRepository.find();
         expect(accessGroups.length).toBe(2);
-
-        // // call /user/me without unauthenticated --> expect 401
-        // const res = await fetch(`http://localhost:3000/user/me`, {
-        //     method: 'GET',
-        //     // TODO: add kleinkramVersion with HeaderCreator
-        // });
-        // expect(res.status).toBe(401);
-
-        // if (users[0] === undefined) throw new Error('User not found');
-
-        // // call endpoint /user/me with authenticated user --> expect 200
-        // const res2 = await fetch(`http://localhost:3000/user/me`, {
-        //     method: 'GET',
-        //     headers: {
-        //         cookie: `authtoken=${getJwtToken(users[0])}`,
-        //     },
-        //     credentials: 'include',
-        // });
-
-        // expect(res2.status).toBe(200);
     });
 });

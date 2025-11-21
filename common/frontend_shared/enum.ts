@@ -136,6 +136,7 @@ export enum FileState {
     CORRUPTED = 'CORRUPTED',
     UPLOADING = 'UPLOADING',
     ERROR = 'ERROR',
+    CONVERTING = 'CONVERTING',
     CONVERSION_ERROR = 'CONVERSION_ERROR',
     LOST = 'LOST',
     FOUND = 'FOUND',
@@ -153,4 +154,22 @@ export enum AccessGroupRights {
     WRITE = 20,
     DELETE = 30,
     _ADMIN = 100,
+}
+
+export enum FileEventType {
+    // Lifecycle
+    CREATED = 'CREATED',
+    DELETED = 'DELETED',
+
+    // Ingestion
+    UPLOAD_STARTED = 'UPLOAD_STARTED',
+    UPLOAD_COMPLETED = 'UPLOAD_COMPLETED',
+    TOPICS_EXTRACTED = 'TOPICS_EXTRACTED',
+    FILE_CONVERTED = 'FILE_CONVERTED',
+    FILE_CONVERTED_FROM = 'FILE_CONVERTED_FROM',
+
+    // User Actions
+    DOWNLOADED = 'DOWNLOADED',
+    RENAMED = 'RENAMED',
+    MOVED = 'MOVED',
 }

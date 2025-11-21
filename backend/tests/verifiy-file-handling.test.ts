@@ -17,7 +17,7 @@ describe('Verify File Handling', () => {
 
         // const filename = 'test_small.bag';
 
-        // const userId = await mockDatabaseUser('internal@leggedrobotics.com');
+        // const userId = await mockDatabaseUser('internal@kleinkram.leggedrobotics.com');
         // const user = await getUserFromDatabase(userId);
 
         // // create project

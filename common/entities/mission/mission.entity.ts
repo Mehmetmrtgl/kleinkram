@@ -4,9 +4,9 @@ import ApikeyEntity from '../auth/apikey.entity';
 import MissionAccessEntity from '../auth/mission-access.entity';
 import BaseEntity from '../base-entity.entity';
 import FileEntity from '../file/file.entity';
+import IngestionJobEntity from '../file/ingestion-job.entity';
 import MetadataEntity from '../metadata/metadata.entity';
 import ProjectEntity from '../project/project.entity';
-import QueueEntity from '../queue/queue.entity';
 import UserEntity from '../user/user.entity';
 
 @Unique('unique_mission_name_per_project', ['name', 'project'])
@@ -26,8 +26,8 @@ export default class MissionEntity extends BaseEntity {
     @OneToMany(() => ActionEntity, (action) => action.mission)
     actions?: ActionEntity[];
 
-    @OneToMany(() => QueueEntity, (queue) => queue.mission)
-    queues?: QueueEntity[];
+    @OneToMany(() => IngestionJobEntity, (queue) => queue.mission)
+    ingestionJobs?: IngestionJobEntity[];
 
     @ManyToOne(() => UserEntity, (user) => user.missions, { nullable: false })
     creator?: UserEntity;

@@ -252,7 +252,14 @@ export class UserService implements OnModuleInit {
 
         const apiKey = await this.apikeyRepository.findOneOrFail({
             where: { apikey },
-            relations: ['action', 'mission', 'mission.project'],
+            // Disable global eager loading to ensure your manual relations take precedence
+            loadEagerRelations: false,
+            relations: {
+                action: true,
+                mission: {
+                    project: true,
+                },
+            },
         });
 
         return { user, apiKey };

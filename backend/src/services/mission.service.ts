@@ -10,7 +10,7 @@ import ProjectEntity from '@common/entities/project/project.entity';
 import TagTypeEntity from '@common/entities/tagType/tag-type.entity';
 import UserEntity from '@common/entities/user/user.entity';
 import { UserRole } from '@common/frontend_shared/enum';
-import { addTagsToMinioObject, externalMinio } from '@common/minio-helper';
+import { StorageService } from '@common/modules/storage/storage.service';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Not, Repository } from 'typeorm';
@@ -57,6 +57,7 @@ export class MissionService {
         private userRepository: Repository<UserEntity>,
         private userService: UserService,
         private tagService: TagService,
+        private readonly storageService: StorageService,
     ) {}
 
     async create(
@@ -415,11 +416,16 @@ export class MissionService {
 
         await Promise.all(
             mission.files.map(async (file) =>
-                addTagsToMinioObject(env.MINIO_DATA_BUCKET_NAME, file.uuid, {
-                    filename: file.filename,
-                    missionUuid: missionUUID,
-                    projectUuid: projectUUID,
-                }),
+                // REFACTORED: Use storage service
+                this.storageService.addTags(
+                    env.MINIO_DATA_BUCKET_NAME,
+                    file.uuid,
+                    {
+                        filename: file.filename,
+                        missionUuid: missionUUID,
+                        projectUuid: projectUUID,
+                    },
+                ),
             ),
         );
     }
@@ -484,14 +490,12 @@ export class MissionService {
         return await Promise.all(
             mission.files.map(async (f) => ({
                 filename: f.filename,
-                link: await externalMinio.presignedUrl(
-                    'GET',
+                link: await this.storageService.getPresignedDownloadUrl(
                     env.MINIO_DATA_BUCKET_NAME,
                     f.uuid,
                     4 * 60 * 60,
                     {
                         // set filename in response headers
-
                         'response-content-disposition': `attachment; filename ="${f.filename}"`,
                     },
                 ),
