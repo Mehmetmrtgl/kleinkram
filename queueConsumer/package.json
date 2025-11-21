@@ -9,6 +9,7 @@
         "build": "nest build"
     },
     "dependencies": {
+        "@foxglove/rosbag": "^0.4.1",
         "@mcap/core": "^2.1.7",
         "@mcap/nodejs": "^1.0.2",
         "@mcap/support": "^1.0.4",

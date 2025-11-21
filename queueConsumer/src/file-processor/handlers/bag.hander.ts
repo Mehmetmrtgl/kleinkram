@@ -23,6 +23,7 @@ import { calculateFileHash } from '../helper/hash-helper';
 import { FileHandler, FileProcessingContext } from './file-handler.interface';
 import { McapMetadataService } from './mcap-metadata.service';
 import { RosBagConverter } from './rosbag-converter';
+import { RosBagMetadataService } from './rosbag-metadata.service'; //
 
 @Injectable()
 export class RosBagHandler implements FileHandler {
@@ -34,6 +35,7 @@ export class RosBagHandler implements FileHandler {
         private fileEventRepo: Repository<FileEventEntity>,
         private readonly storageService: StorageService,
         private readonly mcapMetadataService: McapMetadataService,
+        private readonly rosBagMetadataService: RosBagMetadataService,
     ) {}
 
     canHandle(filename: string): boolean {
@@ -49,34 +51,37 @@ export class RosBagHandler implements FileHandler {
             `Starting ROS Bag pipeline for ${primaryFile.filename} (AutoConvert: ${autoConvert})`,
         );
 
+        // Update state to indicate we are working
         job.state = QueueState.CONVERTING_AND_EXTRACTING_TOPICS;
         await this.jobRepo.save(job);
 
-        const mcapFilename = primaryFile.filename.replace('.bag', '.mcap');
-        const mcapOutputPath = path.join(workDirectory, mcapFilename);
-
         try {
-            // Convert (Required for both cases)
-            await RosBagConverter.convert(filePath, mcapOutputPath);
+            if (autoConvert) {
+                // --- Path A: Convert to MCAP, then extract from MCAP ---
+                const mcapFilename = primaryFile.filename.replace(
+                    '.bag',
+                    '.mcap',
+                );
+                const mcapOutputPath = path.join(workDirectory, mcapFilename);
 
-            if (!fs.existsSync(mcapOutputPath)) {
-                throw new Error('Conversion output file missing');
+                await RosBagConverter.convert(filePath, mcapOutputPath);
+
+                if (!fs.existsSync(mcapOutputPath)) {
+                    throw new Error('Conversion output file missing');
+                }
+
+                await this.handleAutoConvert(
+                    primaryFile,
+                    job,
+                    mcapOutputPath,
+                    mcapFilename,
+                );
+            } else {
+                // --- Path B: Extraction Only (Stream directly from Bag) ---
+                await this.handleExtractionOnly(primaryFile, filePath);
             }
-
-            await (autoConvert
-                ? this.handleAutoConvert(
-                      primaryFile,
-                      job,
-                      mcapOutputPath,
-                      mcapFilename,
-                  )
-                : this.handleExtractionOnly(primaryFile, mcapOutputPath));
         } catch (error) {
             logger.error(`RosBag Processing failed: ${error}`);
-            // Ensure we don't leave temp files in the extraction-only case
-            if (!autoConvert && fs.existsSync(mcapOutputPath)) {
-                await fsPromises.unlink(mcapOutputPath).catch(() => ({}));
-            }
 
             primaryFile.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(primaryFile);
@@ -86,21 +91,21 @@ export class RosBagHandler implements FileHandler {
 
     /**
      * Case 1: AutoConvert is DISABLED.
-     * We extract topics from the temp MCAP, assign them to the BAG, then delete the MCAP.
+     * We extract topics directly from the original BAG file using streaming.
      */
     private async handleExtractionOnly(
         primaryFile: FileEntity,
-        mcapPath: string,
+        bagPath: string,
     ): Promise<void> {
         logger.debug(
-            `Extracting topics to original Bag file: ${primaryFile.filename}`,
+            `Extracting topics directly from Bag file: ${primaryFile.filename}`,
         );
 
-        // CHANGED: Removed job.creator to allow "System" actor
-        await this.mcapMetadataService.extractAndPersist(mcapPath, primaryFile);
-
-        await fsPromises.unlink(mcapPath);
-        logger.debug(`Temporary MCAP deleted for ${primaryFile.filename}`);
+        // Use the new service to read directly from the .bag file
+        await this.rosBagMetadataService.extractFromLocalFile(
+            bagPath,
+            primaryFile,
+        );
     }
 
     private async handleAutoConvert(
@@ -124,7 +129,8 @@ export class RosBagHandler implements FileHandler {
         const savedMcapEntity = await this.fileRepo.save(mcapEntity);
 
         try {
-            await this.mcapMetadataService.extractAndPersist(
+            // Extract from the generated MCAP
+            await this.mcapMetadataService.extractFromLocalFile(
                 mcapPath,
                 savedMcapEntity,
             );
@@ -141,6 +147,7 @@ export class RosBagHandler implements FileHandler {
                 mcapPath,
             );
 
+            // Add Tags logic...
             await this.storageService
                 .addTags(env.MINIO_DATA_BUCKET_NAME, savedMcapEntity.uuid, {
                     missionUuid: job.mission?.uuid ?? '',
@@ -150,16 +157,19 @@ export class RosBagHandler implements FileHandler {
                     logger.warn(`Tagging failed: ${error}`),
                 );
 
+            // Update Primary Bag File (inherit date from conversion result)
             primaryFile.date = savedMcapEntity.date ?? primaryFile.date;
             primaryFile.state = FileState.OK;
             await this.fileRepo.save(primaryFile);
 
-            // Event on Original BAG (Converted TO) ---
+            // Cleanup local converted file
+            await fsPromises.unlink(mcapPath);
+
+            // Save Events
             await this.fileEventRepo.save(
                 this.fileEventRepo.create({
                     file: primaryFile,
                     ...(job.mission ? { mission: job.mission } : {}),
-                    // actor undefined -> System
                     type: FileEventType.FILE_CONVERTED,
                     filenameSnapshot: primaryFile.filename,
                     details: {
@@ -169,12 +179,10 @@ export class RosBagHandler implements FileHandler {
                 }),
             );
 
-            // Event on New MCAP (Converted FROM) ---
             await this.fileEventRepo.save(
                 this.fileEventRepo.create({
                     file: savedMcapEntity,
                     ...(job.mission ? { mission: job.mission } : {}),
-                    // actor undefined -> System
                     type: FileEventType.FILE_CONVERTED_FROM,
                     filenameSnapshot: savedMcapEntity.filename,
                     details: {
@@ -186,6 +194,12 @@ export class RosBagHandler implements FileHandler {
         } catch (error: unknown) {
             savedMcapEntity.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(savedMcapEntity);
+
+            // Ensure cleanup on failure
+            if (fs.existsSync(mcapPath)) {
+                await fsPromises.unlink(mcapPath).catch(() => ({}));
+            }
+
             throw error;
         }
     }

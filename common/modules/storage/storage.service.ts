@@ -30,6 +30,21 @@ export class StorageService {
         );
     }
 
+    async getInternalPresignedDownloadUrl(
+        bucketName: string,
+        objectName: string, // This is usually the file UUID
+        expirySeconds: number,
+        responseDisposition?: Record<string, string>,
+    ): Promise<string> {
+        return this.clients.internal.presignedUrl(
+            'GET',
+            bucketName,
+            objectName,
+            expirySeconds,
+            responseDisposition,
+        );
+    }
+
     async downloadFile(
         bucketName: string,
         objectName: string,

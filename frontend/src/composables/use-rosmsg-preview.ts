@@ -1,6 +1,7 @@
+import { UniversalHttpReader } from '@common/universal-http-reader';
 import { reactive, Ref, ref, shallowRef } from 'vue';
 import { LogStrategy, McapStrategy, RosbagStrategy } from './rosmsg-strategies';
-import { formatPayload, UniversalHttpReader } from './rosmsg-utilities.ts';
+import { formatPayload } from './rosmsg-utilities.ts';
 
 export function useRosmsgPreview(): {
     isReaderReady: Ref<boolean, boolean>;

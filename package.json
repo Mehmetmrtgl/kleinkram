@@ -48,6 +48,7 @@
         "vue-tsc": "^2.1.10"
     },
     "dependencies": {
+        "@mcap/core": "^2.1.7",
         "class-transformer": "^0.5.1",
         "fs-extra": "^11.2.0",
         "minimatch": "8",

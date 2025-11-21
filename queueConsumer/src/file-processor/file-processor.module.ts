@@ -21,6 +21,7 @@ import { FileQueueProcessorProvider } from './file-queue-processor.provider';
 import { RosBagHandler } from './handlers/bag.hander';
 import { METRIC_PROVIDERS } from './handlers/file-processor.metrics';
 import { McapMetadataService } from './handlers/mcap-metadata.service';
+import { RosBagMetadataService } from './handlers/rosbag-metadata.service';
 
 @Module({
     imports: [
@@ -43,6 +44,7 @@ import { McapMetadataService } from './handlers/mcap-metadata.service';
         MinioStrategy,
         ActionDispatcherService,
 
+        RosBagMetadataService,
         McapMetadataService,
         McapHandler,
         RosBagHandler,

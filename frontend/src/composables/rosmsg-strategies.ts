@@ -1,3 +1,4 @@
+import { UniversalHttpReader } from '@common/universal-http-reader';
 import { Bag } from '@foxglove/rosbag';
 import { parse as parseMessageDefer } from '@foxglove/rosmsg';
 import { MessageReader as Ros1Reader } from '@foxglove/rosmsg-serialization';
@@ -5,7 +6,6 @@ import { MessageReader as CdrReader } from '@foxglove/rosmsg2-serialization';
 import { McapIndexedReader } from '@mcap/core';
 import * as fzstd from 'fzstd';
 import lz4js from 'lz4js';
-import { UniversalHttpReader } from './rosmsg-utilities.ts';
 
 export interface LogMessage {
     logTime: bigint;
@@ -86,10 +86,9 @@ export class RosbagStrategy implements LogStrategy {
     private bag: Bag | undefined = undefined;
 
     async init(httpReader: UniversalHttpReader): Promise<void> {
-        // Bag requires a reader object with { read, size } where size is a number
         const bagReader = {
-            read: (o: number, l: number): Promise<Uint8Array> =>
-                httpReader.read(o, l),
+            read: (offset: number, length: number): Promise<Uint8Array> =>
+                httpReader.read(BigInt(offset), BigInt(length)),
             size: (): number => httpReader.sizeBytes,
         };
 
