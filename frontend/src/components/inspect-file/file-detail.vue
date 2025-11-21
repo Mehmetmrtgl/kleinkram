@@ -21,11 +21,11 @@
             </div>
             <div v-else class="row items-center q-gutter-sm text-grey-7">
                 <q-spinner-dots size="1.5em" />
-                <span>Loading YAML content...</span>
+                <span>Loading content...</span>
             </div>
         </div>
 
-        <div v-if="displayTopics && preview.isReaderReady.value">
+        <div v-else-if="displayTopics && preview.isReaderReady.value">
             <FileTopicList
                 :file="file"
                 :is-loading="isLoading"
@@ -39,10 +39,31 @@
             />
         </div>
 
+        <div
+            v-else-if="!displayTopics && !isLoading"
+            class="text-center q-pa-xl bg-grey-1 rounded-borders border-dashed text-grey-7"
+        >
+            <q-icon name="sym_o_description" size="4em" class="q-mb-md" />
+            <div class="text-h6">No Preview Available</div>
+            <div class="text-caption q-mt-xs">
+                Preview is not currently supported for
+                <span class="text-weight-bold">.{{ fileExtension }}</span>
+                files.
+            </div>
+            <q-btn
+                label="Download File"
+                color="primary"
+                flat
+                icon="sym_o_download"
+                class="q-mt-md"
+                @click="handleDownload"
+            />
+        </div>
+
         <FileHistory :events="events" />
 
         <div
-            v-if="preview.readerError.value && !isYaml"
+            v-if="preview.readerError.value && displayTopics"
             class="q-my-md text-negative text-center"
         >
             <q-icon name="sym_o_warning" />
@@ -84,17 +105,29 @@ registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 const { data: events } = useFileEvents(fileUuid);
 
 const preview = useRosmsgPreview();
-const yamlContent = ref<string | null>(null);
+const yamlContent = ref<string | undefined>(undefined);
 
-// Detect YAML by extension
-const isYaml = computed(() => {
-    const name = file.value?.filename?.toLowerCase() ?? '';
-    return name.endsWith('.yml') || name.endsWith('.yaml');
+const fileExtension = computed(() => {
+    const name = file.value?.filename ?? '';
+    return name.split('.').pop()?.toLowerCase() ?? '';
 });
 
-// Only show topics if it is NOT a yaml file
+const isYaml = computed(() => {
+    return ['yml', 'yaml'].includes(fileExtension.value);
+});
+
+const isSupportedBinary = computed(() => {
+    if (!file.value) return false;
+    const isBagType = file.value.type === FileType.BAG;
+    const isMcapType = file.value.type === FileType.MCAP;
+
+    const isDatabase3 = fileExtension.value === 'db3';
+
+    return (isBagType || isMcapType) && !isDatabase3;
+});
+
 const displayTopics = computed(
-    () => file.value?.state === FileState.OK && !isYaml.value,
+    () => file.value?.state === FileState.OK && isSupportedBinary.value,
 );
 
 // --- Initialization Logic ---
@@ -111,15 +144,15 @@ watch(
         }
 
         try {
-            console.log(`Initializing preview for ${currentFile.type}...`);
-
             const dynamicUrl = await downloadFile(
                 currentFile.uuid,
                 false,
                 true,
             );
 
+            // 1. Handle Text Files (YAML)
             if (isYaml.value) {
+                console.log('Loading YAML content...');
                 const response = await fetch(dynamicUrl);
                 yamlContent.value = response.ok
                     ? await response.text()
@@ -127,11 +160,17 @@ watch(
                 return;
             }
 
-            // Only proceed if it is actually a binary format
-            const strategyType =
-                currentFile.type === FileType.BAG ? 'rosbag' : 'mcap';
+            // 2. Handle Supported Binaries
+            if (isSupportedBinary.value) {
+                console.log(`Initializing preview for ${currentFile.type}...`);
+                const strategyType =
+                    currentFile.type === FileType.BAG ? 'rosbag' : 'mcap';
+                await preview.init(dynamicUrl, strategyType);
+                return;
+            }
 
-            await preview.init(dynamicUrl, strategyType);
+            // 3. Unsupported files: Do nothing (Template renders placeholder)
+            console.log(`No preview strategy for .${fileExtension.value}`);
         } catch (init_error: unknown) {
             console.error('Error setting up preview:', init_error);
         }
@@ -178,5 +217,8 @@ async function redirectToRelated(): Promise<void> {
 }
 .border-solid {
     border: 1px solid #e0e0e0;
+}
+.border-dashed {
+    border: 2px dashed #e0e0e0;
 }
 </style>
