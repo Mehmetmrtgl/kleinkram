@@ -58,7 +58,7 @@ export class McapStrategy implements LogStrategy {
         return msgs;
     }
 
-    private async tryDecode(schemaId: number, data: Uint8Array): Promise<any> {
+    private tryDecode(schemaId: number, data: Uint8Array): any {
         if (!this.reader) return;
         let decoder = this.decoders.get(schemaId);
         if (!decoder) {

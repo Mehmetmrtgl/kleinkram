@@ -146,7 +146,9 @@ export class RosBagHandler implements FileHandler {
                     missionUuid: job.mission?.uuid ?? '',
                     filename: mcapFilename,
                 })
-                .catch((error) => logger.warn(`Tagging failed: ${error}`));
+                .catch((error: unknown) =>
+                    logger.warn(`Tagging failed: ${error}`),
+                );
 
             primaryFile.date = savedMcapEntity.date ?? primaryFile.date;
             primaryFile.state = FileState.OK;

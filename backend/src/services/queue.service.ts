@@ -294,7 +294,7 @@ class QueueService implements OnModuleInit {
         if (file) {
             await this.storageService
                 .deleteFile(env.MINIO_DATA_BUCKET_NAME, file.uuid)
-                .catch((error: any) => logger.log(error));
+                .catch(logger.log);
             await this.fileRepository.remove(file);
 
             if (file.type === FileType.BAG) {
@@ -307,7 +307,7 @@ class QueueService implements OnModuleInit {
                 if (mcap) {
                     await this.storageService
                         .deleteFile(env.MINIO_DATA_BUCKET_NAME, mcap.uuid)
-                        .catch((error: any) => logger.log(error));
+                        .catch(logger.log);
                     await this.fileRepository.remove(mcap);
                 }
             }

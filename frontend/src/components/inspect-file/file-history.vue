@@ -97,7 +97,8 @@ function getEventColor(type: string): string {
     if (type.includes('COMPLETED') || type.includes('CREATED'))
         return 'positive';
     if (type.includes('DELETE')) return 'grey-6';
-    if (type === FileEventType.TOPICS_EXTRACTED) return 'info';
+    if ((type as FileEventType) === FileEventType.TOPICS_EXTRACTED)
+        return 'info';
     if (type.includes('CONVERTED')) return 'accent';
 
     return 'primary';
