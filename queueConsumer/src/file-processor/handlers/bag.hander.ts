@@ -1,6 +1,12 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
+import path from 'node:path';
+import { Repository } from 'typeorm';
+
 import FileEntity from '@common/entities/file/file.entity';
 import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
-import TopicEntity from '@common/entities/topic/topic.entity';
 import env from '@common/environment';
 import {
     FileOrigin,
@@ -9,27 +15,21 @@ import {
     QueueState,
 } from '@common/frontend_shared/enum';
 import { StorageService } from '@common/modules/storage/storage.service';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as fs from 'node:fs';
-import path from 'node:path';
 import logger from 'src/logger';
-import { Repository } from 'typeorm';
 
 import { calculateFileHash } from '../helper/hash-helper';
-import { McapParser } from '../helper/mcap-parser';
 import { FileHandler, FileProcessingContext } from './file-handler.interface';
+import { McapMetadataService } from './mcap-metadata.service';
 import { RosBagConverter } from './rosbag-converter';
 
 @Injectable()
 export class RosBagHandler implements FileHandler {
     constructor(
         @InjectRepository(FileEntity) private fileRepo: Repository<FileEntity>,
-        @InjectRepository(TopicEntity)
-        private topicRepo: Repository<TopicEntity>,
         @InjectRepository(IngestionJobEntity)
         private jobRepo: Repository<IngestionJobEntity>,
         private readonly storageService: StorageService,
+        private readonly mcapMetadataService: McapMetadataService,
     ) {}
 
     canHandle(filename: string): boolean {
@@ -39,23 +39,79 @@ export class RosBagHandler implements FileHandler {
     async process(context: FileProcessingContext): Promise<void> {
         const { primaryFile, filePath, workDirectory, queueItem } = context;
         const job = queueItem as unknown as IngestionJobEntity;
+        const autoConvert = job.mission?.project?.autoConvert !== false;
 
-        // Check Auto-Convert Policy
-        if (job.mission?.project?.autoConvert === false) {
-            logger.debug(`Auto-convert disabled for ${primaryFile.filename}`);
-            return;
-        }
+        logger.debug(
+            `Starting ROS Bag pipeline for ${primaryFile.filename} (AutoConvert: ${autoConvert})`,
+        );
 
-        logger.debug(`Starting ROS Bag pipeline for ${primaryFile.filename}`);
-
-        // Update Job State
         job.state = QueueState.CONVERTING_AND_EXTRACTING_TOPICS;
         await this.jobRepo.save(job);
 
-        // Prepare Target (MCAP) Entity
+        // Define paths
         const mcapFilename = primaryFile.filename.replace('.bag', '.mcap');
         const mcapOutputPath = path.join(workDirectory, mcapFilename);
 
+        try {
+            // Convert (Required for both cases)
+            await RosBagConverter.convert(filePath, mcapOutputPath);
+
+            if (!fs.existsSync(mcapOutputPath)) {
+                throw new Error('Conversion output file missing');
+            }
+
+            await (autoConvert
+                ? this.handleAutoConvert(
+                      primaryFile,
+                      job,
+                      mcapOutputPath,
+                      mcapFilename,
+                  )
+                : this.handleExtractionOnly(primaryFile, mcapOutputPath));
+        } catch (error) {
+            logger.error(`RosBag Processing failed: ${error}`);
+            // Ensure we don't leave temp files in the extraction-only case
+            if (!autoConvert && fs.existsSync(mcapOutputPath)) {
+                await fsPromises.unlink(mcapOutputPath).catch(() => ({}));
+            }
+
+            primaryFile.state = FileState.CONVERSION_ERROR;
+            await this.fileRepo.save(primaryFile);
+            throw error;
+        }
+    }
+
+    /**
+     * Case 1: AutoConvert is DISABLED.
+     * We extract topics from the temp MCAP, assign them to the BAG, then delete the MCAP.
+     */
+    private async handleExtractionOnly(
+        primaryFile: FileEntity,
+        mcapPath: string,
+    ): Promise<void> {
+        logger.debug(
+            `Extracting topics to original Bag file: ${primaryFile.filename}`,
+        );
+
+        // Use the shared service to put topics onto the *primaryFile* (the BAG)
+        await this.mcapMetadataService.extractAndPersist(mcapPath, primaryFile);
+
+        // Cleanup: Delete the temporary MCAP file
+        await fsPromises.unlink(mcapPath);
+        logger.debug(`Temporary MCAP deleted for ${primaryFile.filename}`);
+    }
+
+    /**
+     * Case 2: AutoConvert is ENABLED.
+     * We create a new MCAP entity, extract topics to it, and upload it.
+     */
+    private async handleAutoConvert(
+        primaryFile: FileEntity,
+        job: IngestionJobEntity,
+        mcapPath: string,
+        mcapFilename: string,
+    ): Promise<void> {
+        // Create the MCAP Entity
         const mcapEntity = this.fileRepo.create({
             date: new Date(),
             mission: job.mission,
@@ -68,59 +124,40 @@ export class RosBagHandler implements FileHandler {
             parent: primaryFile,
         } as FileEntity);
 
-        // Save to generate UUID
         const savedMcapEntity = await this.fileRepo.save(mcapEntity);
 
         try {
-            await RosBagConverter.convert(filePath, mcapOutputPath);
+            // Extract topics onto the *new MCAP entity*
+            await this.mcapMetadataService.extractAndPersist(
+                mcapPath,
+                savedMcapEntity,
+            );
 
-            if (!fs.existsSync(mcapOutputPath)) {
-                throw new Error('Conversion output file missing');
-            }
+            savedMcapEntity.hash = await calculateFileHash(mcapPath);
+            await this.fileRepo.save(savedMcapEntity);
 
-            const meta = await McapParser.extractMetadata(mcapOutputPath);
-            const mcapHash = await calculateFileHash(mcapOutputPath);
-
-            // Batch Insert Topics (Linked to the MCAP)
-            if (meta.topics.length > 0) {
-                const topicEntities = meta.topics.map((t) =>
-                    this.topicRepo.create({ ...t, file: savedMcapEntity }),
-                );
-                await this.topicRepo.save(topicEntities, { chunk: 100 });
-            }
-
-            // Upload Converted File
             job.state = QueueState.UPLOADING;
             await this.jobRepo.save(job);
 
             await this.storageService.uploadFile(
                 env.MINIO_DATA_BUCKET_NAME,
                 savedMcapEntity.uuid,
-                mcapOutputPath,
+                mcapPath,
             );
 
+            // Add Tags
             await this.storageService
                 .addTags(env.MINIO_DATA_BUCKET_NAME, savedMcapEntity.uuid, {
                     missionUuid: job.mission?.uuid ?? '',
                     filename: mcapFilename,
                 })
-                .catch((error: unknown) =>
-                    logger.warn(`Tagging failed: ${error}`),
-                );
+                .catch((error) => logger.warn(`Tagging failed: ${error}`));
 
-            // Update MCAP Entity
-            savedMcapEntity.size = meta.size;
-            savedMcapEntity.hash = mcapHash;
-            savedMcapEntity.date = meta.date;
-            savedMcapEntity.state = FileState.OK;
-            await this.fileRepo.save(savedMcapEntity);
-
-            // Update Original BAG Entity (Sync date)
-            primaryFile.date = meta.date ?? primaryFile.date;
+            // Sync Original Bag Date if needed
+            primaryFile.date = savedMcapEntity.date ?? primaryFile.date;
             primaryFile.state = FileState.OK;
             await this.fileRepo.save(primaryFile);
         } catch (error) {
-            logger.error(`RosBag Processing failed: ${error}`);
             savedMcapEntity.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(savedMcapEntity);
             throw error;

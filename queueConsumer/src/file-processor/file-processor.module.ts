@@ -17,9 +17,10 @@ import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import { StorageModule } from '@common/modules/storage/storage.module';
-import { makeGaugeProvider } from '@willsoto/nestjs-prometheus';
 import { FileQueueProcessorProvider } from './file-queue-processor.provider';
 import { RosBagHandler } from './handlers/bag.hander';
+import { METRIC_PROVIDERS } from './handlers/file-processor.metrics';
+import { McapMetadataService } from './handlers/mcap-metadata.service';
 
 @Module({
     imports: [
@@ -42,34 +43,11 @@ import { RosBagHandler } from './handlers/bag.hander';
         MinioStrategy,
         ActionDispatcherService,
 
+        McapMetadataService,
         McapHandler,
         RosBagHandler,
 
-        makeGaugeProvider({
-            name: 'backend_online_workers',
-            help: 'Number of online workers',
-            labelNames: ['queue'],
-        }),
-        makeGaugeProvider({
-            name: 'backend_pending_jobs',
-            help: 'Number of pending jobs',
-            labelNames: ['queue'],
-        }),
-        makeGaugeProvider({
-            name: 'backend_active_jobs',
-            help: 'Number of active jobs',
-            labelNames: ['queue'],
-        }),
-        makeGaugeProvider({
-            name: 'backend_completed_jobs',
-            help: 'Number of completed jobs',
-            labelNames: ['queue'],
-        }),
-        makeGaugeProvider({
-            name: 'backend_failed_jobs',
-            help: 'Number of completed jobs',
-            labelNames: ['queue'],
-        }),
+        ...METRIC_PROVIDERS,
 
         {
             provide: FILE_HANDLER,
