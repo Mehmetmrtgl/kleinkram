@@ -39,10 +39,10 @@ export default class FileEventEntity {
     actor?: UserEntity;
 
     /**
-     * Relation to the file. Nullable explicitly so we can keep logs
-     * after a file is deleted.
+     * Relation to the file.
+     * CHANGED: onDelete set to CASCADE to delete this event if the file is deleted.
      */
-    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'SET NULL' })
+    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'CASCADE' })
     file?: FileEntity;
 
     /**

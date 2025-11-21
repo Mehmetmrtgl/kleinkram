@@ -52,8 +52,9 @@ export default class IngestionJobEntity extends BaseEntity {
     /**
      * Link to the actual FileEntity once created.
      * This allows us to easily join Queue -> File.
+     * CHANGED: onDelete set to CASCADE to delete this job if the file is deleted.
      */
-    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'SET NULL' })
+    @ManyToOne(() => FileEntity, { nullable: true, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'file_uuid' })
     file?: FileEntity;
 }
