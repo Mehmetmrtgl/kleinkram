@@ -1,10 +1,10 @@
-// log-strategies.ts
 import { Bag } from '@foxglove/rosbag';
 import { parse as parseMessageDefer } from '@foxglove/rosmsg';
 import { MessageReader as Ros1Reader } from '@foxglove/rosmsg-serialization';
 import { MessageReader as CdrReader } from '@foxglove/rosmsg2-serialization';
 import { McapIndexedReader } from '@mcap/core';
 import * as fzstd from 'fzstd';
+import lz4js from 'lz4js';
 import { UniversalHttpReader } from './rosmsg-utilities.ts';
 
 export interface LogMessage {
@@ -26,10 +26,10 @@ export class McapStrategy implements LogStrategy {
         this.reader = await McapIndexedReader.Initialize({
             readable: httpReader,
             decompressHandlers: {
-                zstd: (b) => fzstd.decompress(b),
-                lz4: () => {
-                    throw new Error('LZ4 not supported');
-                },
+                zstd: (buffer: Uint8Array): Uint8Array =>
+                    fzstd.decompress(buffer),
+                lz4: (buffer: Uint8Array): Uint8Array =>
+                    lz4js.decompress(buffer),
                 bz2: () => {
                     throw new Error('BZ2 not supported');
                 },
@@ -92,7 +92,16 @@ export class RosbagStrategy implements LogStrategy {
                 httpReader.read(o, l),
             size: (): number => httpReader.sizeBytes,
         };
-        this.bag = new Bag(bagReader);
+
+        this.bag = new Bag(bagReader, {
+            decompress: {
+                zstd: (buffer: Uint8Array): Uint8Array =>
+                    fzstd.decompress(buffer),
+                lz4: (buffer: Uint8Array): Uint8Array =>
+                    lz4js.decompress(buffer),
+            },
+        });
+
         await this.bag.open();
     }
 
