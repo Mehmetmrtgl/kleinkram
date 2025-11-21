@@ -70,9 +70,8 @@ export class UniversalHttpReader implements IReadable {
 }
 
 export function formatPayload(data: any): string {
-    if (!data) return '[Empty]';
+    if (data === null || data === undefined) return '[Empty]';
 
-    // Unified Binary formatting
     const isBinary = data instanceof Uint8Array || data?.type === 'Buffer';
     if (isBinary) {
         const array = data.data
@@ -86,12 +85,29 @@ export function formatPayload(data: any): string {
     }
 
     if (typeof data === 'object') {
-        return JSON.stringify(
-            data,
-            (_, v) =>
-                Array.isArray(v) && v.length > 20 ? `[Array(${v.length})]` : v,
-            2,
-        ).slice(0, 500); // Truncate generic large JSON
+        try {
+            // Use 2 spaces for indentation
+            const jsonString = JSON.stringify(
+                data,
+                (_, v) => {
+                    // Collapse large arrays to avoid vertical spam
+                    if (Array.isArray(v) && v.length > 20)
+                        return `[Array(${v.length})]`;
+                    return v;
+                },
+                2,
+            );
+
+            const maxLength = 500;
+            if (jsonString.length > maxLength) {
+                return `${jsonString.slice(0, maxLength)}\n... (truncated)`;
+            }
+            return jsonString;
+        } catch {
+            return String(data); // Fallback for circular references etc.
+        }
     }
+
+    // 3. Primitive formatting
     return String(data);
 }

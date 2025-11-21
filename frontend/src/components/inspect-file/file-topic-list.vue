@@ -191,6 +191,11 @@
                                         <q-item-label
                                             v-else
                                             class="q-mt-xs text-code preview-code"
+                                            style="
+                                                white-space: pre-wrap;
+                                                font-family: monospace;
+                                                word-break: break-all;
+                                            "
                                         >
                                             {{ formatPayload(msg.data) }}
                                         </q-item-label>
