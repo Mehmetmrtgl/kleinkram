@@ -8,7 +8,7 @@
         @copy-uuid="copyUuid"
     />
 
-    <div class="q-my-lg" v-if="file">
+    <div v-if="file" class="q-my-lg">
         <div v-if="isYaml" class="q-mb-lg">
             <h2 class="text-h4 q-mb-md">Content Preview</h2>
             <div
