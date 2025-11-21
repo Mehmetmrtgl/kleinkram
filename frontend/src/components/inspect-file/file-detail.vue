@@ -46,7 +46,7 @@
             <q-icon name="sym_o_description" size="4em" class="q-mb-md" />
             <div class="text-h6">No Preview Available</div>
             <div class="text-caption q-mt-xs">
-                Preview is not currently supported for
+                Preview is not yet ready or currently not supported for
                 <span class="text-weight-bold">.{{ fileExtension }}</span>
                 files.
             </div>
