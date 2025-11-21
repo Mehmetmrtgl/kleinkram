@@ -1,8 +1,6 @@
 import os
 import tarfile
 from minio import Minio
-from datetime import timedelta
-
 
 def compress_directory(source_dir, output_filename):
     """Compresses the source directory into a .tar.gz file."""
