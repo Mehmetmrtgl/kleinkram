@@ -9,6 +9,7 @@ import FileEntity from '@common/entities/file/file.entity';
 import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import env from '@common/environment';
 import {
+    FileEventType,
     FileOrigin,
     FileState,
     FileType,
@@ -17,6 +18,7 @@ import {
 import { StorageService } from '@common/modules/storage/storage.service';
 import logger from 'src/logger';
 
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import { calculateFileHash } from '../helper/hash-helper';
 import { FileHandler, FileProcessingContext } from './file-handler.interface';
 import { McapMetadataService } from './mcap-metadata.service';
@@ -28,6 +30,8 @@ export class RosBagHandler implements FileHandler {
         @InjectRepository(FileEntity) private fileRepo: Repository<FileEntity>,
         @InjectRepository(IngestionJobEntity)
         private jobRepo: Repository<IngestionJobEntity>,
+        @InjectRepository(FileEventEntity)
+        private fileEventRepo: Repository<FileEventEntity>,
         private readonly storageService: StorageService,
         private readonly mcapMetadataService: McapMetadataService,
     ) {}
@@ -48,7 +52,6 @@ export class RosBagHandler implements FileHandler {
         job.state = QueueState.CONVERTING_AND_EXTRACTING_TOPICS;
         await this.jobRepo.save(job);
 
-        // Define paths
         const mcapFilename = primaryFile.filename.replace('.bag', '.mcap');
         const mcapOutputPath = path.join(workDirectory, mcapFilename);
 
@@ -93,25 +96,23 @@ export class RosBagHandler implements FileHandler {
             `Extracting topics to original Bag file: ${primaryFile.filename}`,
         );
 
-        // Use the shared service to put topics onto the *primaryFile* (the BAG)
-        await this.mcapMetadataService.extractAndPersist(mcapPath, primaryFile);
+        // CHANGED: Removed job.creator to allow "System" actor
+        await this.mcapMetadataService.extractAndPersist(
+            mcapPath,
+            primaryFile,
+            undefined,
+        );
 
-        // Cleanup: Delete the temporary MCAP file
         await fsPromises.unlink(mcapPath);
         logger.debug(`Temporary MCAP deleted for ${primaryFile.filename}`);
     }
 
-    /**
-     * Case 2: AutoConvert is ENABLED.
-     * We create a new MCAP entity, extract topics to it, and upload it.
-     */
     private async handleAutoConvert(
         primaryFile: FileEntity,
         job: IngestionJobEntity,
         mcapPath: string,
         mcapFilename: string,
     ): Promise<void> {
-        // Create the MCAP Entity
         const mcapEntity = this.fileRepo.create({
             date: new Date(),
             mission: job.mission,
@@ -127,10 +128,10 @@ export class RosBagHandler implements FileHandler {
         const savedMcapEntity = await this.fileRepo.save(mcapEntity);
 
         try {
-            // Extract topics onto the *new MCAP entity*
             await this.mcapMetadataService.extractAndPersist(
                 mcapPath,
                 savedMcapEntity,
+                undefined,
             );
 
             savedMcapEntity.hash = await calculateFileHash(mcapPath);
@@ -145,7 +146,6 @@ export class RosBagHandler implements FileHandler {
                 mcapPath,
             );
 
-            // Add Tags
             await this.storageService
                 .addTags(env.MINIO_DATA_BUCKET_NAME, savedMcapEntity.uuid, {
                     missionUuid: job.mission?.uuid ?? '',
@@ -153,10 +153,39 @@ export class RosBagHandler implements FileHandler {
                 })
                 .catch((error) => logger.warn(`Tagging failed: ${error}`));
 
-            // Sync Original Bag Date if needed
             primaryFile.date = savedMcapEntity.date ?? primaryFile.date;
             primaryFile.state = FileState.OK;
             await this.fileRepo.save(primaryFile);
+
+            // Event on Original BAG (Converted TO) ---
+            await this.fileEventRepo.save(
+                this.fileEventRepo.create({
+                    file: primaryFile,
+                    ...(job.mission ? { mission: job.mission } : {}),
+                    // actor undefined -> System
+                    type: FileEventType.FILE_CONVERTED,
+                    filenameSnapshot: primaryFile.filename,
+                    details: {
+                        generatedFileUuid: savedMcapEntity.uuid,
+                        generatedFilename: savedMcapEntity.filename,
+                    },
+                }),
+            );
+
+            // Event on New MCAP (Converted FROM) ---
+            await this.fileEventRepo.save(
+                this.fileEventRepo.create({
+                    file: savedMcapEntity,
+                    ...(job.mission ? { mission: job.mission } : {}),
+                    // actor undefined -> System
+                    type: FileEventType.FILE_CONVERTED_FROM,
+                    filenameSnapshot: savedMcapEntity.filename,
+                    details: {
+                        sourceFileUuid: primaryFile.uuid,
+                        sourceFilename: primaryFile.filename,
+                    },
+                }),
+            );
         } catch (error) {
             savedMcapEntity.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(savedMcapEntity);

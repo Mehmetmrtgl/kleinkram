@@ -27,6 +27,18 @@
                                 {{ event.actor?.name ?? 'System' }}
                             </span>
                         </q-item-label>
+                        <q-item-label
+                            caption
+                            v-if="event.details?.generatedFilename"
+                        >
+                            &rarr; {{ event.details.generatedFilename }}
+                        </q-item-label>
+                        <q-item-label
+                            caption
+                            v-if="event.details?.sourceFilename"
+                        >
+                            &larr; {{ event.details.sourceFilename }}
+                        </q-item-label>
                     </q-item-section>
                     <q-item-section side>
                         <div class="text-caption text-grey-6">
@@ -59,6 +71,9 @@ function formatEventType(type: FileEventType): string {
         [FileEventType.DOWNLOADED]: 'Downloaded',
         [FileEventType.RENAMED]: 'Renamed',
         [FileEventType.MOVED]: 'Moved',
+        [FileEventType.TOPICS_EXTRACTED]: 'Topics Extracted',
+        [FileEventType.FILE_CONVERTED]: 'Auto Converted To',
+        [FileEventType.FILE_CONVERTED_FROM]: 'Auto Converted From',
     };
     return map[type] ?? type;
 }
@@ -70,6 +85,10 @@ function getEventIcon(type: string): string {
     if (type.includes('DOWNLOAD')) return 'sym_o_download';
     if (type.includes('UPLOAD')) return 'sym_o_upload';
     if (type.includes('DELETE')) return 'sym_o_delete';
+    if (type === FileEventType.TOPICS_EXTRACTED) return 'sym_o_topic';
+    if (type === FileEventType.FILE_CONVERTED) return 'sym_o_transform';
+    if (type === FileEventType.FILE_CONVERTED_FROM) return 'sym_o_input';
+
     return 'sym_o_history';
 }
 
@@ -78,6 +97,9 @@ function getEventColor(type: string): string {
     if (type.includes('COMPLETED') || type.includes('CREATED'))
         return 'positive';
     if (type.includes('DELETE')) return 'grey-6';
+    if (type === FileEventType.TOPICS_EXTRACTED) return 'info';
+    if (type.includes('CONVERTED')) return 'accent';
+
     return 'primary';
 }
 </script>

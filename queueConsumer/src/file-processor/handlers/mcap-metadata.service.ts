@@ -1,6 +1,8 @@
+import FileEventEntity from '@common/entities/file/file-event.entity';
 import FileEntity from '@common/entities/file/file.entity';
 import TopicEntity from '@common/entities/topic/topic.entity';
-import { FileState } from '@common/frontend_shared/enum';
+import UserEntity from '@common/entities/user/user.entity';
+import { FileEventType, FileState } from '@common/frontend_shared/enum';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import logger from 'src/logger';
@@ -14,17 +16,20 @@ export class McapMetadataService {
         private topicRepo: Repository<TopicEntity>,
         @InjectRepository(FileEntity)
         private fileRepo: Repository<FileEntity>,
+        @InjectRepository(FileEventEntity)
+        private fileEventRepo: Repository<FileEventEntity>,
     ) {}
 
     /**
      * Extracts metadata from an MCAP file on disk and attaches it to the targetEntity.
      * @param filePath Physical path to the .mcap file
      * @param targetEntity The DB entity (Bag or Mcap) the topics should belong to
-     * @returns The extracted metadata (for further use if needed)
+     * @param actor The user performing the action (optional). Leave undefined for "System".
      */
     async extractAndPersist(
         filePath: string,
         targetEntity: FileEntity,
+        actor?: UserEntity,
     ): Promise<void> {
         try {
             const meta = await McapParser.extractMetadata(filePath);
@@ -41,21 +46,34 @@ export class McapMetadataService {
             targetEntity.date = meta.date ?? targetEntity.date;
             targetEntity.state = FileState.OK;
 
-            // If target is the actual MCAP file, we might want to save size here too
-            // but for Bags we keep the Bag size.
-            // We can make this optional or handle it in the caller if strictness is needed.
             if (targetEntity.filename.endsWith('.mcap')) {
                 targetEntity.size = meta.size;
             }
 
             await this.fileRepo.save(targetEntity);
+
+            // Create Topic Extraction Event
+            // CHANGED: Removed `?? targetEntity.creator` to allow "System" (null actor)
+            await this.fileEventRepo.save(
+                this.fileEventRepo.create({
+                    file: targetEntity,
+                    ...(targetEntity.mission
+                        ? { mission: targetEntity.mission }
+                        : {}),
+                    ...(actor ? { actor } : {}), // Only set actor if explicitly provided
+                    type: FileEventType.TOPICS_EXTRACTED,
+                    filenameSnapshot: targetEntity.filename,
+                    details: {
+                        topicCount: meta.topics.length,
+                        extractedAt: new Date(),
+                    },
+                }),
+            );
         } catch (error) {
             logger.error(
                 `Metadata extraction failed for ${targetEntity.filename}: ${error}`,
             );
-            // We assume the caller handles the specific error state (like deleting temp files)
-            // but we mark the entity as corrupted/error here.
-            targetEntity.state = FileState.CONVERSION_ERROR; // Or CORRUPTED
+            targetEntity.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(targetEntity);
             throw error;
         }
