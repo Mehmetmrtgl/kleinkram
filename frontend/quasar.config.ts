@@ -69,16 +69,16 @@ export default defineConfig((/* ctx */) => {
 
             extendViteConf(viteConfig) {
                 viteConfig.optimizeDeps = viteConfig.optimizeDeps || {};
-                viteConfig.optimizeDeps.include = viteConfig.optimizeDeps.include || [];
+                viteConfig.optimizeDeps.include =
+                    viteConfig.optimizeDeps.include || [];
 
                 // FIX: Use the VALID package names
                 viteConfig.optimizeDeps.include.push(
                     '@foxglove/rosmsg',
-                    '@foxglove/rosmsg-serialization',   // ROS 1
-                    '@foxglove/rosmsg2-serialization',  // ROS 2 (CDR)
+                    '@foxglove/rosmsg-serialization', // ROS 1
+                    '@foxglove/rosmsg2-serialization', // ROS 2 (CDR)
                     '@mcap/core',
-                    'fzstd'
-
+                    'fzstd',
                 );
             },
             // viteVuePluginOptions: {},

@@ -2,7 +2,13 @@
     <div class="flex justify-between items-center q-mb-md">
         <h2 class="text-h4 q-my-none">All Messages</h2>
         <button-group>
-            <q-input v-model="filterKey" debounce="300" placeholder="Search" dense outlined>
+            <q-input
+                v-model="filterKey"
+                debounce="300"
+                placeholder="Search"
+                dense
+                outlined
+            >
                 <template #append><q-icon name="sym_o_search" /></template>
             </q-input>
 
@@ -34,7 +40,9 @@
         :columns="columns"
         :loading="isLoading"
         :filter="filterKey"
-        flat bordered separator="none"
+        flat
+        bordered
+        separator="none"
         row-key="name"
     >
         <template #header="props">
@@ -47,7 +55,11 @@
         </template>
 
         <template #body="props">
-            <q-tr :props="props" class="cursor-pointer" @click="props.expand = !props.expand">
+            <q-tr
+                :props="props"
+                class="cursor-pointer"
+                @click="props.expand = !props.expand"
+            >
                 <q-td auto-width>
                     <q-btn
                         size="sm"
@@ -55,7 +67,11 @@
                         round
                         dense
                         flat
-                        :icon="props.expand ? 'sym_o_keyboard_arrow_up' : 'sym_o_keyboard_arrow_down'"
+                        :icon="
+                            props.expand
+                                ? 'sym_o_keyboard_arrow_up'
+                                : 'sym_o_keyboard_arrow_down'
+                        "
                         @click.stop="props.expand = !props.expand"
                     />
                 </q-td>
@@ -70,7 +86,14 @@
                         <div class="row justify-between items-center q-mb-sm">
                             <div class="text-subtitle2 text-grey-8">
                                 Message Preview
-                                <q-badge align="top" color="warning" text-color="dark" label="BETA" class="q-ml-xs" style="font-size: 8px; padding: 2px 4px;" />
+                                <q-badge
+                                    align="top"
+                                    color="warning"
+                                    text-color="dark"
+                                    label="BETA"
+                                    class="q-ml-xs"
+                                    style="font-size: 8px; padding: 2px 4px"
+                                />
                             </div>
                             <q-btn
                                 v-if="!previews[props.row.name]"
@@ -83,35 +106,78 @@
                                 :loading="loadingState[props.row.name]"
                                 :disable="!readerReady"
                             >
-                                <q-tooltip v-if="!readerReady">Initializing Reader...</q-tooltip>
+                                <q-tooltip v-if="!readerReady"
+                                    >Initializing Reader...</q-tooltip
+                                >
                             </q-btn>
                         </div>
 
-                        <div v-if="loadingState[props.row.name]" class="row items-center q-gutter-sm text-grey-7 q-pa-sm">
+                        <div
+                            v-if="loadingState[props.row.name]"
+                            class="row items-center q-gutter-sm text-grey-7 q-pa-sm"
+                        >
                             <q-spinner-dots size="1.5em" />
                             <span>Fetching...</span>
                         </div>
 
                         <div v-else-if="previews[props.row.name]?.length > 0">
-                            <q-list dense separator class="rounded-borders bg-white">
-                                <q-item v-for="(msg, idx) in previews[props.row.name]" :key="idx" class="q-py-xs">
+                            <q-list
+                                dense
+                                separator
+                                class="rounded-borders bg-white"
+                            >
+                                <q-item
+                                    v-for="(msg, idx) in previews[
+                                        props.row.name
+                                    ]"
+                                    :key="idx"
+                                    class="q-py-xs"
+                                >
                                     <q-item-section>
-                                        <q-item-label caption class="row items-center">
-                                            <span class="text-weight-bold text-primary">
+                                        <q-item-label
+                                            caption
+                                            class="row items-center"
+                                        >
+                                            <span
+                                                class="text-weight-bold text-primary"
+                                            >
                                                 {{ formatLogTime(msg.logTime) }}
                                             </span>
-                                            <span class="q-mx-xs text-grey-4">|</span>
-                                            <span>{{ getByteLength(msg.data) }} bytes</span>
+                                            <span class="q-mx-xs text-grey-4"
+                                                >|</span
+                                            >
+                                            <span
+                                                >{{
+                                                    getByteLength(msg.data)
+                                                }}
+                                                bytes</span
+                                            >
                                         </q-item-label>
 
-                                        <div v-if="isJpegImage(msg.data)" class="q-mt-xs q-pa-sm bg-grey-2 rounded-borders" style="width: fit-content">
-                                            <img :src="getJpegSource(msg.data)" style="max-width: 100%; max-height: 300px; display: block;" />
-                                            <div class="text-caption text-grey-7 q-mt-xs">
+                                        <div
+                                            v-if="isJpegImage(msg.data)"
+                                            class="q-mt-xs q-pa-sm bg-grey-2 rounded-borders"
+                                            style="width: fit-content"
+                                        >
+                                            <img
+                                                :src="getJpegSource(msg.data)"
+                                                style="
+                                                    max-width: 100%;
+                                                    max-height: 300px;
+                                                    display: block;
+                                                "
+                                            />
+                                            <div
+                                                class="text-caption text-grey-7 q-mt-xs"
+                                            >
                                                 Format: {{ msg.data.format }}
                                             </div>
                                         </div>
 
-                                        <q-item-label v-else class="q-mt-xs text-code preview-code">
+                                        <q-item-label
+                                            v-else
+                                            class="q-mt-xs text-code preview-code"
+                                        >
                                             {{ formatPayload(msg.data) }}
                                         </q-item-label>
                                     </q-item-section>
@@ -119,8 +185,12 @@
                             </q-list>
                         </div>
 
-                        <div v-else-if="previews[props.row.name]" class="text-italic text-negative q-py-sm">
-                            <q-icon name="sym_o_warning" /> No messages found or failed to read.
+                        <div
+                            v-else-if="previews[props.row.name]"
+                            class="text-italic text-negative q-py-sm"
+                        >
+                            <q-icon name="sym_o_warning" /> No messages found or
+                            failed to read.
                         </div>
                     </div>
                 </q-td>
@@ -136,10 +206,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { QTableColumn } from 'quasar';
-import ButtonGroup from 'components/buttons/button-group.vue';
 import { FileType } from '@common/enum';
+import ButtonGroup from 'components/buttons/button-group.vue';
+import { QTableColumn } from 'quasar';
+import { ref } from 'vue';
 
 const props = defineProps<{
     file: any;
@@ -154,16 +224,34 @@ const emit = defineEmits(['load-preview', 'redirect-related']);
 const filterKey = ref('');
 
 const columns: QTableColumn[] = [
-    { name: 'Topic', label: 'Topic', field: 'name', sortable: true, align: 'left' },
-    { name: 'Datatype', label: 'Datatype', field: 'type', sortable: true, align: 'left' },
-    { name: 'NrMessages', label: 'NrMessages', field: 'nrMessages', sortable: true, align: 'left' },
+    {
+        name: 'Topic',
+        label: 'Topic',
+        field: 'name',
+        sortable: true,
+        align: 'left',
+    },
+    {
+        name: 'Datatype',
+        label: 'Datatype',
+        field: 'type',
+        sortable: true,
+        align: 'left',
+    },
+    {
+        name: 'NrMessages',
+        label: 'NrMessages',
+        field: 'nrMessages',
+        sortable: true,
+        align: 'left',
+    },
     {
         name: 'Frequency',
         label: 'Frequency',
         field: (row: any) => row.frequency || 0,
         sortable: true,
         format: (val: number) => Math.round(val * 100) / 100,
-        align: 'left'
+        align: 'left',
     },
 ];
 
@@ -176,7 +264,8 @@ function getByteLength(data: any): number {
     // Handle Uint8Array
     if (data instanceof Uint8Array) return data.byteLength;
     // Handle the object form {0: 255, 1: 216...}
-    if (data?.data && typeof data.data === 'object') return Object.keys(data.data).length;
+    if (data?.data && typeof data.data === 'object')
+        return Object.keys(data.data).length;
     return 0;
 }
 
@@ -210,7 +299,9 @@ function getJpegSource(msgData: any): string {
             // We can use Object.values, but we must ensure order.
             // Since keys are usually numeric indices, Object.values works in modern JS engines for array-like objects,
             // but creating an array of specific length is safer.
-            const keys = Object.keys(rawData).map(Number).sort((a, b) => a - b);
+            const keys = Object.keys(rawData)
+                .map(Number)
+                .sort((a, b) => a - b);
             bytes = new Uint8Array(keys.length);
             for (let i = 0; i < keys.length; i++) {
                 bytes[i] = rawData[keys[i]];
@@ -236,7 +327,9 @@ function getJpegSource(msgData: any): string {
 </script>
 
 <style scoped>
-.button-border { border: 1px solid #ddd; }
+.button-border {
+    border: 1px solid #ddd;
+}
 .preview-code {
     font-family: monospace;
     font-size: 11px;

@@ -30,23 +30,27 @@
 </template>
 
 <script setup lang="ts">
+import { copyToClipboard, Notify } from 'quasar';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { copyToClipboard, Notify } from 'quasar';
 
 // Hooks & Services
-import { registerNoPermissionErrorHandler, useFile, useFileEvents } from 'src/hooks/query-hooks';
+import { FileState } from '@common/enum';
+import { useMcapPreview } from 'src/composables/useMcapPreview';
+import {
+    registerNoPermissionErrorHandler,
+    useFile,
+    useFileEvents,
+} from 'src/hooks/query-hooks';
 import { useFileUUID } from 'src/hooks/router-hooks';
 import ROUTES from 'src/router/routes';
-import { downloadFile } from 'src/services/queries/file';
 import { _downloadFile } from 'src/services/generic';
-import { useMcapPreview } from 'src/composables/useMcapPreview';
-import { FileState } from '@common/enum';
+import { downloadFile } from 'src/services/queries/file';
 
 // Subcomponents
 import FileHeader from './file-header.vue';
-import FileTopicList from './file-topic-list.vue';
 import FileHistory from './file-history.vue';
+import FileTopicList from './file-topic-list.vue';
 
 const $router = useRouter();
 const fileUuid = useFileUUID();
@@ -64,20 +68,25 @@ const {
     topicLoadingState,
     init: initMcap,
     fetchTopicMessages,
-    formatPayload
+    formatPayload,
 } = useMcapPreview();
 
 const displayTopics = computed(() => file.value?.state === FileState.OK);
 
 // --- Actions ---
-const handleDownload = () => _downloadFile(file.value?.uuid ?? '', file.value?.filename ?? '');
+const handleDownload = () =>
+    _downloadFile(file.value?.uuid ?? '', file.value?.filename ?? '');
 const copyHash = () => copyToClipboard(file.value?.hash ?? '');
 const copyUuid = () => copyToClipboard(file.value?.uuid ?? '');
 
 async function copyPublicLink() {
     const link = await downloadFile(fileUuid.value ?? '', false);
     await copyToClipboard(link);
-    Notify.create({ message: 'Copied: Link valid for 7 days', color: 'positive', timeout: 2000 });
+    Notify.create({
+        message: 'Copied: Link valid for 7 days',
+        color: 'positive',
+        timeout: 2000,
+    });
 }
 
 async function redirectToRelated() {
@@ -96,7 +105,11 @@ onMounted(async () => {
     if (!fileUuid.value) return;
     try {
         // Only init MCAP reader if file is OK
-        if (file.value?.state !== FileState.OK && file.value?.state !== undefined) return;
+        if (
+            file.value?.state !== FileState.OK &&
+            file.value?.state !== undefined
+        )
+            return;
 
         const dynamicUrl = await downloadFile(fileUuid.value, false);
         await initMcap(dynamicUrl);

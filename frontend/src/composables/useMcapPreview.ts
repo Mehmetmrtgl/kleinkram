@@ -1,29 +1,39 @@
-import { reactive, ref, shallowRef } from 'vue';
-import { McapIndexedReader } from '@mcap/core';
-import { IReadable } from '@mcap/core/dist/cjs/src/types';
-import * as fzstd from 'fzstd';
 import { parse as parseMessageDefinition } from '@foxglove/rosmsg';
 import { MessageReader as Ros1MessageReader } from '@foxglove/rosmsg-serialization';
 import { MessageReader as CdrMessageReader } from '@foxglove/rosmsg2-serialization';
+import { McapIndexedReader } from '@mcap/core';
+import { IReadable } from '@mcap/core/dist/cjs/src/types';
+import * as fzstd from 'fzstd';
+import { reactive, ref, shallowRef } from 'vue';
 
 class HttpReadBuffer implements IReadable {
     private url: string;
     private fileSize: bigint | undefined;
-    constructor(url: string) { this.url = url; }
+    constructor(url: string) {
+        this.url = url;
+    }
 
     async size(): Promise<bigint> {
         if (this.fileSize !== undefined) return this.fileSize;
-        const response = await fetch(this.url, { headers: { Range: 'bytes=0-0' } });
+        const response = await fetch(this.url, {
+            headers: { Range: 'bytes=0-0' },
+        });
         if (!response.ok) throw new Error(`Failed to fetch size`);
 
         const contentRange = response.headers.get('Content-Range');
         if (contentRange) {
             const total = contentRange.split('/')[1];
-            if (total && total !== '*') { this.fileSize = BigInt(total); return this.fileSize; }
+            if (total && total !== '*') {
+                this.fileSize = BigInt(total);
+                return this.fileSize;
+            }
         }
         if (response.status === 200) {
             const len = response.headers.get('Content-Length');
-            if (len) { this.fileSize = BigInt(len); return this.fileSize; }
+            if (len) {
+                this.fileSize = BigInt(len);
+                return this.fileSize;
+            }
         }
         throw new Error('Could not determine file size');
     }
@@ -31,7 +41,9 @@ class HttpReadBuffer implements IReadable {
     async read(offset: bigint, size: bigint): Promise<Uint8Array> {
         if (size === 0n) return new Uint8Array(0);
         const end = offset + size - 1n;
-        const response = await fetch(this.url, { headers: { Range: `bytes=${offset}-${end}` } });
+        const response = await fetch(this.url, {
+            headers: { Range: `bytes=${offset}-${end}` },
+        });
         if (!response.ok) throw new Error(`Read failed`);
         return new Uint8Array(await response.arrayBuffer());
     }
@@ -55,8 +67,12 @@ export function useMcapPreview() {
                 readable: fileReader,
                 decompressHandlers: {
                     zstd: (buffer) => fzstd.decompress(buffer),
-                    lz4: () => { throw new Error('LZ4 not supported in preview'); },
-                    bz2: () => { throw new Error('BZ2 not supported in preview'); },
+                    lz4: () => {
+                        throw new Error('LZ4 not supported in preview');
+                    },
+                    bz2: () => {
+                        throw new Error('BZ2 not supported in preview');
+                    },
                 },
             });
             isReaderReady.value = true;
@@ -66,7 +82,11 @@ export function useMcapPreview() {
         }
     }
 
-    async function decodeMessage(reader: McapIndexedReader, schemaId: number, messageData: Uint8Array) {
+    async function decodeMessage(
+        reader: McapIndexedReader,
+        schemaId: number,
+        messageData: Uint8Array,
+    ) {
         let messageReader = readerCache.get(schemaId);
 
         if (!messageReader) {
@@ -74,8 +94,13 @@ export function useMcapPreview() {
             if (!schema) return `[Missing Schema ID: ${schemaId}]`;
 
             try {
-                const parsedDefinitions = parseMessageDefinition(new TextDecoder().decode(schema.data));
-                if (schema.encoding === 'ros1msg' || schema.encoding === 'ros1') {
+                const parsedDefinitions = parseMessageDefinition(
+                    new TextDecoder().decode(schema.data),
+                );
+                if (
+                    schema.encoding === 'ros1msg' ||
+                    schema.encoding === 'ros1'
+                ) {
                     messageReader = new Ros1MessageReader(parsedDefinitions);
                 } else if (['cdr', 'ros2msg'].includes(schema.encoding)) {
                     messageReader = new CdrMessageReader(parsedDefinitions);
@@ -95,20 +120,30 @@ export function useMcapPreview() {
         topicLoadingState[topicName] = true;
 
         try {
-            const iterator = await mcapReaderInstance.value.readMessages({ topics: [topicName] });
+            const iterator = await mcapReaderInstance.value.readMessages({
+                topics: [topicName],
+            });
             const msgs = [];
             let count = 0;
 
             for await (const msg of iterator) {
                 if (count >= 10) break;
                 let decodedData: any = msg.data;
-                const channel = mcapReaderInstance.value.channelsById.get(msg.channelId);
+                const channel = mcapReaderInstance.value.channelsById.get(
+                    msg.channelId,
+                );
 
                 if (channel && channel.schemaId > 0) {
                     try {
-                        const res = await decodeMessage(mcapReaderInstance.value, channel.schemaId, msg.data);
+                        const res = await decodeMessage(
+                            mcapReaderInstance.value,
+                            channel.schemaId,
+                            msg.data,
+                        );
                         if (res !== undefined) decodedData = res;
-                    } catch (e) { /* ignore decode fail */ }
+                    } catch (e) {
+                        /* ignore decode fail */
+                    }
                 }
                 msgs.push({ logTime: msg.logTime, data: decodedData });
                 count++;
@@ -125,10 +160,18 @@ export function useMcapPreview() {
     function formatPayload(data: any): string {
         if (!data) return '[Empty]';
         if (typeof data === 'object' && !(data instanceof Uint8Array)) {
-            const json = JSON.stringify(data, (_, v) => (Array.isArray(v) && v.length > 10 ? `[Array(${v.length})]` : v), 2);
+            const json = JSON.stringify(
+                data,
+                (_, v) =>
+                    Array.isArray(v) && v.length > 10
+                        ? `[Array(${v.length})]`
+                        : v,
+                2,
+            );
             return json.length > 500 ? json.substring(0, 500) + '...' : json;
         }
-        if (data instanceof Uint8Array) return `[Binary ${data.byteLength} bytes]`;
+        if (data instanceof Uint8Array)
+            return `[Binary ${data.byteLength} bytes]`;
         return String(data);
     }
 
@@ -139,6 +182,6 @@ export function useMcapPreview() {
         topicLoadingState,
         init,
         fetchTopicMessages,
-        formatPayload
+        formatPayload,
     };
 }

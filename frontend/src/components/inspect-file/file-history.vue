@@ -3,9 +3,22 @@
         <h2 class="text-h5 q-mb-sm text-grey-9">File Events</h2>
         <div v-if="events?.count && events.count > 0">
             <q-list bordered separator dense class="rounded-borders">
-                <q-item v-for="event in events.data" :key="event.uuid" class="q-py-sm" clickable>
-                    <q-item-section avatar class="q-pr-none" style="min-width: 30px;">
-                        <q-icon :name="getEventIcon(event.type)" size="xs" :color="getEventColor(event.type)" />
+                <q-item
+                    v-for="event in events.data"
+                    :key="event.uuid"
+                    class="q-py-sm"
+                    clickable
+                >
+                    <q-item-section
+                        avatar
+                        class="q-pr-none"
+                        style="min-width: 30px"
+                    >
+                        <q-icon
+                            :name="getEventIcon(event.type)"
+                            size="xs"
+                            :color="getEventColor(event.type)"
+                        />
                     </q-item-section>
                     <q-item-section>
                         <q-item-label>
@@ -23,7 +36,10 @@
                 </q-item>
             </q-list>
         </div>
-        <div v-else class="text-italic text-grey-6 q-pa-sm border-dashed text-center">
+        <div
+            v-else
+            class="text-italic text-grey-6 q-pa-sm border-dashed text-center"
+        >
             No file history available.
         </div>
     </div>
@@ -49,7 +65,8 @@ function formatEventType(type: FileEventType): string {
 
 function getEventIcon(type: string): string {
     if (type.includes('FAILED') || type.includes('ERROR')) return 'sym_o_error';
-    if (type.includes('COMPLETED') || type.includes('CREATED')) return 'sym_o_check_circle';
+    if (type.includes('COMPLETED') || type.includes('CREATED'))
+        return 'sym_o_check_circle';
     if (type.includes('DOWNLOAD')) return 'sym_o_download';
     if (type.includes('UPLOAD')) return 'sym_o_upload';
     if (type.includes('DELETE')) return 'sym_o_delete';
@@ -58,7 +75,8 @@ function getEventIcon(type: string): string {
 
 function getEventColor(type: string): string {
     if (type.includes('FAILED') || type.includes('ERROR')) return 'negative';
-    if (type.includes('COMPLETED') || type.includes('CREATED')) return 'positive';
+    if (type.includes('COMPLETED') || type.includes('CREATED'))
+        return 'positive';
     if (type.includes('DELETE')) return 'grey-6';
     return 'primary';
 }
