@@ -349,4 +349,13 @@ export class FileController {
     ): Promise<FileEventsDto> {
         return this.fileService.getFileEvents(uuid);
     }
+
+    @Post('reextractTopics')
+    @AdminOnly()
+    @OutputDto(null) // TODO: type API response
+    async reextractTopics(): Promise<{ count: number }> {
+        logger.debug('Triggering manual topic extraction for missing files');
+        const count = await this.fileService.reextractMissingTopics();
+        return { count };
+    }
 }

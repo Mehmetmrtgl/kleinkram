@@ -1171,4 +1171,26 @@ export class FileService implements OnModuleInit {
             }),
         );
     }
+
+    async reextractMissingTopics(): Promise<number> {
+        const filesToFix = await this.fileRepository
+            .createQueryBuilder('file')
+            .leftJoin('file.topics', 'topic')
+            .where('file.type = :type', { type: FileType.BAG })
+            .andWhere('file.state = :state', { state: FileState.OK })
+            .andWhere('topic.uuid IS NULL')
+            .select(['file.uuid', 'file.filename'])
+            .getMany();
+
+        logger.debug(`Found ${filesToFix.length} bag files missing topics.`);
+
+        for (const file of filesToFix) {
+            await this.fileCleanupQueue.add('extract-topics-repair', {
+                fileUuid: file.uuid,
+                filename: file.filename,
+            });
+        }
+
+        return filesToFix.length;
+    }
 }

@@ -18,6 +18,7 @@ import TopicEntity from '@common/entities/topic/topic.entity';
 import WorkerEntity from '@common/entities/worker/worker.entity';
 import { StorageModule } from '@common/modules/storage/storage.module';
 import { FileQueueProcessorProvider } from './file-queue-processor.provider';
+import { FileRepairProcessor } from './file-repair.consumer';
 import { RosBagHandler } from './handlers/bag.hander';
 import { METRIC_PROVIDERS } from './handlers/file-processor.metrics';
 import { McapMetadataService } from './handlers/mcap-metadata.service';
@@ -39,6 +40,7 @@ import { RosBagMetadataService } from './handlers/rosbag-metadata.service';
     ],
     providers: [
         FileQueueProcessorProvider,
+        FileRepairProcessor,
         FileIngestionService,
         GoogleDriveStrategy,
         MinioStrategy,
