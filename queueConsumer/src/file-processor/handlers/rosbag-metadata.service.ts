@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fsPromises from 'node:fs/promises';
 import { Repository } from 'typeorm';
-import { AbstractMetadataService } from './abstract-metadata.service'; // Import Base
+import { AbstractMetadataService } from './abstract-metadata.service';
 import { ExtractedTopicInfo } from './file-handler.interface';
 
 class LocalBagReader {
