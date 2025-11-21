@@ -4,7 +4,7 @@ import { MessageReader as CdrMessageReader } from '@foxglove/rosmsg2-serializati
 import { McapIndexedReader } from '@mcap/core';
 import { IReadable } from '@mcap/core/dist/cjs/src/types';
 import * as fzstd from 'fzstd';
-import { reactive, ref, shallowRef } from 'vue';
+import { reactive, Ref, ref, shallowRef } from 'vue';
 
 class HttpReadBuffer implements IReadable {
     private url: string;
@@ -29,9 +29,9 @@ class HttpReadBuffer implements IReadable {
             }
         }
         if (response.status === 200) {
-            const len = response.headers.get('Content-Length');
-            if (len) {
-                this.fileSize = BigInt(len);
+            const length_ = response.headers.get('Content-Length');
+            if (length_) {
+                this.fileSize = BigInt(length_);
                 return this.fileSize;
             }
         }
@@ -49,8 +49,44 @@ class HttpReadBuffer implements IReadable {
     }
 }
 
+function formatPayload(data: any): string {
+    if (!data) return '[Empty]';
+
+    // 1. Handle Decoded Objects (JSON)
+    if (typeof data === 'object' && !(data instanceof Uint8Array)) {
+        const json = JSON.stringify(
+            data,
+            (_, v) =>
+                Array.isArray(v) && v.length > 10 ? `[Array(${v.length})]` : v,
+            2,
+        );
+        return json.length > 500 ? `${json.slice(0, 500)}...` : json;
+    }
+
+    // 2. Handle Binary Data (Uint8Array) with Hex Preview
+    if (data instanceof Uint8Array) {
+        const maxBytes = 12; // Number of bytes to preview
+        const hex = [...data.subarray(0, maxBytes)]
+            .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
+            .join(' ');
+
+        const suffix = data.length > maxBytes ? '...' : '';
+        return `[Binary ${data.byteLength} bytes] <${hex}${suffix}>`;
+    }
+
+    return String(data);
+}
+
 // --- Composable ---
-export function useMcapPreview() {
+export function useMcapPreview(): {
+    isReaderReady: Ref<boolean, boolean>;
+    readerError: Ref<string | null, string | null>;
+    topicPreviews: Record<string, any[]>;
+    topicLoadingState: Record<string, boolean>;
+    init: (url: string) => Promise<void>;
+    fetchTopicMessages: (topicName: string) => Promise<void>;
+    formatPayload: (data: any) => string;
+} {
     const isReaderReady = ref(false);
     const readerError = ref<string | null>(null);
     const topicPreviews = reactive<Record<string, any[]>>({});
@@ -60,7 +96,7 @@ export function useMcapPreview() {
     const mcapReaderInstance = shallowRef<McapIndexedReader | null>(null);
     const readerCache = new Map<number, any>();
 
-    async function init(url: string) {
+    async function init(url: string): Promise<void> {
         try {
             const fileReader = new HttpReadBuffer(url);
             mcapReaderInstance.value = await McapIndexedReader.Initialize({
@@ -76,9 +112,9 @@ export function useMcapPreview() {
                 },
             });
             isReaderReady.value = true;
-        } catch (err: any) {
-            console.error('Failed to init MCAP reader:', err);
-            readerError.value = `Preview init failed: ${err.message}`;
+        } catch (error: any) {
+            console.error('Failed to init MCAP reader:', error);
+            readerError.value = `Preview init failed: ${error.message}`;
         }
     }
 
@@ -86,12 +122,13 @@ export function useMcapPreview() {
         reader: McapIndexedReader,
         schemaId: number,
         messageData: Uint8Array,
-    ) {
+    ): Promise<any> {
         let messageReader = readerCache.get(schemaId);
 
         if (!messageReader) {
             const schema = reader.schemasById.get(schemaId);
-            if (!schema) return `[Missing Schema ID: ${schemaId}]`;
+            // Return undefined to fallback to binary view if schema is missing
+            if (!schema) return;
 
             try {
                 const parsedDefinitions = parseMessageDefinition(
@@ -105,74 +142,64 @@ export function useMcapPreview() {
                 } else if (['cdr', 'ros2msg'].includes(schema.encoding)) {
                     messageReader = new CdrMessageReader(parsedDefinitions);
                 } else {
-                    return undefined;
+                    return;
                 }
                 readerCache.set(schemaId, messageReader);
-            } catch (e: any) {
-                return `[Schema Error: ${e.message}]`;
+            } catch {
+                return;
             }
         }
-        return messageReader.readMessage(messageData);
+
+        // Safety check if reader creation failed silently
+        if (!messageReader) return;
+
+        try {
+            return messageReader.readMessage(messageData);
+        } catch {
+            return;
+        }
     }
 
-    async function fetchTopicMessages(topicName: string) {
+    async function fetchTopicMessages(topicName: string): Promise<void> {
         if (!mcapReaderInstance.value) return;
         topicLoadingState[topicName] = true;
 
         try {
-            const iterator = await mcapReaderInstance.value.readMessages({
+            const iterator = mcapReaderInstance.value.readMessages({
                 topics: [topicName],
             });
             const msgs = [];
             let count = 0;
 
-            for await (const msg of iterator) {
+            for await (const message of iterator) {
                 if (count >= 10) break;
-                let decodedData: any = msg.data;
+                let decodedData: any = message.data;
                 const channel = mcapReaderInstance.value.channelsById.get(
-                    msg.channelId,
+                    message.channelId,
                 );
 
                 if (channel && channel.schemaId > 0) {
                     try {
-                        const res = await decodeMessage(
+                        const result = await decodeMessage(
                             mcapReaderInstance.value,
                             channel.schemaId,
-                            msg.data,
+                            message.data,
                         );
-                        if (res !== undefined) decodedData = res;
-                    } catch (e) {
+                        if (result !== undefined) decodedData = result;
+                    } catch {
                         /* ignore decode fail */
                     }
                 }
-                msgs.push({ logTime: msg.logTime, data: decodedData });
+                msgs.push({ logTime: message.logTime, data: decodedData });
                 count++;
             }
             topicPreviews[topicName] = msgs;
-        } catch (err) {
-            console.error(`Error reading topic ${topicName}:`, err);
+        } catch (error: unknown) {
+            console.error(`Error reading topic ${topicName}:`, error);
             topicPreviews[topicName] = [];
         } finally {
             topicLoadingState[topicName] = false;
         }
-    }
-
-    function formatPayload(data: any): string {
-        if (!data) return '[Empty]';
-        if (typeof data === 'object' && !(data instanceof Uint8Array)) {
-            const json = JSON.stringify(
-                data,
-                (_, v) =>
-                    Array.isArray(v) && v.length > 10
-                        ? `[Array(${v.length})]`
-                        : v,
-                2,
-            );
-            return json.length > 500 ? json.substring(0, 500) + '...' : json;
-        }
-        if (data instanceof Uint8Array)
-            return `[Binary ${data.byteLength} bytes]`;
-        return String(data);
     }
 
     return {

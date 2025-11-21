@@ -211,7 +211,7 @@ import ButtonGroup from 'components/buttons/button-group.vue';
 import { QTableColumn } from 'quasar';
 import { ref } from 'vue';
 
-const props = defineProps<{
+defineProps<{
     file: any;
     isLoading: boolean;
     readerReady: boolean;
