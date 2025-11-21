@@ -120,9 +120,7 @@ const isSupportedBinary = computed(() => {
     if (!file.value) return false;
     const isBagType = file.value.type === FileType.BAG;
     const isMcapType = file.value.type === FileType.MCAP;
-
-    const isDatabase3 = fileExtension.value === 'db3';
-
+    const isDatabase3 = file.value.type === FileType.DB3;
     return (isBagType || isMcapType) && !isDatabase3;
 });
 
