@@ -135,22 +135,18 @@
                                 (previews?.[props.row.name]?.length ?? 0) > 0
                             "
                         >
-                            <q-list
-                                dense
-                                separator
-                                class="rounded-borders bg-white"
-                            >
+                            <q-list separator class="rounded-borders bg-white">
                                 <q-item
                                     v-for="(msg, idx) in previews[
                                         props.row.name
                                     ]"
                                     :key="idx"
-                                    class="q-py-xs"
+                                    class="q-py-md"
                                 >
                                     <q-item-section>
                                         <q-item-label
                                             caption
-                                            class="row items-center"
+                                            class="row items-center q-mb-xs"
                                         >
                                             <span
                                                 class="text-weight-bold text-primary"
@@ -202,6 +198,23 @@
                                     </q-item-section>
                                 </q-item>
                             </q-list>
+
+                            <div
+                                v-if="
+                                    props.row.nrMessages >
+                                    (previews[props.row.name]?.length ?? 0)
+                                "
+                                class="text-center q-pa-md text-grey-7 text-caption"
+                            >
+                                <q-icon name="sym_o_more_horiz" size="sm" />
+                                <div class="q-mt-xs">
+                                    +{{
+                                        props.row.nrMessages -
+                                        (previews[props.row.name]?.length ?? 0)
+                                    }}
+                                    more messages in file
+                                </div>
+                            </div>
                         </div>
 
                         <div
