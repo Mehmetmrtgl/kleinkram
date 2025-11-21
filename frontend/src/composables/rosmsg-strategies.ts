@@ -83,13 +83,14 @@ export class McapStrategy implements LogStrategy {
 
 // --- Rosbag Implementation ---
 export class RosbagStrategy implements LogStrategy {
-    private bag: Bag | null = null;
+    private bag: Bag | undefined = undefined;
 
     async init(httpReader: UniversalHttpReader): Promise<void> {
         // Bag requires a reader object with { read, size } where size is a number
         const bagReader = {
-            read: (o: number, l: number) => httpReader.read(o, l),
-            size: () => httpReader.sizeBytes,
+            read: (o: number, l: number): Promise<Uint8Array> =>
+                httpReader.read(o, l),
+            size: (): number => httpReader.sizeBytes,
         };
         this.bag = new Bag(bagReader);
         await this.bag.open();
@@ -102,7 +103,7 @@ export class RosbagStrategy implements LogStrategy {
 
         // Helper to convert generic timestamp to bigint
         // eslint-disable-next-line unicorn/consistent-function-scoping
-        const toNano = (t: any) =>
+        const toNano = (t: { sec: number; nsec: number }): bigint =>
             BigInt(t.sec) * 1_000_000_000n + BigInt(t.nsec);
 
         for await (const result of iterator) {
