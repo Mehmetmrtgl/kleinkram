@@ -4,9 +4,6 @@
 import { defineConfig } from '#q-app/wrappers';
 import { fileURLToPath } from 'node:url';
 
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-
 export default defineConfig((/* ctx */) => {
     return {
         // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature

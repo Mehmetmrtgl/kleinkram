@@ -78,7 +78,7 @@ function formatEventType(type: FileEventType): string {
     return map[type] ?? type;
 }
 
-function getEventIcon(type: string): string {
+function getEventIcon(type: FileEventType): string {
     if (type.includes('FAILED') || type.includes('ERROR')) return 'sym_o_error';
     if (type.includes('COMPLETED') || type.includes('CREATED'))
         return 'sym_o_check_circle';

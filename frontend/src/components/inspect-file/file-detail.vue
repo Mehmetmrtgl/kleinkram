@@ -1,5 +1,6 @@
 <template>
     <FileHeader
+        v-if="file"
         :file="file"
         @download="handleDownload"
         @copy-link="copyPublicLink"
@@ -7,36 +8,46 @@
         @copy-uuid="copyUuid"
     />
 
-    <div class="q-my-lg">
-        <div v-if="displayTopics">
+    <div class="q-my-lg" v-if="file">
+        <div v-if="displayTopics && activeReader">
             <FileTopicList
                 :file="file"
                 :is-loading="isLoading"
-                :reader-ready="isReaderReady"
-                :previews="topicPreviews"
-                :loading-state="topicLoadingState"
-                :format-payload="formatPayload"
-                @load-preview="fetchTopicMessages"
+                :reader-ready="activeReader.isReaderReady.value"
+                :previews="activeReader.topicPreviews"
+                :loading-state="activeReader.topicLoadingState"
+                :format-payload="activeReader.formatPayload"
+                @load-preview="activeReader.fetchTopicMessages"
                 @redirect-related="redirectToRelated"
             />
         </div>
 
         <FileHistory :events="events" />
 
-        <div v-if="readerError" class="q-my-md text-negative text-center">
-            <q-icon name="sym_o_warning" /> {{ readerError }}
+        <div
+            v-if="activeReader?.readerError.value"
+            class="q-my-md text-negative text-center"
+        >
+            <q-icon name="sym_o_warning" />
+            {{ activeReader.readerError.value }}
         </div>
+    </div>
+
+    <div v-else class="text-center q-pa-md">
+        <q-spinner size="3em" color="primary" />
+        <div class="text-grey q-mt-sm">Loading file details...</div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { copyToClipboard, Notify } from 'quasar';
-import { computed, onMounted } from 'vue';
+import { computed, watch } from 'vue'; // Changed onMounted to watch
 import { useRouter } from 'vue-router';
 
 // Hooks & Services
-import { FileState } from '@common/enum';
-import { useMcapPreview } from 'src/composables/useMcapPreview';
+import { FileState, FileType } from '@common/enum';
+import { useMcapPreview } from 'src/composables/use-mcap-preview';
+import { useRosbagPreview } from 'src/composables/use-rosbag-preview';
 import {
     registerNoPermissionErrorHandler,
     useFile,
@@ -60,18 +71,58 @@ const { isLoading, data: file, error, isLoadingError } = useFile(fileUuid);
 registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 const { data: events } = useFileEvents(fileUuid);
 
-// --- MCAP Logic ---
-const {
-    isReaderReady,
-    readerError,
-    topicPreviews,
-    topicLoadingState,
-    init: initMcap,
-    fetchTopicMessages,
-    formatPayload,
-} = useMcapPreview();
+// --- Preview Logic ---
+const mcapPreview = useMcapPreview();
+const rosbagPreview = useRosbagPreview();
+
+// 1. Computed Reader Selector
+// Returns NULL if the file isn't loaded yet, preventing early initialization.
+const activeReader = computed(() => {
+    if (!file.value) return null;
+
+    if (file.value.type === FileType.BAG) {
+        return rosbagPreview;
+    }
+    // Default to MCAP only if we are sure it's not a BAG
+    return mcapPreview;
+});
 
 const displayTopics = computed(() => file.value?.state === FileState.OK);
+
+// --- Initialization Logic ---
+// 2. Use `watch` instead of `onMounted`.
+// This waits for 'file' to be populated from the API before doing anything.
+watch(
+    () => [file.value, activeReader.value] as const,
+    async ([currentFile, currentReader]) => {
+        // Guard clauses:
+        // - File must exist
+        // - Reader must be selected
+        // - File state must be OK
+        // - Reader shouldn't already be ready (prevent double init)
+        if (
+            !currentFile ||
+            !currentReader ||
+            currentFile.state !== FileState.OK ||
+            currentReader.isReaderReady.value
+        ) {
+            return;
+        }
+
+        try {
+            console.log(`Initializing preview for ${currentFile.type}...`);
+            const dynamicUrl = await downloadFile(
+                currentFile.uuid,
+                false,
+                true,
+            );
+            await currentReader.init(dynamicUrl);
+        } catch (e) {
+            console.error('Error setting up preview:', e);
+        }
+    },
+    { immediate: true },
+);
 
 // --- Actions ---
 const handleDownload = (): Promise<void> =>
@@ -80,7 +131,8 @@ const copyHash = (): Promise<void> => copyToClipboard(file.value?.hash ?? '');
 const copyUuid = (): Promise<void> => copyToClipboard(file.value?.uuid ?? '');
 
 async function copyPublicLink(): Promise<void> {
-    const link = await downloadFile(fileUuid.value ?? '', false);
+    if (!fileUuid.value) return;
+    const link = await downloadFile(fileUuid.value, false);
     await copyToClipboard(link);
     Notify.create({
         message: 'Copied: Link valid for 7 days',
@@ -100,21 +152,4 @@ async function redirectToRelated(): Promise<void> {
         },
     });
 }
-
-onMounted(async () => {
-    if (!fileUuid.value) return;
-    try {
-        // Only init MCAP reader if file is OK
-        if (
-            file.value?.state !== FileState.OK &&
-            file.value?.state !== undefined
-        )
-            return;
-
-        const dynamicUrl = await downloadFile(fileUuid.value, false, true);
-        await initMcap(dynamicUrl);
-    } catch (downloading_error: unknown) {
-        console.error('Error setting up preview:', downloading_error);
-    }
-});
 </script>

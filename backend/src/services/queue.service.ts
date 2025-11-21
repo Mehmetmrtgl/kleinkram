@@ -66,7 +66,7 @@ class QueueService implements OnModuleInit {
         private failedJobs: Gauge,
     ) {}
 
-    async onModuleInit(): Promise<void> {
+    onModuleInit(): void {
         this.fileQueue = new Queue('file-queue', { redis });
         logger.debug('File Queue initialized');
     }
@@ -179,7 +179,7 @@ class QueueService implements OnModuleInit {
 
         const fileInfo = await this.storageService
             .getFileInfo(env.MINIO_DATA_BUCKET_NAME, file.uuid)
-            .catch(async () => {
+            .catch((): void => {
                 throw new ConflictException('File not found in Minio');
             });
 
@@ -294,7 +294,7 @@ class QueueService implements OnModuleInit {
         if (file) {
             await this.storageService
                 .deleteFile(env.MINIO_DATA_BUCKET_NAME, file.uuid)
-                .catch((error) => logger.log(error));
+                .catch((error: any) => logger.log(error));
             await this.fileRepository.remove(file);
 
             if (file.type === FileType.BAG) {
@@ -307,7 +307,7 @@ class QueueService implements OnModuleInit {
                 if (mcap) {
                     await this.storageService
                         .deleteFile(env.MINIO_DATA_BUCKET_NAME, mcap.uuid)
-                        .catch((error) => logger.log(error));
+                        .catch((error: any) => logger.log(error));
                     await this.fileRepository.remove(mcap);
                 }
             }

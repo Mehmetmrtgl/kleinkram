@@ -58,7 +58,7 @@
             <q-tr
                 :props="props"
                 class="cursor-pointer"
-                @click="props.expand = !props.expand"
+                @click="() => (props.expand = !props.expand)"
             >
                 <q-td auto-width>
                     <q-btn
@@ -72,7 +72,7 @@
                                 ? 'sym_o_keyboard_arrow_up'
                                 : 'sym_o_keyboard_arrow_down'
                         "
-                        @click.stop="props.expand = !props.expand"
+                        @click.stop="() => (props.expand = !props.expand)"
                     />
                 </q-td>
                 <q-td v-for="col in props.cols" :key="col.name" :props="props">
@@ -102,7 +102,9 @@
                                 color="primary"
                                 outline
                                 icon="sym_o_download"
-                                @click="emit('load-preview', props.row.name)"
+                                @click="
+                                    () => emit('load-preview', props.row.name)
+                                "
                                 :loading="loadingState[props.row.name]"
                                 :disable="!readerReady"
                             >
@@ -120,7 +122,11 @@
                             <span>Fetching...</span>
                         </div>
 
-                        <div v-else-if="previews[props.row.name]?.length > 0">
+                        <div
+                            v-else-if="
+                                (previews?.[props.row.name]?.length ?? 0) > 0
+                            "
+                        >
                             <q-list
                                 dense
                                 separator
@@ -250,7 +256,7 @@ const columns: QTableColumn[] = [
         label: 'Frequency',
         field: (row: any) => row.frequency || 0,
         sortable: true,
-        format: (val: number) => Math.round(val * 100) / 100,
+        format: (value: number) => String(Math.round(value * 100) / 100),
         align: 'left',
     },
 ];
@@ -272,12 +278,14 @@ function getByteLength(data: any): number {
 /**
  * Checks if the message is a compressed image with jpeg format
  */
-function isJpegImage(msgData: any): boolean {
-    if (!msgData) return false;
+function isJpegImage(messageData: any): boolean {
+    if (!messageData) return false;
     // Check for standard ROS CompressedImage fields
-    const hasFormat = msgData.format && typeof msgData.format === 'string';
-    const isJpeg = hasFormat && msgData.format.toLowerCase().includes('jpeg');
-    const hasData = msgData.data !== undefined;
+    const hasFormat =
+        messageData.format && typeof messageData.format === 'string';
+    const isJpeg =
+        hasFormat && messageData.format.toLowerCase().includes('jpeg');
+    const hasData = messageData.data !== undefined;
 
     return isJpeg && hasData;
 }
@@ -285,10 +293,10 @@ function isJpegImage(msgData: any): boolean {
 /**
  * Converts the message data into a Base64 string for the img src
  */
-function getJpegSource(msgData: any): string {
+function getJpegSource(messageData: any): string {
     try {
         let bytes: Uint8Array | null = null;
-        const rawData = msgData.data;
+        const rawData = messageData.data;
 
         if (rawData instanceof Uint8Array) {
             bytes = rawData;
@@ -303,8 +311,8 @@ function getJpegSource(msgData: any): string {
                 .map(Number)
                 .sort((a, b) => a - b);
             bytes = new Uint8Array(keys.length);
-            for (let i = 0; i < keys.length; i++) {
-                bytes[i] = rawData[keys[i]];
+            for (const [index, key] of keys.entries()) {
+                bytes[index] = rawData[key];
             }
         }
 
@@ -312,15 +320,15 @@ function getJpegSource(msgData: any): string {
 
         // Convert Uint8Array to Binary String
         let binary = '';
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
+        const length_ = bytes.byteLength;
+        for (let index = 0; index < length_; index++) {
+            binary += String.fromCodePoint(bytes[index] ?? 0);
         }
 
         // Convert to Base64
-        return `data:image/jpeg;base64,${window.btoa(binary)}`;
-    } catch (e) {
-        console.error('Failed to render JPEG preview', e);
+        return `data:image/jpeg;base64,${globalThis.btoa(binary)}`;
+    } catch (error) {
+        console.error('Failed to render JPEG preview', error);
         return '';
     }
 }

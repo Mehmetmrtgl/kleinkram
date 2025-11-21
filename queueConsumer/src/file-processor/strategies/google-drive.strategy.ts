@@ -17,7 +17,7 @@ export class GoogleDriveStrategy implements FileSourceStrategy {
         this.drive = google.drive({ version: 'v3', auth });
     }
 
-    supports(location: string): boolean {
+    supports(location: FileLocation): boolean {
         return location === FileLocation.DRIVE;
     }
 

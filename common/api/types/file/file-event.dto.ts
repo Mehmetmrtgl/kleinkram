@@ -1,5 +1,3 @@
-import { UserDto } from '@common/api/types/user.dto';
-import { FileEventType } from '@common/frontend_shared/enum';
 import { Type } from 'class-transformer';
 import {
     IsArray,
@@ -11,6 +9,8 @@ import {
     IsUUID,
     ValidateNested,
 } from 'class-validator';
+import { FileEventType } from '../../../frontend_shared/enum';
+import { UserDto } from '../user.dto';
 
 export class FileEventDto {
     @IsUUID()

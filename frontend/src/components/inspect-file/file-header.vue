@@ -11,7 +11,7 @@
                         icon="sym_o_download"
                         label="Download"
                         :disable="isDownloadDisabled"
-                        @click="emit('download')"
+                        @click="handleDownload"
                     />
 
                     <q-btn
@@ -27,7 +27,7 @@
                                     clickable
                                     v-ripple
                                     :disable="isInvalid"
-                                    @click="emit('copy-link')"
+                                    @click="handleCopyLink"
                                 >
                                     <q-item-section avatar
                                         ><q-icon name="sym_o_content_copy"
@@ -40,7 +40,7 @@
                                     clickable
                                     v-ripple
                                     :disable="!file?.hash"
-                                    @click="emit('copy-hash')"
+                                    @click="handleCopyHash"
                                 >
                                     <q-item-section avatar
                                         ><q-icon name="sym_o_encrypted"
@@ -50,7 +50,7 @@
                                 <q-item
                                     clickable
                                     v-ripple
-                                    @click="emit('copy-uuid')"
+                                    @click="handleCopyUuid"
                                 >
                                     <q-item-section avatar
                                         ><q-icon name="sym_o_fingerprint"
@@ -171,19 +171,35 @@ import {
 } from 'src/services/generic';
 import { computed } from 'vue';
 
-const props = defineProps<{ file: any }>();
+const properties = defineProps<{ file: any }>();
 const emit = defineEmits(['download', 'copy-link', 'copy-hash', 'copy-uuid']);
 
 const isDownloadDisabled = computed(() =>
     [FileState.LOST, FileState.UPLOADING].includes(
-        props.file?.state ?? FileState.LOST,
+        properties.file?.state ?? FileState.LOST,
     ),
 );
 const isInvalid = computed(
     () =>
-        props.file?.state === FileState.LOST ||
-        props.file?.state === FileState.ERROR,
+        properties.file?.state === FileState.LOST ||
+        properties.file?.state === FileState.ERROR,
 );
+
+const handleDownload = () => {
+    emit('download');
+};
+
+const handleCopyLink = () => {
+    emit('copy-link');
+};
+
+const handleCopyHash = () => {
+    emit('copy-hash');
+};
+
+const handleCopyUuid = () => {
+    emit('copy-uuid');
+};
 </script>
 
 <style scoped>

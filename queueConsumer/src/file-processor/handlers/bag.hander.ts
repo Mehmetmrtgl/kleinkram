@@ -97,11 +97,7 @@ export class RosBagHandler implements FileHandler {
         );
 
         // CHANGED: Removed job.creator to allow "System" actor
-        await this.mcapMetadataService.extractAndPersist(
-            mcapPath,
-            primaryFile,
-            undefined,
-        );
+        await this.mcapMetadataService.extractAndPersist(mcapPath, primaryFile);
 
         await fsPromises.unlink(mcapPath);
         logger.debug(`Temporary MCAP deleted for ${primaryFile.filename}`);
@@ -131,7 +127,6 @@ export class RosBagHandler implements FileHandler {
             await this.mcapMetadataService.extractAndPersist(
                 mcapPath,
                 savedMcapEntity,
-                undefined,
             );
 
             savedMcapEntity.hash = await calculateFileHash(mcapPath);
@@ -186,7 +181,7 @@ export class RosBagHandler implements FileHandler {
                     },
                 }),
             );
-        } catch (error) {
+        } catch (error: unknown) {
             savedMcapEntity.state = FileState.CONVERSION_ERROR;
             await this.fileRepo.save(savedMcapEntity);
             throw error;
