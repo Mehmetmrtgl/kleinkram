@@ -48,14 +48,29 @@
                 class="q-py-md bg-grey-1 text-center"
             >
                 <q-item-section>
-                    <div class="text-caption text-grey-7">
-                        <q-icon name="sym_o_info" size="xs" class="q-mr-xs" />
-                        Showing first {{ messages.length }} messages.
-                        <span class="text-weight-bold">
-                            {{ totalCount - messages.length }} additional
-                            messages
-                        </span>
-                        are available (hidden for performance).
+                    <div class="row justify-center items-center q-gutter-sm">
+                        <div class="text-caption text-grey-7">
+                            <q-icon
+                                name="sym_o_info"
+                                size="xs"
+                                class="q-mr-xs"
+                            />
+                            Showing first {{ messages.length }} messages.
+                            <span class="text-weight-bold">
+                                {{ totalCount - messages.length }} additional
+                                messages
+                            </span>
+                            are available.
+                        </div>
+                        <q-btn
+                            label="Load more"
+                            icon="sym_o_download"
+                            size="sm"
+                            flat
+                            color="primary"
+                            dense
+                            @click="$emit('load-more')"
+                        />
                     </div>
                 </q-item-section>
             </q-item>
@@ -72,10 +87,9 @@ const properties = defineProps<{
     totalCount: number;
     topicName: string;
 }>();
-const emit = defineEmits(['load-required']);
+const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    // Only trigger load if completely empty
     if (!properties.messages || properties.messages.length === 0)
         emit('load-required');
 });

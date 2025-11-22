@@ -68,8 +68,10 @@
                                     loadingState[props.row.name] || false
                                 "
                                 :error="topicErrors[props.row.name] || null"
+                                :topic-size="props.row.size"
+                                :protocol="props.row.protocol"
                                 @load-required="() => loadSmart(props.row)"
-                                @load-more="() => loadData(props.row.name, 20)"
+                                @load-more="() => loadMore(props.row.name)"
                             />
                         </div>
                     </q-td>
@@ -144,15 +146,49 @@ const columns: QTableColumn[] = [
     },
 ];
 
-// Directly load specific count
+// Directly load specific count (Base function)
 const loadData = (topic: string, count: number): void => {
     emit('load-preview', topic, count);
 };
 
-// Smart load based on message type
+// In file-topic-table.vue > script > loadSmart
+
 const loadSmart = (row: any): void => {
     const type = detectPreviewType(row.type);
-    const limit = type === PreviewType.IMAGE ? row.nrMessages : 5;
-    emit('load-preview', row.name, limit);
+
+    // 1. Full Load (Visual Plots / Images)
+    if (
+        type === PreviewType.IMAGE ||
+        type === PreviewType.TWIST ||
+        type === PreviewType.TEMPERATURE
+    ) {
+        loadData(row.name, row.nrMessages);
+        return;
+    }
+
+    // 2. Medium Load (Logs)
+    if (
+        type === PreviewType.ROS_LOG ||
+        type === PreviewType.TIME_REFERENCE ||
+        type === PreviewType.STRING
+    ) {
+        loadData(row.name, 100);
+        return;
+    }
+
+    // 3. Strict Load (Heavy Binary)
+    if (type === PreviewType.POINT_CLOUD) {
+        loadData(row.name, 1);
+        return;
+    }
+
+    // 4. Default
+    loadData(row.name, 5);
+};
+
+// Incremental Load (Load More button)
+const loadMore = (topicName: string): void => {
+    const currentCount = properties.previews[topicName]?.length || 0;
+    loadData(topicName, currentCount + 20);
 };
 </script>

@@ -4,17 +4,21 @@
             <div class="text-subtitle2 text-grey-8 flex items-center">
                 {{ topicName }}
                 <q-badge color="grey-4" text-color="black" class="q-ml-sm">{{
-                        messageType
-                    }}</q-badge>
+                    messageType
+                }}</q-badge>
             </div>
-            <q-btn
-                v-if="hasData && !isImage"
-                label="Load More"
-                size="sm"
-                flat
-                color="primary"
-                @click="$emit('load-more')"
-            />
+
+            <q-badge
+                color="orange-7"
+                text-color="white"
+                label="BETA"
+                class="text-weight-bold cursor-help"
+                style="font-size: 10px; padding: 2px 6px"
+            >
+                <q-tooltip>
+                    Preview functionality is currently in beta.
+                </q-tooltip>
+            </q-badge>
         </div>
 
         <div
@@ -39,6 +43,7 @@
             :topic-name="topicName"
             :total-count="totalCount"
             @load-required="$emit('load-required')"
+            @load-more="$emit('load-more')"
         />
 
         <div
@@ -62,7 +67,6 @@ import { computed } from 'vue';
 import {
     detectPreviewType,
     getViewerComponent,
-    PreviewType,
 } from '../../services/message-factory';
 
 const properties = defineProps<{
@@ -72,6 +76,8 @@ const properties = defineProps<{
     totalCount: number;
     isLoading: boolean;
     error: string | null;
+    protocol?: string;
+    topicSize?: number;
 }>();
 
 defineEmits(['load-more', 'load-required']);
@@ -80,17 +86,23 @@ const hasData = computed(
     () => properties.messages && properties.messages.length > 0,
 );
 
-// Determine the type based on the message string + sample data
+// --- Type Detection ---
 const currentPreviewType = computed(() => {
     const sample = properties.messages?.[0]?.data;
     return detectPreviewType(properties.messageType, sample);
 });
 
-// Helper to check if it is an image
-const isImage = computed(() => currentPreviewType.value === PreviewType.IMAGE);
-
-// Get the correct component
 const activeComponent = computed(() => {
     return getViewerComponent(currentPreviewType.value);
 });
+
+// --- Utilities ---
+function formatBytes(bytes: number, decimals = 1): string {
+    if (!+bytes) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 </script>
