@@ -9,6 +9,7 @@
     />
 
     <div v-if="file" class="q-my-lg">
+        <!-- YAML/Text Preview -->
         <div v-if="isYaml" class="q-mb-lg">
             <h2 class="text-h4 q-mb-md">Content Preview</h2>
             <div
@@ -20,25 +21,23 @@
                 }}</pre>
             </div>
             <div v-else class="row items-center q-gutter-sm text-grey-7">
-                <q-spinner-dots size="1.5em" />
-                <span>Loading content...</span>
+                <q-spinner-dots size="1.5em" /> <span>Loading content...</span>
             </div>
         </div>
 
+        <!-- Binary/ROS Preview -->
         <div v-else-if="displayTopics && preview.isReaderReady.value">
-            <FileTopicList
-                :file="file"
+            <FileTopicTable
+                :topics="file.topics"
                 :is-loading="isLoading"
-                :reader-ready="preview.isReaderReady.value"
                 :previews="preview.topicPreviews"
                 :loading-state="preview.topicLoadingState"
                 :topic-errors="preview.topicErrors"
-                :format-payload="preview.formatPayload"
                 @load-preview="preview.fetchTopicMessages"
-                @redirect-related="redirectToRelated"
             />
         </div>
 
+        <!-- Fallback / Unsupported -->
         <div
             v-else-if="!displayTopics && !isLoading"
             class="text-center q-pa-xl bg-grey-1 rounded-borders border-dashed text-grey-7"
@@ -46,60 +45,46 @@
             <q-icon name="sym_o_description" size="4em" class="q-mb-md" />
             <div class="text-h6">No Preview Available</div>
             <div class="text-caption q-mt-xs">
-                Preview is not yet ready or currently not supported for
+                Preview not supported for
                 <span class="text-weight-bold">.{{ fileExtension }}</span>
-                files.
             </div>
-            <q-btn
-                label="Download File"
-                color="primary"
-                flat
-                icon="sym_o_download"
-                class="q-mt-md"
-                @click="handleDownload"
-            />
         </div>
 
         <FileHistory :events="events" />
 
         <div
-            v-if="preview.readerError.value && displayTopics"
+            v-if="preview.readerError.value"
             class="q-my-md text-negative text-center"
         >
-            <q-icon name="sym_o_warning" />
-            {{ preview.readerError.value }}
+            <q-icon name="warning" /> {{ preview.readerError.value }}
         </div>
     </div>
 
     <div v-else class="text-center q-pa-md">
         <q-spinner size="3em" color="primary" />
-        <div class="text-grey q-mt-sm">Loading file details...</div>
+        <div class="text-grey q-mt-sm">Loading file...</div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { FileState, FileType } from '@common/enum';
 import { copyToClipboard, Notify } from 'quasar';
-import { useRosmsgPreview } from 'src/composables/use-rosmsg-preview';
 import {
     registerNoPermissionErrorHandler,
     useFile,
     useFileEvents,
 } from 'src/hooks/query-hooks';
 import { useFileUUID } from 'src/hooks/router-hooks';
-import ROUTES from 'src/router/routes';
 import { _downloadFile } from 'src/services/generic';
 import { downloadFile } from 'src/services/queries/file';
 import { computed, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import FileHeader from './file-header.vue';
 import FileHistory from './file-history.vue';
-import FileTopicList from './file-topic-list.vue';
 
-const $router = useRouter();
+import { useRosmsgPreview } from '../../composables/use-rosmsg-preview';
+import FileTopicTable from './file-topic-table.vue';
+
 const fileUuid = useFileUUID();
-
-// --- Data Fetching ---
 const { isLoading, data: file, error, isLoadingError } = useFile(fileUuid);
 registerNoPermissionErrorHandler(isLoadingError, fileUuid, 'file', error);
 const { data: events } = useFileEvents(fileUuid);
@@ -107,81 +92,58 @@ const { data: events } = useFileEvents(fileUuid);
 const preview = useRosmsgPreview();
 const yamlContent = ref<string | undefined>(undefined);
 
-const fileExtension = computed(() => {
-    const name = file.value?.filename ?? '';
-    return name.split('.').pop()?.toLowerCase() ?? '';
-});
-
-const isYaml = computed(() => {
-    return ['yml', 'yaml'].includes(fileExtension.value);
-});
-
+const fileExtension = computed(
+    () => file.value?.filename?.split('.').pop()?.toLowerCase() ?? '',
+);
+const isYaml = computed(() => ['yml', 'yaml'].includes(fileExtension.value));
 const isSupportedBinary = computed(() => {
     if (!file.value) return false;
-    const isBagType = file.value.type === FileType.BAG;
-    const isMcapType = file.value.type === FileType.MCAP;
-    const isDatabase3 = file.value.type === FileType.DB3;
-    return (isBagType || isMcapType) && !isDatabase3;
+    return (
+        (file.value.type === FileType.BAG ||
+            file.value.type === FileType.MCAP) &&
+        file.value.type !== FileType.DB3
+    );
 });
-
 const displayTopics = computed(
     () => file.value?.state === FileState.OK && isSupportedBinary.value,
 );
 
-// --- Initialization Logic ---
+// --- Init ---
 watch(
     () => file.value,
     async (currentFile) => {
-        // Guard clauses
         if (
             !currentFile ||
             currentFile.state !== FileState.OK ||
             preview.isReaderReady.value
-        ) {
+        )
             return;
-        }
 
         try {
-            const dynamicUrl = await downloadFile(
-                currentFile.uuid,
-                false,
-                true,
-            );
+            const url = await downloadFile(currentFile.uuid, false, true);
 
-            // 1. Handle Text Files (YAML)
             if (isYaml.value) {
-                console.log('Loading YAML content...');
-                const response = await fetch(dynamicUrl);
-                yamlContent.value = response.ok
-                    ? await response.text()
-                    : `Error loading content: ${response.statusText}`;
-                return;
-            }
-
-            // 2. Handle Supported Binaries
-            if (isSupportedBinary.value) {
-                console.log(`Initializing preview for ${currentFile.type}...`);
-                const strategyType =
+                const results = await fetch(url);
+                yamlContent.value = results.ok
+                    ? await results.text()
+                    : 'Error loading content';
+            } else if (isSupportedBinary.value) {
+                const type =
                     currentFile.type === FileType.BAG ? 'rosbag' : 'mcap';
-                await preview.init(dynamicUrl, strategyType);
-                return;
+                await preview.init(url, type);
             }
-
-            // 3. Unsupported files: Do nothing (Template renders placeholder)
-            console.log(`No preview strategy for .${fileExtension.value}`);
-        } catch (init_error: unknown) {
-            console.error('Error setting up preview:', init_error);
+        } catch (error_) {
+            console.error(error_);
         }
     },
     { immediate: true },
 );
 
 // --- Actions ---
-const handleDownload = (): Promise<void> =>
+const handleDownload = (): void =>
     _downloadFile(file.value?.uuid ?? '', file.value?.filename ?? '');
 const copyHash = (): Promise<void> => copyToClipboard(file.value?.hash ?? '');
 const copyUuid = (): Promise<void> => copyToClipboard(file.value?.uuid ?? '');
-
 async function copyPublicLink(): Promise<void> {
     if (!fileUuid.value) return;
     const link = await downloadFile(fileUuid.value, false);
@@ -189,19 +151,6 @@ async function copyPublicLink(): Promise<void> {
     Notify.create({
         message: 'Copied: Link valid for 7 days',
         color: 'positive',
-        timeout: 2000,
-    });
-}
-
-async function redirectToRelated(): Promise<void> {
-    if (!file.value?.relatedFileUuid) return;
-    await $router.push({
-        name: ROUTES.FILE.routeName,
-        params: {
-            projectUuid: file.value.mission.project.uuid,
-            missionUuid: file.value.mission.uuid,
-            file_uuid: file.value.relatedFileUuid,
-        },
     });
 }
 </script>
@@ -210,8 +159,6 @@ async function redirectToRelated(): Promise<void> {
 .text-code {
     font-family: monospace;
     font-size: 13px;
-    line-height: 1.5;
-    color: #333;
 }
 .border-solid {
     border: 1px solid #e0e0e0;
