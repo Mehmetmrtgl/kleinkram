@@ -9,7 +9,7 @@ export enum PreviewType {
     ROS_LOG = 'ROS_LOG',
     TIME_REFERENCE = 'TIME_REFERENCE',
     POINT_CLOUD = 'POINT_CLOUD',
-    STRING = 'STRING', // New Enum
+    STRING = 'STRING',
     JSON = 'JSON',
 }
 

@@ -155,7 +155,11 @@ const sampledSeries = computed(() => {
         }
 
         // Ensure the very last point is included so the graph doesn't look cut off
-        if (reducedData.at(-1) !== s.data.at(-1)) {
+        if (
+            reducedData.length > 0 &&
+            s.data.length > 0 &&
+            reducedData.at(-1) !== s.data.at(-1)
+        ) {
             reducedData.push(s.data.at(-1));
         }
 
@@ -175,14 +179,14 @@ const getY = (value: number): number => {
 const getPoints = (data: (DataPoint | undefined)[]): string => {
     return data
         .map((p) => {
-            const x = (p?.time ?? 0 / maxTime.value) * properties.width;
+            const x = ((p?.time ?? 0) / maxTime.value) * properties.width;
             const y = getY(p?.value ?? 0);
             return `${x},${y}`;
         })
         .join(' ');
 };
 
-const fmt = (n: number) => n.toFixed(2);
+const fmt = (n: number): string => n.toFixed(2);
 </script>
 
 <style scoped>

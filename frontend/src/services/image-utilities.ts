@@ -1,6 +1,6 @@
 /**
  * Low-level image manipulation service.
- * optimized for direct Canvas manipulation to avoid base64 overhead.
+ * Optimized for direct Canvas manipulation to avoid base64 overhead.
  */
 
 export interface RosImageMessage {

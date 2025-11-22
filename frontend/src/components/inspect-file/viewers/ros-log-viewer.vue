@@ -7,7 +7,7 @@
                         {{ messages.length }} logs
                     </q-badge>
                     <div class="text-caption text-grey-7">
-                        Showing first 100 entries
+                        Showing first {{ messages.length }} entries
                     </div>
                 </div>
                 <q-btn
