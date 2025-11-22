@@ -14,7 +14,11 @@ export interface LogMessage {
 
 export interface LogStrategy {
     init(reader: UniversalHttpReader): Promise<void>;
-    getMessages(topic: string, limit?: number): Promise<LogMessage[]>;
+    getMessages(
+        topic: string,
+        limit?: number,
+        onMessage?: (message: LogMessage) => void,
+    ): Promise<LogMessage[]>;
 }
 
 // --- MCAP Implementation ---
@@ -26,10 +30,8 @@ export class McapStrategy implements LogStrategy {
         this.reader = await McapIndexedReader.Initialize({
             readable: httpReader,
             decompressHandlers: {
-                zstd: (buffer: Uint8Array): Uint8Array =>
-                    fzstd.decompress(buffer),
-                lz4: (buffer: Uint8Array): Uint8Array =>
-                    lz4js.decompress(buffer),
+                zstd: (buffer: Uint8Array) => fzstd.decompress(buffer),
+                lz4: (buffer: Uint8Array) => lz4js.decompress(buffer),
                 bz2: () => {
                     throw new Error('BZ2 not supported');
                 },
@@ -37,7 +39,11 @@ export class McapStrategy implements LogStrategy {
         });
     }
 
-    async getMessages(topic: string, limit = 10): Promise<LogMessage[]> {
+    async getMessages(
+        topic: string,
+        limit = 10,
+        onMessage?: (message: LogMessage) => void,
+    ): Promise<LogMessage[]> {
         if (!this.reader) return [];
         const msgs: LogMessage[] = [];
 
@@ -45,7 +51,6 @@ export class McapStrategy implements LogStrategy {
             topics: [topic],
         })) {
             if (msgs.length >= limit) break;
-
             let data = message.data;
             const channel = this.reader.channelsById.get(message.channelId);
             if (channel) {
@@ -53,7 +58,9 @@ export class McapStrategy implements LogStrategy {
                     (await this.tryDecode(channel.schemaId, message.data)) ??
                     message.data;
             }
-            msgs.push({ logTime: message.logTime, data });
+            const messageObject = { logTime: message.logTime, data };
+            if (onMessage) onMessage(messageObject);
+            msgs.push(messageObject);
         }
         return msgs;
     }
@@ -86,40 +93,42 @@ export class RosbagStrategy implements LogStrategy {
     private bag: Bag | undefined = undefined;
 
     async init(httpReader: UniversalHttpReader): Promise<void> {
-        const bagReader = {
-            read: (offset: number, length: number): Promise<Uint8Array> =>
-                httpReader.read(BigInt(offset), BigInt(length)),
-            size: (): number => httpReader.sizeBytes,
-        };
-
-        this.bag = new Bag(bagReader, {
-            decompress: {
-                zstd: (buffer: Uint8Array): Uint8Array =>
-                    fzstd.decompress(buffer),
-                lz4: (buffer: Uint8Array): Uint8Array =>
-                    lz4js.decompress(buffer),
+        this.bag = new Bag(
+            {
+                read: (offset, length): Promise<Uint8Array> =>
+                    httpReader.read(BigInt(offset), BigInt(length)),
+                size: (): number => httpReader.sizeBytes,
             },
-        });
-
+            {
+                decompress: {
+                    zstd: (buffer): Uint8Array => fzstd.decompress(buffer),
+                    lz4: (buffer): Uint8Array => lz4js.decompress(buffer),
+                },
+            },
+        );
         await this.bag.open();
     }
 
-    async getMessages(topic: string, limit = 10): Promise<LogMessage[]> {
+    async getMessages(
+        topic: string,
+        limit = 10,
+        onMessage?: (message: LogMessage) => void,
+    ): Promise<LogMessage[]> {
         if (!this.bag) return [];
         const msgs: LogMessage[] = [];
         const iterator = this.bag.messageIterator({ topics: [topic] });
-
-        // Helper to convert generic timestamp to bigint
         // eslint-disable-next-line unicorn/consistent-function-scoping
-        const toNano = (t: { sec: number; nsec: number }): bigint =>
+        const toNano = (t: { sec: number; nsec: number }) =>
             BigInt(t.sec) * 1_000_000_000n + BigInt(t.nsec);
 
         for await (const result of iterator) {
             if (msgs.length >= limit) break;
-            msgs.push({
+            const messageObject = {
                 logTime: toNano(result.timestamp),
                 data: result.message,
-            });
+            };
+            if (onMessage) onMessage(messageObject);
+            msgs.push(messageObject);
         }
         return msgs;
     }

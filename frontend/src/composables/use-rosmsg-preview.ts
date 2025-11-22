@@ -10,7 +10,7 @@ export function useRosmsgPreview(): {
     topicLoadingState: Record<string, boolean>;
     topicErrors: Record<string, string | null>;
     init: (url: string, type: 'mcap' | 'rosbag') => Promise<void>;
-    fetchTopicMessages: (topicName: string) => Promise<void>;
+    fetchTopicMessages: (topicName: string, limit?: number) => Promise<void>;
     formatPayload: (data: any) => string;
 } {
     const isReaderReady = ref(false);
@@ -45,18 +45,34 @@ export function useRosmsgPreview(): {
         }
     }
 
-    async function fetchTopicMessages(topicName: string): Promise<void> {
+    /**
+     * Fetches messages for a topic.
+     * Uses streaming to populate the array as data arrives.
+     */
+    async function fetchTopicMessages(
+        topicName: string,
+        limit?: number,
+    ): Promise<void> {
         if (!strategy.value) return;
 
         topicLoadingState[topicName] = true;
-        topicErrors[topicName] = null; // Reset error for this topic
+        topicErrors[topicName] = null;
+
+        // Reset the array so it can be filled from scratch
+        // If you want append logic (load more), you would check array length here
+        // But typically we are reloading or loading a fresh batch.
+        topicPreviews[topicName] = [];
 
         try {
-            topicPreviews[topicName] =
-                await strategy.value.getMessages(topicName);
-        } catch (error: any) {
+            // We ignore the return value (full array) because we populate
+            // the reactive array via the callback for immediate UI feedback.
+            await strategy.value.getMessages(topicName, limit, (message) => {
+                (topicPreviews[topicName] ??= []).push(message);
+            });
+        } catch (error: unknown) {
             console.error(`Error reading ${topicName}`, error);
-            topicPreviews[topicName] = [];
+            // Don't necessarily clear previews on error, we might have partial data
+            if (!topicPreviews[topicName]) topicPreviews[topicName] = [];
 
             topicErrors[topicName] =
                 error instanceof Error ? error.message : String(error);
