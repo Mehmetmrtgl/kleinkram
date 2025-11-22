@@ -4,7 +4,7 @@ import { renderMessageToCanvas } from '../services/image-utilities';
 export function useImageDecoder(
     canvasReference: Ref<HTMLCanvasElement | null>,
     messageData: Ref,
-): { draw: () => void; renderError: Ref<string, string> } {
+): { draw: () => void; renderError: Ref<string | undefined, string> } {
     const renderError = ref<string | undefined>(undefined);
 
     const draw = (): void => {

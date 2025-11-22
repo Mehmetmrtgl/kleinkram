@@ -56,7 +56,7 @@
             v-if="preview.readerError.value"
             class="q-my-md text-negative text-center"
         >
-            <q-icon name="warning" /> {{ preview.readerError.value }}
+            <q-icon name="sym_o_warning" /> {{ preview.readerError.value }}
         </div>
     </div>
 
@@ -99,9 +99,7 @@ const isYaml = computed(() => ['yml', 'yaml'].includes(fileExtension.value));
 const isSupportedBinary = computed(() => {
     if (!file.value) return false;
     return (
-        (file.value.type === FileType.BAG ||
-            file.value.type === FileType.MCAP) &&
-        file.value.type !== FileType.DB3
+        file.value.type === FileType.BAG || file.value.type === FileType.MCAP
     );
 });
 const displayTopics = computed(
@@ -140,7 +138,7 @@ watch(
 );
 
 // --- Actions ---
-const handleDownload = (): void =>
+const handleDownload = (): Promise<void> =>
     _downloadFile(file.value?.uuid ?? '', file.value?.filename ?? '');
 const copyHash = (): Promise<void> => copyToClipboard(file.value?.hash ?? '');
 const copyUuid = (): Promise<void> => copyToClipboard(file.value?.uuid ?? '');

@@ -9,7 +9,11 @@
                 <div class="row items-center q-mb-sm full-width">
                     <div class="row items-center">
                         <q-badge color="grey-3" text-color="black">
-                            <q-icon name="sym_o_schedule" size="xs" class="q-mr-xs" />
+                            <q-icon
+                                name="sym_o_schedule"
+                                size="xs"
+                                class="q-mr-xs"
+                            />
                             {{ formatTime(msg.logTime) }}
                         </q-badge>
                         <div class="text-caption text-grey-6 q-ml-sm">
@@ -26,7 +30,7 @@
                         dense
                         size="sm"
                         color="grey-7"
-                        @click="copyRaw(msg.data)"
+                        @click="() => copyRaw(msg.data)"
                     >
                         <q-tooltip>Copy raw JSON</q-tooltip>
                     </q-btn>
@@ -65,19 +69,19 @@
                                 </div>
                                 <div class="row q-gutter-x-md">
                                     <span
-                                    >x:
+                                        >x:
                                         {{
                                             fmt(tf.transform?.translation?.x)
                                         }}</span
                                     >
                                     <span
-                                    >y:
+                                        >y:
                                         {{
                                             fmt(tf.transform?.translation?.y)
                                         }}</span
                                     >
                                     <span
-                                    >z:
+                                        >z:
                                         {{
                                             fmt(tf.transform?.translation?.z)
                                         }}</span
@@ -93,25 +97,25 @@
                                 </div>
                                 <div class="row q-gutter-x-md">
                                     <span
-                                    >x:
+                                        >x:
                                         {{
                                             fmt(tf.transform?.rotation?.x)
                                         }}</span
                                     >
                                     <span
-                                    >y:
+                                        >y:
                                         {{
                                             fmt(tf.transform?.rotation?.y)
                                         }}</span
                                     >
                                     <span
-                                    >z:
+                                        >z:
                                         {{
                                             fmt(tf.transform?.rotation?.z)
                                         }}</span
                                     >
                                     <span
-                                    >w:
+                                        >w:
                                         {{
                                             fmt(tf.transform?.rotation?.w)
                                         }}</span
@@ -148,7 +152,7 @@
                             flat
                             color="primary"
                             dense
-                            @click="$emit('load-more')"
+                            @click="loadMore"
                         />
                     </div>
                 </q-item-section>
@@ -176,15 +180,20 @@ onMounted(() => {
 });
 
 const formatTime = (nano: bigint): string => {
-    return new Date(Number(nano / 1_000_000n))
-        .toISOString()
-        .split('T')[1]
-        .replace('Z', '');
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
 };
 
-const fmt = (num: number | undefined): string => {
-    if (num === undefined || num === null) return '0.00';
-    return num.toFixed(4);
+const fmt = (number_: number | undefined): string => {
+    if (number_ === undefined || number_ === null) return '0.00';
+    return number_.toFixed(4);
 };
 
 async function copyRaw(data: any): Promise<void> {
@@ -195,6 +204,10 @@ async function copyRaw(data: any): Promise<void> {
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

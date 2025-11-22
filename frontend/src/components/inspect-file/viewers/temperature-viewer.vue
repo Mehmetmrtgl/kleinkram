@@ -4,7 +4,11 @@
             <div class="row justify-between items-center q-mb-md">
                 <div class="row items-center q-gutter-x-sm">
                     <q-badge color="grey-3" text-color="black">
-                        <q-icon name="sym_o_schedule" size="xs" class="q-mr-xs" />
+                        <q-icon
+                            name="sym_o_schedule"
+                            size="xs"
+                            class="q-mr-xs"
+                        />
                         {{ duration.toFixed(2) }}s
                     </q-badge>
                     <q-badge color="orange-1" text-color="orange-9">
@@ -18,16 +22,13 @@
                     dense
                     size="sm"
                     color="grey-7"
-                    @click="copyRaw(messages)"
+                    @click="copyRaw"
                 >
                     <q-tooltip>Copy JSON</q-tooltip>
                 </q-btn>
             </div>
 
-            <SimpleTimeChart
-                title="Temperature (°C)"
-                :series="tempSeries"
-            />
+            <SimpleTimeChart title="Temperature (°C)" :series="tempSeries" />
 
             <div
                 v-if="messages.length < totalCount"
@@ -42,7 +43,7 @@
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -52,11 +53,9 @@
 <script setup lang="ts">
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { computed, onMounted } from 'vue';
-import SimpleTimeChart, {
-    type ChartSeries,
-} from './simple-time-chart.vue';
+import SimpleTimeChart, { type ChartSeries } from './simple-time-chart.vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
@@ -65,35 +64,41 @@ const props = defineProps<{
 const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) emit('load-required');
+    if (!properties.messages || properties.messages.length === 0)
+        emit('load-required');
 });
 
 // --- Data Processing ---
-const startTime = computed(() => props.messages[0]?.logTime || 0n);
+const startTime = computed(() => properties.messages[0]?.logTime || 0n);
 
 const duration = computed(() => {
-    if (props.messages.length < 2) return 0;
-    const end = props.messages[props.messages.length - 1].logTime;
+    if (properties.messages.length < 2) return 0;
+    const end = properties.messages.at(-1).logTime;
     return Number(end - startTime.value) / 1_000_000_000;
 });
 
+// eslint-disable-next-line unicorn/prevent-abbreviations
 const tempSeries = computed((): ChartSeries[] => {
-    const data = props.messages.map((msg) => ({
-        time: Number(msg.logTime - startTime.value) / 1_000_000_000,
-        value: msg.data.temperature || 0,
+    const data = properties.messages.map((message) => ({
+        time: Number(message.logTime - startTime.value) / 1_000_000_000,
+        value: message.data.temperature || 0,
     }));
 
     return [{ name: 'Temp', color: '#F57C00', data }];
 });
 
-async function copyRaw(data: any): Promise<void> {
-    await quasarCopy(JSON.stringify(data, null, 2));
+async function copyRaw(): Promise<void> {
+    await quasarCopy(JSON.stringify(properties.messages, null, 2));
     Notify.create({
         message: 'Data copied',
         color: 'positive',
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

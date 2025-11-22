@@ -14,7 +14,7 @@
                     dense
                     size="sm"
                     color="grey-7"
-                    @click="copyRaw(messages)"
+                    @click="copyRaw"
                 >
                     <q-tooltip>Copy JSON</q-tooltip>
                 </q-btn>
@@ -28,7 +28,10 @@
                 >
                     <q-item-section>
                         <div class="row items-baseline q-gutter-x-md">
-                            <div class="text-caption text-grey-6 font-mono" style="min-width: 80px;">
+                            <div
+                                class="text-caption text-grey-6 font-mono"
+                                style="min-width: 80px"
+                            >
                                 {{ formatTime(msg.logTime) }}
                             </div>
 
@@ -53,7 +56,7 @@
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -64,7 +67,7 @@
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { onMounted } from 'vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
@@ -73,24 +76,35 @@ const props = defineProps<{
 const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) emit('load-required');
+    if (!properties.messages || properties.messages.length === 0)
+        emit('load-required');
 });
 
 // --- Formatters ---
-const formatTime = (nano: bigint): string =>
-    new Date(Number(nano / 1_000_000n))
-        .toISOString()
-        .split('T')[1]
-        .replace('Z', '');
+const formatTime = (nano: bigint): string => {
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
 
-async function copyRaw(data: any): Promise<void> {
-    await quasarCopy(JSON.stringify(data, null, 2));
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
+};
+
+async function copyRaw(): Promise<void> {
+    await quasarCopy(JSON.stringify(properties.messages, null, 2));
     Notify.create({
         message: 'Data copied',
         color: 'positive',
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

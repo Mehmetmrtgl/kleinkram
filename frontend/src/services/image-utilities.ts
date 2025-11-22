@@ -28,11 +28,11 @@ export function renderMessageToCanvas(
     });
     if (!context) return;
 
-    // 1. Extract Bytes safely
+    // Extract Bytes safely
     const bytes = getBytesFromPayload(message.data);
     if (!bytes || bytes.length === 0) return;
 
-    // 2. CHECK FOR COMPRESSED IMAGE
+    // CHECK FOR COMPRESSED IMAGE
     // CompressedImage messages typically lack 'width', 'height', and 'encoding',
     // but have a 'format' field (e.g., "jpeg", "png").
     const isCompressed =
@@ -50,7 +50,7 @@ export function renderMessageToCanvas(
     // For raw images, we MUST have width/height to interpret the bytes.
     if (!message.width || !message.height) return;
 
-    // 3. Calculate Dimensions & Scale (Only possible for Raw)
+    // Calculate Dimensions & Scale (Only possible for Raw)
     const scale =
         message.width > PREVIEW_WIDTH ? PREVIEW_WIDTH / message.width : 1;
     const targetW = Math.floor(message.width * scale);
@@ -61,7 +61,7 @@ export function renderMessageToCanvas(
         canvas.height = targetH;
     }
 
-    // 4. Render based on encoding
+    // Render based on encoding
     switch (message.encoding) {
         case 'rgb8':
         case 'bgr8': {
@@ -114,31 +114,28 @@ export function renderMessageToCanvas(
 function renderCompressed(
     context: CanvasRenderingContext2D,
     bytes: Uint8Array,
-    canvas: HTMLCanvasElement, // Receive Canvas, not explicit w/h
+    canvas: HTMLCanvasElement,
 ): void {
     const blob = new Blob([bytes]);
     const url = URL.createObjectURL(blob);
     const img = new Image();
 
-    img.onload = () => {
-        // 1. Calculate Scale NOW that the image is loaded
-        const scale =
-            img.width > PREVIEW_WIDTH ? PREVIEW_WIDTH / img.width : 1;
+    img.addEventListener('load', () => {
+        const scale = img.width > PREVIEW_WIDTH ? PREVIEW_WIDTH / img.width : 1;
         const targetW = Math.floor(img.width * scale);
         const targetH = Math.floor(img.height * scale);
 
-        // 2. Resize Canvas if needed
         if (canvas.width !== targetW || canvas.height !== targetH) {
             canvas.width = targetW;
             canvas.height = targetH;
         }
 
-        // 3. Draw
         context.drawImage(img, 0, 0, targetW, targetH);
         URL.revokeObjectURL(url);
-    };
+    });
 
-    img.onerror = () => {
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
+    img.onerror = (): void => {
         URL.revokeObjectURL(url);
         console.error('Failed to decode compressed image blob');
     };
@@ -160,6 +157,9 @@ function renderRawColor(
     const strideX = sourceW / destinationW;
     const strideY = sourceH / destinationH;
 
+    // Pre-calculate constants to avoid re-allocation in loop
+    const rawLength = raw.length;
+
     for (let y = 0; y < destinationH; y++) {
         for (let x = 0; x < destinationW; x++) {
             const sourceX = Math.floor(x * strideX);
@@ -167,15 +167,16 @@ function renderRawColor(
             const sourceIndex = (sourceY * sourceW + sourceX) * 3;
             const destinationIndex = (y * destinationW + x) * 4;
 
-            if (sourceIndex + 2 < raw.length) {
+            // Bounds check protects us logic-wise
+            if (sourceIndex + 2 < rawLength) {
                 if (isBgr) {
-                    data[destinationIndex] = raw[sourceIndex + 2]; // R
-                    data[destinationIndex + 1] = raw[sourceIndex + 1]; // G
-                    data[destinationIndex + 2] = raw[sourceIndex]; // B
+                    data[destinationIndex] = raw[sourceIndex + 2] ?? 0; // R
+                    data[destinationIndex + 1] = raw[sourceIndex + 1] ?? 0; // G
+                    data[destinationIndex + 2] = raw[sourceIndex] ?? 0; // B
                 } else {
-                    data[destinationIndex] = raw[sourceIndex]; // R
-                    data[destinationIndex + 1] = raw[sourceIndex + 1]; // G
-                    data[destinationIndex + 2] = raw[sourceIndex + 2]; // B
+                    data[destinationIndex] = raw[sourceIndex] ?? 0; // R
+                    data[destinationIndex + 1] = raw[sourceIndex + 1] ?? 0; // G
+                    data[destinationIndex + 2] = raw[sourceIndex + 2] ?? 0; // B
                 }
                 data[destinationIndex + 3] = 255; // Alpha
             }
@@ -196,6 +197,7 @@ function renderMono8(
     const data = imgData.data;
     const strideX = sourceW / destinationW;
     const strideY = sourceH / destinationH;
+    const rawLength = raw.length;
 
     for (let y = 0; y < destinationH; y++) {
         for (let x = 0; x < destinationW; x++) {
@@ -204,8 +206,8 @@ function renderMono8(
             const sourceIndex = sourceY * sourceW + sourceX;
             const destinationIndex = (y * destinationW + x) * 4;
 
-            if (sourceIndex < raw.length) {
-                const value = raw[sourceIndex];
+            if (sourceIndex < rawLength) {
+                const value = raw[sourceIndex] ?? 0;
                 data[destinationIndex] = value;
                 data[destinationIndex + 1] = value;
                 data[destinationIndex + 2] = value;
@@ -229,8 +231,8 @@ function renderDepth(
     const data = imgData.data;
     const strideX = sourceW / destinationW;
     const strideY = sourceH / destinationH;
+    const rawLength = raw.length;
 
-    // Normalize Contrast
     let min = 65_535;
     let max = 0;
     const temporaryBuffer = new Uint16Array(destinationW * destinationH);
@@ -241,10 +243,10 @@ function renderDepth(
             const sourceY = Math.floor(y * strideY);
             const byteIndex = (sourceY * sourceW + sourceX) * 2;
 
-            if (byteIndex + 1 < raw.length) {
-                const value = isBigEndian
-                    ? (raw[byteIndex] << 8) | raw[byteIndex + 1]
-                    : raw[byteIndex] | (raw[byteIndex + 1] << 8);
+            if (byteIndex + 1 < rawLength) {
+                const b1 = raw[byteIndex] ?? 0;
+                const b2 = raw[byteIndex + 1] ?? 0;
+                const value = isBigEndian ? (b1 << 8) | b2 : b1 | (b2 << 8);
 
                 temporaryBuffer[y * destinationW + x] = value;
                 if (value > 0) {
@@ -259,7 +261,6 @@ function renderDepth(
     if (min > max) min = 0;
     const range = max - min || 1;
 
-    // Write to Canvas
     for (const [index, value] of temporaryBuffer.entries()) {
         let gray = 0;
         if (value > 0) gray = Math.floor(((value - min) / range) * 255);
@@ -274,8 +275,8 @@ function renderDepth(
     context.putImageData(imgData, 0, 0);
 }
 
-export function getBytesFromPayload(dataField: any): Uint8Array | null {
-    if (!dataField) return null;
+export function getBytesFromPayload(dataField: any): Uint8Array | undefined {
+    if (!dataField) return;
     if (dataField instanceof Uint8Array) return dataField;
     if (Array.isArray(dataField)) return new Uint8Array(dataField);
 
@@ -283,13 +284,16 @@ export function getBytesFromPayload(dataField: any): Uint8Array | null {
         const keys = Object.keys(dataField)
             .map(Number)
             .filter((k) => !Number.isNaN(k));
+
         if (keys.length > 0) {
             keys.sort((a, b) => a - b);
             const bytes = new Uint8Array(keys.length);
-            for (let index = 0; index < keys.length; index++)
-                bytes[index] = dataField[keys[index]];
+
+            for (const [index, key] of keys.entries()) {
+                bytes[index] = (dataField as Record<number, number>)[key] ?? 0;
+            }
             return bytes;
         }
     }
-    return null;
+    return undefined;
 }

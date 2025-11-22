@@ -17,7 +17,7 @@
                     dense
                     size="sm"
                     color="grey-7"
-                    @click="copyRaw(messages)"
+                    @click="copyRaw"
                 >
                     <q-tooltip>Copy JSON</q-tooltip>
                 </q-btn>
@@ -77,7 +77,7 @@
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -88,7 +88,7 @@
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { onMounted } from 'vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
@@ -97,59 +97,82 @@ const props = defineProps<{
 const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) emit('load-required');
+    if (!properties.messages || properties.messages.length === 0)
+        emit('load-required');
 });
 
 // --- Helpers ---
-const formatTime = (nano: bigint): string =>
-    new Date(Number(nano / 1_000_000n))
-        .toISOString()
-        .split('T')[1]
-        .replace('Z', '');
+const formatTime = (nano: bigint): string => {
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
+};
 
 // ROS Log Levels: 1=Debug, 2=Info, 4=Warn, 8=Error, 16=Fatal
-const getLevelColor = (level: number) => {
+const getLevelColor = (level: number): string => {
     switch (level) {
-        case 1:
-            return 'grey'; // DEBUG
-        case 2:
-            return 'positive'; // INFO
-        case 4:
-            return 'warning'; // WARN
-        case 8:
-            return 'negative'; // ERROR
-        case 16:
-            return 'purple'; // FATAL
-        default:
+        case 1: {
+            return 'grey';
+        } // DEBUG
+        case 2: {
+            return 'positive';
+        } // INFO
+        case 4: {
+            return 'warning';
+        } // WARN
+        case 8: {
+            return 'negative';
+        } // ERROR
+        case 16: {
+            return 'purple';
+        } // FATAL
+        default: {
             return 'grey-8';
+        }
     }
 };
 
-const getLevelIcon = (level: number) => {
+const getLevelIcon = (level: number): string => {
     switch (level) {
-        case 1:
+        case 1: {
             return 'sym_o_bug_report';
-        case 2:
+        }
+        case 2: {
             return 'sym_o_info';
-        case 4:
+        }
+        case 4: {
             return 'sym_o_warning';
-        case 8:
+        }
+        case 8: {
             return 'sym_o_error';
-        case 16:
+        }
+        case 16: {
             return 'sym_o_dangerous';
-        default:
+        }
+        default: {
             return 'sym_o_help';
+        }
     }
 };
 
-async function copyRaw(data: any): Promise<void> {
-    await quasarCopy(JSON.stringify(data, null, 2));
+async function copyRaw(): Promise<void> {
+    await quasarCopy(JSON.stringify(properties.messages, null, 2));
     Notify.create({
         message: 'Logs copied',
         color: 'positive',
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

@@ -44,19 +44,37 @@
                 @mouseup="stopDrag"
                 @mouseleave="stopDrag"
             >
-                <canvas ref="canvasRef" class="pc-canvas" />
+                <canvas ref="canvasReference" class="pc-canvas" />
 
-                <div class="absolute-top-left q-pa-sm text-white text-caption no-pointer-events">
+                <div
+                    class="absolute-top-left q-pa-sm text-white text-caption no-pointer-events"
+                >
                     <div>Top-Down View (XY Plane)</div>
                     <div class="text-grey-5">Color: Z-Height</div>
                 </div>
 
                 <div class="absolute-bottom-right q-pa-md column q-gutter-y-sm">
-                    <q-btn round color="grey-8" text-color="white" icon="sym_o_add" size="sm" @click="zoomIn" />
-                    <q-btn round color="grey-8" text-color="white" icon="sym_o_remove" size="sm" @click="zoomOut" />
+                    <q-btn
+                        round
+                        color="grey-8"
+                        text-color="white"
+                        icon="sym_o_add"
+                        size="sm"
+                        @click="zoomIn"
+                    />
+                    <q-btn
+                        round
+                        color="grey-8"
+                        text-color="white"
+                        icon="sym_o_remove"
+                        size="sm"
+                        @click="zoomOut"
+                    />
                 </div>
 
-                <div class="absolute-top-right q-pa-sm text-grey-5 text-caption no-pointer-events">
+                <div
+                    class="absolute-top-right q-pa-sm text-grey-5 text-caption no-pointer-events"
+                >
                     {{ (userZoom * 100).toFixed(0) }}%
                 </div>
             </div>
@@ -67,28 +85,35 @@
                 </div>
                 <div class="row q-gutter-sm">
                     <q-btn
-                        round flat dense
+                        round
+                        flat
+                        dense
                         icon="sym_o_skip_previous"
                         :disable="currentIndex <= 0"
-                        @click="currentIndex--"
+                        @click="decrementIndex"
                     />
                     <q-btn
-                        round flat dense
+                        round
+                        flat
+                        dense
                         icon="sym_o_skip_next"
                         :disable="currentIndex >= messages.length - 1"
-                        @click="currentIndex++"
+                        @click="incrementIndex"
                     />
                 </div>
             </div>
 
-            <div v-if="messages.length < totalCount" class="text-center q-mt-sm">
+            <div
+                v-if="messages.length < totalCount"
+                class="text-center q-mt-sm"
+            >
                 <q-btn
                     label="Load More Scans"
                     icon="sym_o_download"
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -99,32 +124,48 @@
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { computed, onMounted, ref, watch } from 'vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
 }>();
 
 const emit = defineEmits(['load-required', 'load-more']);
-const canvasRef = ref<HTMLCanvasElement | null>(null);
+const canvasReference = ref<HTMLCanvasElement | null>(null);
 const currentIndex = ref(0);
 
 const CANVAS_SIZE = 600;
 
+const incrementIndex = (): void => {
+    if (currentIndex.value < properties.messages.length - 1) {
+        currentIndex.value++;
+    }
+};
+
+const decrementIndex = (): void => {
+    if (currentIndex.value > 0) {
+        currentIndex.value--;
+    }
+};
+
 // --- Interaction State ---
-const userZoom = ref(1.0);
+const userZoom = ref(1);
 const userPan = ref({ x: 0, y: 0 });
 const isDragging = ref(false);
 const lastMouse = ref({ x: 0, y: 0 });
 
 // --- Computed Data Access ---
-const currentMessage = computed(() => props.messages[currentIndex.value] || null);
+const currentMessage = computed(
+    () => properties.messages[currentIndex.value] || null,
+);
 const width = computed(() => currentMessage.value?.data?.width || 0);
 const height = computed(() => currentMessage.value?.data?.height || 0);
-const frameId = computed(() => currentMessage.value?.data?.header?.frame_id || '');
+const frameId = computed(
+    () => currentMessage.value?.data?.header?.frame_id || '',
+);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) {
+    if (!properties.messages || properties.messages.length === 0) {
         emit('load-required');
     } else {
         renderCloud();
@@ -132,69 +173,77 @@ onMounted(() => {
 });
 
 watch(currentIndex, renderCloud);
-watch(() => props.messages.length, () => {
-    if (currentIndex.value >= props.messages.length) currentIndex.value = 0;
-    renderCloud();
-});
+watch(
+    () => properties.messages.length,
+    () => {
+        if (currentIndex.value >= properties.messages.length)
+            currentIndex.value = 0;
+        renderCloud();
+    },
+);
 
 // --- Interaction Logic ---
 
-function resetView() {
-    userZoom.value = 1.0;
+function resetView(): void {
+    userZoom.value = 1;
     userPan.value = { x: 0, y: 0 };
     renderCloud();
 }
 
-function zoomIn() {
+function zoomIn(): void {
     userZoom.value *= 1.2;
     renderCloud();
 }
 
-function zoomOut() {
+function zoomOut(): void {
     userZoom.value /= 1.2;
     renderCloud();
 }
 
-function handleWheel(e: WheelEvent) {
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+function handleWheel(event: WheelEvent): void {
+    const delta = event.deltaY > 0 ? 0.9 : 1.1;
     userZoom.value *= delta;
     renderCloud();
 }
 
-function startDrag(e: MouseEvent) {
+function startDrag(event: MouseEvent): void {
     isDragging.value = true;
-    lastMouse.value = { x: e.clientX, y: e.clientY };
+    lastMouse.value = { x: event.clientX, y: event.clientY };
 }
 
-function onDrag(e: MouseEvent) {
+function onDrag(event: MouseEvent): void {
     if (!isDragging.value) return;
-    const dx = e.clientX - lastMouse.value.x;
-    const dy = e.clientY - lastMouse.value.y;
+    const dx = event.clientX - lastMouse.value.x;
+    const dy = event.clientY - lastMouse.value.y;
 
     userPan.value.x += dx;
     userPan.value.y += dy;
 
-    lastMouse.value = { x: e.clientX, y: e.clientY };
+    lastMouse.value = { x: event.clientX, y: event.clientY };
     renderCloud();
 }
 
-function stopDrag() {
+function stopDrag(): void {
     isDragging.value = false;
 }
 
 // --- Parsing Logic ---
-interface Point { x: number; y: number; z: number; }
+interface Point {
+    x: number;
+    y: number;
+    z: number;
+}
 
-function parsePoints(msg: any): Point[] {
-    if (!msg) return [];
+function parsePoints(message: any): Point[] {
+    if (!message) return [];
 
-    const fields = msg.fields as any[];
-    const data = msg.data as Uint8Array | number[];
-    const pointStep = msg.point_step as number;
-    const isBigEndian = msg.is_bigendian;
-    const totalPoints = msg.width * msg.height;
+    const fields = message.fields as any[];
+    const data = message.data as Uint8Array | number[];
+    const pointStep = message.point_step as number;
+    const isBigEndian = message.is_bigendian;
+    const totalPoints = message.width * message.height;
 
-    const bytes = (data instanceof Uint8Array) ? data : new Uint8Array(data);
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
     const xField = fields.find((f: any) => f.name === 'x');
@@ -203,18 +252,20 @@ function parsePoints(msg: any): Point[] {
 
     if (!xField || !yField) return [];
 
-    const xOff = xField.offset;
-    const yOff = yField.offset;
-    const zOff = zField ? zField.offset : -1;
-    const isFloat32 = (xField.datatype === 7);
+    const xOff: number = xField.offset;
+    const yOff: number = yField.offset;
+    const zOff: number = zField ? zField.offset : -1;
+    const isFloat32 = xField.datatype === 7;
 
     const points: Point[] = [];
 
-    for (let i = 0; i < totalPoints; i++) {
-        const base = i * pointStep;
+    for (let index = 0; index < totalPoints; index++) {
+        const base = index * pointStep;
         if (base + pointStep > bytes.length) break;
 
-        let x, y, z = 0;
+        let x,
+            y,
+            z = 0;
         if (isFloat32) {
             x = view.getFloat32(base + xOff, !isBigEndian);
             y = view.getFloat32(base + yOff, !isBigEndian);
@@ -225,7 +276,8 @@ function parsePoints(msg: any): Point[] {
             if (zOff >= 0) z = view.getFloat64(base + zOff, !isBigEndian);
         }
 
-        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z))
+            continue;
         points.push({ x, y, z });
     }
     return points;
@@ -233,7 +285,7 @@ function parsePoints(msg: any): Point[] {
 
 // --- Rendering Logic ---
 function renderCloud() {
-    const canvas = canvasRef.value;
+    const canvas = canvasReference.value;
     if (!canvas || !currentMessage.value) return;
 
     const points = parsePoints(currentMessage.value.data);
@@ -241,13 +293,16 @@ function renderCloud() {
 
     canvas.width = CANVAS_SIZE;
     canvas.height = CANVAS_SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const context = canvas.getContext('2d');
+    if (!context) return;
 
     // 1. Calculate Auto-Fit Bounds
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+        maxX = -Infinity;
+    let minY = Infinity,
+        maxY = -Infinity;
+    let minZ = Infinity,
+        maxZ = -Infinity;
 
     for (const p of points) {
         if (p.x < minX) minX = p.x;
@@ -275,15 +330,17 @@ function renderCloud() {
 
     // Center logic: (Canvas - Content) / 2
     // We subtract minX * scale to shift the local 0,0 to the start of the data
-    const offsetX = (CANVAS_SIZE - contentWidth) / 2 - (minX * finalScale) + userPan.value.x;
+    const offsetX =
+        (CANVAS_SIZE - contentWidth) / 2 - minX * finalScale + userPan.value.x;
 
     // Y is inverted (Top-Down Map). Standard is Up=Y. Canvas is Down=Y.
     // We anchor to the bottom of the content area to flip it correctly?
     // Let's use standard flip logic: canvas_y = H - (world_y * scale + off_y)
-    const offsetY = (CANVAS_SIZE - contentHeight) / 2 - (minY * finalScale) - userPan.value.y;
+    const offsetY =
+        (CANVAS_SIZE - contentHeight) / 2 - minY * finalScale - userPan.value.y;
 
     // 2. Draw
-    const imgData = ctx.createImageData(CANVAS_SIZE, CANVAS_SIZE);
+    const imgData = context.createImageData(CANVAS_SIZE, CANVAS_SIZE);
     const data = imgData.data;
 
     for (const p of points) {
@@ -291,7 +348,7 @@ function renderCloud() {
         const cy = Math.floor(CANVAS_SIZE - (p.y * finalScale + offsetY));
 
         if (cx >= 0 && cx < CANVAS_SIZE && cy >= 0 && cy < CANVAS_SIZE) {
-            const idx = (cy * CANVAS_SIZE + cx) * 4;
+            const index = (cy * CANVAS_SIZE + cx) * 4;
 
             // Z-Coloring
             const zn = (p.z - minZ) / rangeZ;
@@ -299,34 +356,43 @@ function renderCloud() {
             const b = Math.floor((1 - zn) * 255);
             const g = 50;
 
-            data[idx] = r;
-            data[idx + 1] = g;
-            data[idx + 2] = b;
-            data[idx + 3] = 255;
+            data[index] = r;
+            data[index + 1] = g;
+            data[index + 2] = b;
+            data[index + 3] = 255;
         }
     }
 
-    ctx.putImageData(imgData, 0, 0);
+    context.putImageData(imgData, 0, 0);
 
     // Draw Crosshair (0,0)
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.3;
+    context.strokeStyle = '#FFFFFF';
+    context.lineWidth = 1;
+    context.globalAlpha = 0.3;
 
     const originX = Math.floor(0 * finalScale + offsetX);
     const originY = Math.floor(CANVAS_SIZE - (0 * finalScale + offsetY));
 
     if (originX >= 0 && originX <= CANVAS_SIZE) {
-        ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, CANVAS_SIZE); ctx.stroke();
+        context.beginPath();
+        context.moveTo(originX, 0);
+        context.lineTo(originX, CANVAS_SIZE);
+        context.stroke();
     }
     if (originY >= 0 && originY <= CANVAS_SIZE) {
-        ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(CANVAS_SIZE, originY); ctx.stroke();
+        context.beginPath();
+        context.moveTo(0, originY);
+        context.lineTo(CANVAS_SIZE, originY);
+        context.stroke();
     }
 }
 
 async function copyRaw(): Promise<void> {
     if (!currentMessage.value) return;
-    const meta = { ...currentMessage.value.data, data: '[Binary Blob Omitted]' };
+    const meta = {
+        ...currentMessage.value.data,
+        data: '[Binary Blob Omitted]',
+    };
     await quasarCopy(JSON.stringify(meta, null, 2));
     Notify.create({
         message: 'Metadata copied',
@@ -334,10 +400,16 @@ async function copyRaw(): Promise<void> {
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>
-.border-color { border: 1px solid #e0e0e0; }
+.border-color {
+    border: 1px solid #e0e0e0;
+}
 .pc-canvas {
     width: 100%;
     height: 100%;

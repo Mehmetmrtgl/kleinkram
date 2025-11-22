@@ -5,19 +5,19 @@
             flat
             dense
             icon="sym_o_skip_previous"
-            @click="$emit('prev')"
+            @click="onPrevious"
         />
 
         <q-btn
             round
             color="primary"
             :icon="isPlaying ? 'sym_o_pause' : 'sym_o_play_arrow'"
-            @click="$emit('toggle')"
+            @click="onToggle"
         >
             <q-tooltip>{{ isPlaying ? 'Pause' : 'Play' }}</q-tooltip>
         </q-btn>
 
-        <q-btn round flat dense icon="sym_o_skip_next" @click="$emit('next')" />
+        <q-btn round flat dense icon="sym_o_skip_next" @click="onNext" />
 
         <div class="col q-px-sm">
             <q-slider
@@ -26,7 +26,7 @@
                 :max="max"
                 label
                 color="primary"
-                @update:model-value="$emit('update:modelValue', $event)"
+                @update:model-value="onUpdateModelValue"
             />
         </div>
 
@@ -46,5 +46,22 @@ defineProps<{
     isPlaying: boolean;
 }>();
 
-defineEmits(['update:modelValue', 'toggle', 'next', 'prev']);
+const emit = defineEmits(['update:modelValue', 'toggle', 'next', 'prev']);
+
+const onPrevious = (): void => {
+    emit('prev');
+};
+
+const onToggle = (): void => {
+    emit('toggle');
+};
+
+const onNext = (): void => {
+    emit('next');
+};
+
+// Quasar sliders can emit null, so we type 'value' loosely or as number | null
+const onUpdateModelValue = (value: any): void => {
+    emit('update:modelValue', value);
+};
 </script>

@@ -69,7 +69,7 @@
                             flat
                             color="primary"
                             dense
-                            @click="$emit('load-more')"
+                            @click="loadMore"
                         />
                     </div>
                 </q-item-section>
@@ -95,11 +95,17 @@ onMounted(() => {
 });
 
 // --- Formatters ---
-const formatTime = (nano: bigint): string =>
-    new Date(Number(nano / 1_000_000n))
-        .toISOString()
-        .split('T')[1]
-        .replace('Z', '');
+const formatTime = (nano: bigint): string => {
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
+};
 
 const getByteSize = (data: any): number => {
     if (!data) return 0;
@@ -134,6 +140,10 @@ async function copyToClipboard(data: any): Promise<void> {
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

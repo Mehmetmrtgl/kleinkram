@@ -42,14 +42,14 @@
             :messages="messages"
             :topic-name="topicName"
             :total-count="totalCount"
-            @load-required="$emit('load-required')"
-            @load-more="$emit('load-more')"
+            @load-required="loadRequired"
+            @load-more="loadMore"
         />
 
         <div
             v-else
             class="text-italic text-grey q-pa-md text-center cursor-pointer"
-            @click="$emit('load-required')"
+            @click="loadRequired"
         >
             <q-btn
                 label="Load Messages"
@@ -80,7 +80,7 @@ const properties = defineProps<{
     topicSize?: number;
 }>();
 
-defineEmits(['load-more', 'load-required']);
+const emit = defineEmits(['load-more', 'load-required']);
 
 const hasData = computed(
     () => properties.messages && properties.messages.length > 0,
@@ -96,13 +96,11 @@ const activeComponent = computed(() => {
     return getViewerComponent(currentPreviewType.value);
 });
 
-// --- Utilities ---
-function formatBytes(bytes: number, decimals = 1): string {
-    if (!+bytes) return '0 B';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-}
+const loadRequired = (): void => {
+    emit('load-required');
+};
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>

@@ -67,7 +67,7 @@ export function useRosmsgPreview(): {
             // We ignore the return value (full array) because we populate
             // the reactive array via the callback for immediate UI feedback.
             await strategy.value.getMessages(topicName, limit, (message) => {
-                topicPreviews[topicName].push(message);
+                (topicPreviews[topicName] ??= []).push(message);
             });
         } catch (error: unknown) {
             console.error(`Error reading ${topicName}`, error);

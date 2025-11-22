@@ -11,7 +11,11 @@
                 >
                     <div class="row items-center">
                         <q-badge color="grey-3" text-color="black">
-                            <q-icon name="sym_o_schedule" size="xs" class="q-mr-xs" />
+                            <q-icon
+                                name="sym_o_schedule"
+                                size="xs"
+                                class="q-mr-xs"
+                            />
                             {{ formatTime(msg.logTime) }}
                         </q-badge>
                         <div class="text-subtitle2 q-ml-sm text-primary">
@@ -25,7 +29,7 @@
                         dense
                         size="sm"
                         color="grey-7"
-                        @click="copyRaw(msg.data)"
+                        @click="() => copyRaw(msg.data)"
                     >
                         <q-tooltip>Copy raw JSON</q-tooltip>
                     </q-btn>
@@ -146,7 +150,7 @@
                             flat
                             color="primary"
                             dense
-                            @click="$emit('load-more')"
+                            @click="loadMore"
                         />
                     </div>
                 </q-item-section>
@@ -176,17 +180,22 @@ onMounted(() => {
 // --- Formatters ---
 
 const formatTime = (nano: bigint): string => {
-    return new Date(Number(nano / 1_000_000n))
-        .toISOString()
-        .split('T')[1]
-        .replace('Z', '');
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
 };
 
-const fmt = (num: number): string => {
-    if (num === undefined || num === null) return '-';
+const fmt = (number_: number): string => {
+    if (number_ === undefined || number_ === null) return '-';
     // If integer, show integer, else 4 decimals
-    if (Number.isInteger(num)) return String(num);
-    return num.toFixed(4);
+    if (Number.isInteger(number_)) return String(number_);
+    return number_.toFixed(4);
 };
 
 // Handle both Arrays and Object-style arrays {"0": val, "1": val}
@@ -201,8 +210,8 @@ const getArray = (data: any): number[] => {
 };
 
 const formatD = (data: any): string => {
-    const arr = getArray(data);
-    return arr.map((v) => fmt(v)).join(', ');
+    const array = getArray(data);
+    return array.map((v) => fmt(v)).join(', ');
 };
 
 async function copyRaw(data: any): Promise<void> {
@@ -213,6 +222,10 @@ async function copyRaw(data: any): Promise<void> {
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

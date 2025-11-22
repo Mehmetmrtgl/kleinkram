@@ -17,7 +17,7 @@
                     dense
                     size="sm"
                     color="grey-7"
-                    @click="copyRaw(messages)"
+                    @click="copyRaw"
                 >
                     <q-tooltip>Copy JSON</q-tooltip>
                 </q-btn>
@@ -44,29 +44,49 @@
 
                         <div class="row q-col-gutter-md">
                             <div class="col-12 col-sm-6">
-                                <div class="text-caption text-weight-bold text-grey-8 q-mb-xs">
+                                <div
+                                    class="text-caption text-weight-bold text-grey-8 q-mb-xs"
+                                >
                                     Reference Time (Payload)
                                 </div>
                                 <div class="bg-cyan-1 q-pa-sm rounded-borders">
                                     <div class="text-body2 text-weight-medium">
                                         {{ formatFullDate(msg.data.time_ref) }}
                                     </div>
-                                    <div class="text-caption text-grey-7 font-mono">
-                                        {{ msg.data.time_ref.sec }}.{{ String(msg.data.time_ref.nsec).padStart(9, '0') }}
+                                    <div
+                                        class="text-caption text-grey-7 font-mono"
+                                    >
+                                        {{ msg.data.time_ref.sec }}.{{
+                                            String(
+                                                msg.data.time_ref.nsec,
+                                            ).padStart(9, '0')
+                                        }}
                                     </div>
                                 </div>
                             </div>
 
                             <div class="col-12 col-sm-6">
-                                <div class="text-caption text-weight-bold text-grey-8 q-mb-xs">
+                                <div
+                                    class="text-caption text-weight-bold text-grey-8 q-mb-xs"
+                                >
                                     Header Stamp (Context)
                                 </div>
                                 <div class="bg-grey-2 q-pa-sm rounded-borders">
                                     <div class="text-body2 text-grey-9">
-                                        {{ formatFullDate(msg.data.header.stamp) }}
+                                        {{
+                                            formatFullDate(
+                                                msg.data.header.stamp,
+                                            )
+                                        }}
                                     </div>
-                                    <div class="text-caption text-grey-6 font-mono">
-                                        {{ msg.data.header.stamp.sec }}.{{ String(msg.data.header.stamp.nsec).padStart(9, '0') }}
+                                    <div
+                                        class="text-caption text-grey-6 font-mono"
+                                    >
+                                        {{ msg.data.header.stamp.sec }}.{{
+                                            String(
+                                                msg.data.header.stamp.nsec,
+                                            ).padStart(9, '0')
+                                        }}
                                     </div>
                                 </div>
                             </div>
@@ -88,7 +108,7 @@
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -99,7 +119,7 @@
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { computed, onMounted } from 'vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
@@ -108,30 +128,38 @@ const props = defineProps<{
 const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) emit('load-required');
+    if (!properties.messages || properties.messages.length === 0)
+        emit('load-required');
 });
 
 // --- Computed ---
 const uniqueSources = computed(() => {
-    const sources = new Set(props.messages.map(m => m.data.source || 'Unknown'));
-    return Array.from(sources).join(', ');
+    const sources = new Set(
+        properties.messages.map((m) => m.data.source || 'Unknown'),
+    );
+    return [...sources].join(', ');
 });
 
 // --- Formatters ---
-const formatFullDate = (timeObj: { sec: number; nsec: number }) => {
-    if (!timeObj || (timeObj.sec === 0 && timeObj.nsec === 0)) return '0 (Not Set)';
-    const millis = timeObj.sec * 1000 + timeObj.nsec / 1_000_000;
+const formatFullDate = (timeObject: { sec: number; nsec: number }) => {
+    if (!timeObject || (timeObject.sec === 0 && timeObject.nsec === 0))
+        return '0 (Not Set)';
+    const millis = timeObject.sec * 1000 + timeObject.nsec / 1_000_000;
     return new Date(millis).toISOString().replace('T', ' ').replace('Z', '');
 };
 
-async function copyRaw(data: any): Promise<void> {
-    await quasarCopy(JSON.stringify(data, null, 2));
+async function copyRaw(): Promise<void> {
+    await quasarCopy(JSON.stringify(properties.messages, null, 2));
     Notify.create({
         message: 'Data copied',
         color: 'positive',
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

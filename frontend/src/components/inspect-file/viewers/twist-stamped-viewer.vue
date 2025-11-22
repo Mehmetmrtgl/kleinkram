@@ -4,7 +4,11 @@
             <div class="row justify-between items-center q-mb-md">
                 <div class="row items-center q-gutter-x-sm">
                     <q-badge color="grey-3" text-color="black">
-                        <q-icon name="sym_o_schedule" size="xs" class="q-mr-xs" />
+                        <q-icon
+                            name="sym_o_schedule"
+                            size="xs"
+                            class="q-mr-xs"
+                        />
                         {{ duration.toFixed(2) }}s
                     </q-badge>
                     <q-badge color="deep-purple-1" text-color="deep-purple-9">
@@ -18,7 +22,7 @@
                     dense
                     size="sm"
                     color="grey-7"
-                    @click="copyRaw(messages)"
+                    @click="copyRaw"
                 >
                     <q-tooltip>Copy JSON</q-tooltip>
                 </q-btn>
@@ -48,7 +52,7 @@
                     size="sm"
                     flat
                     color="primary"
-                    @click="$emit('load-more')"
+                    @click="loadMore"
                 />
             </div>
         </div>
@@ -58,11 +62,9 @@
 <script setup lang="ts">
 import { Notify, copyToClipboard as quasarCopy } from 'quasar';
 import { computed, onMounted } from 'vue';
-import SimpleTimeChart, {
-    type ChartSeries,
-} from './simple-time-chart.vue';
+import SimpleTimeChart, { type ChartSeries } from './simple-time-chart.vue';
 
-const props = defineProps<{
+const properties = defineProps<{
     messages: any[];
     totalCount: number;
     topicName: string;
@@ -71,31 +73,30 @@ const props = defineProps<{
 const emit = defineEmits(['load-required', 'load-more']);
 
 onMounted(() => {
-    if (!props.messages || props.messages.length === 0) emit('load-required');
+    if (!properties.messages || properties.messages.length === 0)
+        emit('load-required');
 });
 
 // --- Data Processing ---
-const startTime = computed(() => props.messages[0]?.logTime || 0n);
+const startTime = computed(() => properties.messages[0]?.logTime || 0n);
 
 const duration = computed(() => {
-    if (props.messages.length < 2) return 0;
-    const end = props.messages[props.messages.length - 1].logTime;
+    if (properties.messages.length < 2) return 0;
+    const end = properties.messages.at(-1).logTime;
     return Number(end - startTime.value) / 1_000_000_000;
 });
 
 // Helper to extract series data
-const extractSeries = (
-    category: 'linear' | 'angular',
-): ChartSeries[] => {
+const extractSeries = (category: 'linear' | 'angular'): ChartSeries[] => {
     const xData: any[] = [];
     const yData: any[] = [];
     const zData: any[] = [];
 
-    props.messages.forEach((msg) => {
+    for (const message of properties.messages) {
         // Normalized Time
-        const t = Number(msg.logTime - startTime.value) / 1_000_000_000;
+        const t = Number(message.logTime - startTime.value) / 1_000_000_000;
         // Handle TwistStamped vs Twist
-        const twist = msg.data.twist || msg.data;
+        const twist = message.data.twist || message.data;
         const vec = twist[category];
 
         if (vec) {
@@ -103,7 +104,7 @@ const extractSeries = (
             yData.push({ time: t, value: vec.y || 0 });
             zData.push({ time: t, value: vec.z || 0 });
         }
-    });
+    }
 
     return [
         { name: 'X', color: 'red', data: xData },
@@ -115,14 +116,18 @@ const extractSeries = (
 const linearSeries = computed(() => extractSeries('linear'));
 const angularSeries = computed(() => extractSeries('angular'));
 
-async function copyRaw(data: any): Promise<void> {
-    await quasarCopy(JSON.stringify(data, null, 2));
+async function copyRaw(): Promise<void> {
+    await quasarCopy(JSON.stringify(properties.messages, null, 2));
     Notify.create({
         message: 'Data copied',
         color: 'positive',
         timeout: 1000,
     });
 }
+
+const loadMore = (): void => {
+    emit('load-more');
+};
 </script>
 
 <style scoped>

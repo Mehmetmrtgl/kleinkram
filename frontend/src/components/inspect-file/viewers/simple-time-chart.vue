@@ -53,7 +53,8 @@
             <div v-if="isSubsampled" class="sampling-badge">
                 Subsampled
                 <q-tooltip>
-                    Data exceeded 10k points. Displaying reduced set for performance.
+                    Data exceeded 10k points. Displaying reduced set for
+                    performance.
                 </q-tooltip>
             </div>
         </div>
@@ -74,7 +75,7 @@ export interface ChartSeries {
     data: DataPoint[];
 }
 
-const props = withDefaults(
+const properties = withDefaults(
     defineProps<{
         series: ChartSeries[];
         title?: string;
@@ -89,7 +90,7 @@ const props = withDefaults(
 );
 
 const SUBSAMPLE_THRESHOLD = 10_000;
-const TARGET_POINTS = 2_000;
+const TARGET_POINTS = 2000;
 
 // --- Scaling Logic (Uses FULL Data for Accuracy) ---
 const yRange = computed(() => {
@@ -98,7 +99,7 @@ const yRange = computed(() => {
 
     // Find global min/max across all series (full dataset)
     // Note: Iterating 50k JS objects is fast; rendering 50k DOM nodes is slow.
-    for (const s of props.series) {
+    for (const s of properties.series) {
         for (const p of s.data) {
             if (p.value < min) min = p.value;
             if (p.value > max) max = p.value;
@@ -126,9 +127,9 @@ const yRange = computed(() => {
 
 const maxTime = computed(() => {
     let max = 0;
-    for (const s of props.series) {
+    for (const s of properties.series) {
         if (s.data.length > 0) {
-            const last = s.data[s.data.length - 1].time;
+            const last = s.data.at(-1)?.time ?? 0;
             if (last > max) max = last;
         }
     }
@@ -137,11 +138,11 @@ const maxTime = computed(() => {
 
 // --- Subsampling Logic ---
 const isSubsampled = computed(() => {
-    return props.series.some((s) => s.data.length > SUBSAMPLE_THRESHOLD);
+    return properties.series.some((s) => s.data.length > SUBSAMPLE_THRESHOLD);
 });
 
 const sampledSeries = computed(() => {
-    return props.series.map((s) => {
+    return properties.series.map((s) => {
         // If small enough, return original
         if (s.data.length <= SUBSAMPLE_THRESHOLD) return s;
 
@@ -149,13 +150,13 @@ const sampledSeries = computed(() => {
         const stride = Math.ceil(s.data.length / TARGET_POINTS);
 
         const reducedData = [];
-        for (let i = 0; i < s.data.length; i += stride) {
-            reducedData.push(s.data[i]);
+        for (let index = 0; index < s.data.length; index += stride) {
+            reducedData.push(s.data[index]);
         }
 
         // Ensure the very last point is included so the graph doesn't look cut off
-        if (reducedData[reducedData.length - 1] !== s.data[s.data.length - 1]) {
-            reducedData.push(s.data[s.data.length - 1]);
+        if (reducedData.at(-1) !== s.data.at(-1)) {
+            reducedData.push(s.data.at(-1));
         }
 
         return {
@@ -166,16 +167,16 @@ const sampledSeries = computed(() => {
 });
 
 // --- Coordinate Mapping ---
-const getY = (val: number): number => {
-    const percent = (val - yRange.value.min) / yRange.value.range;
-    return props.height * (1 - percent);
+const getY = (value: number): number => {
+    const percent = (value - yRange.value.min) / yRange.value.range;
+    return properties.height * (1 - percent);
 };
 
-const getPoints = (data: DataPoint[]): string => {
+const getPoints = (data: (DataPoint | undefined)[]): string => {
     return data
         .map((p) => {
-            const x = (p.time / maxTime.value) * props.width;
-            const y = getY(p.value);
+            const x = (p?.time ?? 0 / maxTime.value) * properties.width;
+            const y = getY(p?.value ?? 0);
             return `${x},${y}`;
         })
         .join(' ');
@@ -220,7 +221,7 @@ const fmt = (n: number) => n.toFixed(2);
     left: 4px;
     font-size: 9px;
     background: rgba(255, 243, 224, 0.9);
-    color: #E65100;
+    color: #e65100;
     padding: 1px 4px;
     border-radius: 2px;
     cursor: help;

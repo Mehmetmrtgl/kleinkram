@@ -14,7 +14,7 @@
                 v-if="renderError"
                 class="absolute-center text-negative bg-white q-pa-sm rounded-borders"
             >
-                <q-icon name="warning" /> {{ renderError }}
+                <q-icon name="sym_o_warning" /> {{ renderError }}
             </div>
         </div>
 
@@ -25,8 +25,8 @@
                 :max="messages.length - 1"
                 :is-playing="isPlaying"
                 @toggle="togglePlay"
-                @next="step(1)"
-                @prev="step(-1)"
+                @next="increment"
+                @prev="decrement"
             />
         </div>
 
@@ -85,6 +85,14 @@ const togglePlay = (): void => {
     }
 };
 
+const increment = (): void => {
+    step(1);
+};
+
+const decrement = (): void => {
+    step(-1);
+};
+
 const step = (direction: number): void => {
     let next = currentIndex.value + direction;
     if (next >= properties.messages.length) {
@@ -95,10 +103,16 @@ const step = (direction: number): void => {
     currentIndex.value = next;
 };
 
-const formatTime = (nano?: bigint): string => {
-    if (!nano) return '-';
-    const millis = Number(nano / 1_000_000n);
-    return new Date(millis).toISOString().split('T')[1].replace('Z', '');
+const formatTime = (nano: bigint): string => {
+    const ms = Number(nano / 1_000_000n);
+    const date = new Date(ms);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Invalid Time';
+    }
+
+    const timePart = date.toISOString().split('T')[1];
+    return timePart?.replace('Z', '') ?? 'Invalid Time';
 };
 
 onUnmounted(() => {
