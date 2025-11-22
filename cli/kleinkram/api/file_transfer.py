@@ -251,7 +251,9 @@ def _get_file_download(client: AuthenticatedClient, id: UUID) -> str:
     """\
     get the download url for a file by file id
     """
-    resp = client.get(DOWNLOAD_URL, params={"uuid": str(id), "expires": True})
+    resp = client.get(
+        DOWNLOAD_URL, params={"uuid": str(id), "expires": True, "preview_only": False}
+    )
 
     if 400 <= resp.status_code < 500:
         raise AccessDenied(
