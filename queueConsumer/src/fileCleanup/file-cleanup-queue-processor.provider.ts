@@ -1,4 +1,4 @@
-import { redis, systemUser } from '@common/consts';
+import { redis } from '@common/consts';
 import FileEntity from '@common/entities/file/file.entity';
 import IngestionJobEntity from '@common/entities/file/ingestion-job.entity';
 import MissionEntity from '@common/entities/mission/mission.entity';
@@ -6,10 +6,7 @@ import UserEntity from '@common/entities/user/user.entity';
 import env from '@common/environment';
 import {
     AccessGroupRights,
-    FileLocation,
-    FileOrigin,
     FileState,
-    FileType,
     QueueState,
     UserRole,
 } from '@common/frontend_shared/enum';
@@ -25,7 +22,6 @@ import { Redis } from 'ioredis';
 import crypto from 'node:crypto';
 import Redlock from 'redlock';
 import {
-    In,
     IsNull,
     LessThanOrEqual,
     MoreThanOrEqual,
@@ -235,171 +231,6 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
             });
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_2AM)
-    async synchronizeFileSystem(): Promise<void> {
-        await this.redlock
-            .using([`lock:fs-sync`], 10_000, async () => {
-                logger.debug('Synchronizing file system');
-
-                const files = await this.fileRepository.find({
-                    where: { state: In([FileState.OK, FileState.FOUND]) },
-                });
-                let count = 0;
-                await Promise.all(
-                    files.map(async (file) => {
-                        const exists = await this.doesFileExist(
-                            env.MINIO_DATA_BUCKET_NAME,
-                            file.uuid,
-                        );
-                        if (!exists) {
-                            count++;
-                            file.state = FileState.LOST;
-                            logger.error(
-                                `File ${file.filename} is missing in minio`,
-                            );
-                            await this.fileRepository.save(file);
-                        }
-                    }),
-                );
-                if (count === 0) {
-                    logger.info(
-                        'All files from the database are present in the minio storage',
-                    );
-                } else {
-                    logger.info(
-                        `${count.toString()} files are missing in the minio storage`,
-                    );
-                }
-
-                // search for lost files
-                const lostFiles = await this.fileRepository.find({
-                    where: { state: FileState.LOST },
-                });
-
-                await Promise.all(
-                    lostFiles.map(async (file) => {
-                        const exists = await this.doesFileExist(
-                            env.MINIO_DATA_BUCKET_NAME,
-                            file.uuid,
-                        );
-                        if (exists) {
-                            file.state = FileState.FOUND;
-                            logger.info(
-                                `Previously lost file ${file.filename} found`,
-                            );
-                            await this.fileRepository.save(file);
-                        }
-                    }),
-                );
-
-                // #####################
-                // search for files present in minio but missing in DB
-                // #####################
-                await this.missingInDB(FileType.BAG);
-                await this.missingInDB(FileType.MCAP);
-            })
-            .catch(() => {
-                logger.debug("Couldn't acquire lock for fs sync");
-            });
-    }
-
-    async missingInDB(fileType: FileType): Promise<void> {
-        const bucket = env.MINIO_DATA_BUCKET_NAME;
-        const minioObjects = await this.storageService.listFiles(bucket);
-
-        const minioObjectNamesSet = new Set<string>(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            minioObjects.map((object) => object.name!),
-        );
-
-        const databaseObjects = await this.fileRepository.find({
-            where: { type: fileType },
-        });
-        const databaseObjectNames = new Set(
-            databaseObjects.map((object) => object.uuid),
-        );
-        const missingObjects =
-            minioObjectNamesSet.difference(databaseObjectNames);
-
-        await Promise.all(
-            [...missingObjects].map(async (object) => {
-                const tags = await this.storageService.getTags(bucket, object);
-
-                const missionUUID = tags['missionUuid'];
-                const filename = tags['filename'];
-
-                const minioObject = await this.storageService.getFileInfo(
-                    bucket,
-                    object,
-                );
-
-                if (
-                    missionUUID === undefined ||
-                    filename === undefined ||
-                    !minioObject
-                ) {
-                    logger.error(
-                        `Missing tags or stats in minio object: UUID: ${object}, has Tags:${JSON.stringify(tags)} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
-                    );
-                    return;
-                }
-
-                const mission = await this.missionRepository.findOne({
-                    where: {
-                        uuid: missionUUID,
-                    },
-                });
-                if (!mission) {
-                    throw new Error(
-                        `Mission of file to be recovered not found: mission UUID:${missionUUID}`,
-                    );
-                }
-                const recoverQueue = this.queueRepository.create({
-                    identifier: object,
-
-                    display_name: filename,
-                    state: QueueState.AWAITING_PROCESSING,
-                    location: FileLocation.MINIO,
-                    mission: { uuid: missionUUID },
-                    creator: { uuid: systemUser.uuid },
-                });
-
-                const fileEntity = this.fileRepository.create({
-                    uuid: object,
-                    mission: { uuid: missionUUID },
-                    date: new Date(),
-                    filename,
-                    size: minioObject.size,
-                    creator: { uuid: systemUser.uuid },
-                    type: fileType,
-                    origin: FileOrigin.UNKNOWN,
-                });
-                try {
-                    const queueEntity =
-                        await this.queueRepository.save(recoverQueue);
-
-                    await this.fileRepository.save(fileEntity);
-                    await this.fileQueue.add('processMinioFile', {
-                        queueUuid: queueEntity.uuid,
-                        recovering: true,
-                    });
-                } catch {
-                    logger.error(
-                        `Failed to recover file ${object} in mission ${missionUUID}`,
-                    );
-                }
-                logger.error(
-                    `Found missing object in minio: UUID: ${object}, has Tags:${JSON.stringify(tags)} in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket`,
-                );
-            }),
-        );
-        if (missingObjects.size === 0) {
-            logger.info(
-                `All Files in ${fileType === FileType.MCAP ? 'MCAP' : 'BAG'} bucket are in the DB`,
-            );
-        }
-    }
-
     async canCancelUpload(
         userUUID: string,
         missionUUID: string,
@@ -448,16 +279,5 @@ export class FileCleanupQueueProcessorProvider implements OnModuleInit {
                 rights: MoreThanOrEqual(AccessGroupRights.WRITE),
             },
         });
-    }
-
-    async doesFileExist(
-        bucketName: string,
-        objectName: string,
-    ): Promise<boolean> {
-        const info = await this.storageService.getFileInfo(
-            bucketName,
-            objectName,
-        );
-        return !!info;
     }
 }
