@@ -1,81 +1,71 @@
 <template>
     <title-section title="Datatable" />
 
-    <div class="row">
-        <div class="col-4 flex">
-            <q-input
-                v-model="startDates"
-                filled
-                dense
-                outlined
-                clearable
-                placeholder="Select start date"
-                class="q-pa-sm"
-                style="width: 50%"
-                @clear="resetStartDate"
-            >
-                <template #prepend>
-                    <q-icon name="sym_o_event" class="cursor-pointer">
-                        <q-popup-proxy
-                            cover
-                            transition-show="scale"
-                            transition-hide="scale"
-                        >
-                            <q-date v-model="startDates" :mask="dateMask">
-                                <div class="row items-center justify-end">
-                                    <q-btn
-                                        v-close-popup
-                                        label="Close"
-                                        color="primary"
-                                        flat
-                                    />
-                                </div>
-                            </q-date>
-                        </q-popup-proxy>
-                    </q-icon>
-                </template>
-            </q-input>
-            <p class="flex flex-center" style="margin-bottom: 0; width: 0">-</p>
-            <q-input
-                v-model="endDates"
-                filled
-                dense
-                clearable
-                placeholder="Select start date"
-                class="q-pa-sm"
-                style="width: 50%"
-                @clear="resetEndDate"
-            >
-                <template #prepend>
-                    <q-icon name="sym_o_event" class="cursor-pointer">
-                        <q-popup-proxy
-                            cover
-                            transition-show="scale"
-                            transition-hide="scale"
-                        >
-                            <q-date v-model="endDates" :mask="dateMask">
-                                <div class="row items-center justify-end">
-                                    <q-btn
-                                        v-close-popup
-                                        label="Close"
-                                        color="primary"
-                                        flat
-                                    />
-                                </div>
-                            </q-date>
-                        </q-popup-proxy>
-                    </q-icon>
-                </template>
-            </q-input>
+    <div class="row q-col-gutter-sm q-mb-sm q-pt-md">
+        
+        <div class="col-4">
+            <div class="row no-wrap items-center">
+                <q-input
+                    v-model="startDates"
+                    filled
+                    dense
+                    outlined
+                    clearable
+                    placeholder="Start Date"
+                    class="col"
+                    bg-color="white"
+                    @clear="resetStartDate"
+                >
+                    <template #prepend>
+                        <q-icon name="sym_o_event" class="cursor-pointer">
+                            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                <q-date v-model="startDates" :mask="dateMask">
+                                    <div class="row items-center justify-end">
+                                        <q-btn v-close-popup label="Close" color="primary" flat />
+                                    </div>
+                                </q-date>
+                            </q-popup-proxy>
+                        </q-icon>
+                    </template>
+                </q-input>
+
+                <div class="q-px-sm text-grey-7">-</div>
+
+                <q-input
+                    v-model="endDates"
+                    filled
+                    dense
+                    outlined
+                    clearable
+                    placeholder="End Date"
+                    class="col"
+                    bg-color="white"
+                    @clear="resetEndDate"
+                >
+                    <template #prepend>
+                        <q-icon name="sym_o_event" class="cursor-pointer">
+                            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                <q-date v-model="endDates" :mask="dateMask">
+                                    <div class="row items-center justify-end">
+                                        <q-btn v-close-popup label="Close" color="primary" flat />
+                                    </div>
+                                </q-date>
+                            </q-popup-proxy>
+                        </q-icon>
+                    </template>
+                </q-input>
+            </div>
         </div>
-        <div class="col-4 flex q-pa-sm">
+
+        <div class="col-4">
             <q-btn-dropdown
                 v-model="dd_open_projects"
                 :label="selected_project?.name || 'Filter by Project'"
                 dense
-                clearable
                 flat
-                class="full-width button-border"
+                class="full-width custom-input-btn text-left"
+                align="left"
+                no-caps
             >
                 <q-list>
                     <q-item
@@ -96,7 +86,8 @@
                 </q-list>
             </q-btn-dropdown>
         </div>
-        <div class="col-4 flex q-pa-sm">
+
+        <div class="col-4">
             <q-tooltip v-if="!handler.projectUuid" self="bottom middle">
                 Please select a project first
             </q-tooltip>
@@ -104,9 +95,10 @@
                 v-model="dd_open_missions"
                 :label="selected_mission?.name || 'Filter by Mission'"
                 dense
-                clearable
                 flat
-                class="full-width button-border"
+                class="full-width custom-input-btn"
+                align="left"
+                no-caps
                 :disable="!handler.projectUuid"
             >
                 <q-list>
@@ -129,14 +121,18 @@
             </q-btn-dropdown>
         </div>
     </div>
-    <div class="row">
-        <div class="col-2 q-pa-sm">
+
+    <div class="row q-col-gutter-sm q-mb-md">
+        
+        <div class="col-2">
             <file-type-selector
                 ref="fileTypeSelectorReference"
                 v-model="fileTypeFilter"
+                class="full-width"
             />
         </div>
-        <div class="col-2 q-pa-sm" style="margin: 0">
+
+        <div class="col-2">
             <q-input
                 v-model="filter"
                 outlined
@@ -145,57 +141,57 @@
                 clearable
                 placeholder="Filter by Filename"
                 class="full-width"
+                bg-color="white"
             />
         </div>
 
-        <div class="col-4 q-pa-sm" style="display: flex; align-items: center">
-            <q-select
-                v-model="selectedTopics"
-                label="Select Topics"
-                use-input
-                input-debounce="20"
-                outlined
-                dense
-                clearable
-                multiple
-                use-chips
-                :options="displayedTopics"
-                emit-value
-                map-options
-                class="full-width"
-                style="
-                    padding-right: 5px;
-                    max-height: 70px;
-                    overflow: scroll;
-                    scrollbar-width: none;
-                "
-                @filter="filterFunction"
-            />
-            <q-btn-dropdown
-                dense
-                flat
-                class="full-height button-border"
-                style="min-width: 60px"
-            >
-                <template #label>
-                    {{ matchAllTopics ? 'And' : 'Or' }}
-                </template>
-                <q-list>
-                    <q-item
-                        v-for="(item, index) in ['And', 'Or']"
-                        :key="index"
-                        clickable
-                        @click="() => (matchAllTopics = item === 'And')"
-                    >
-                        <q-item-section>
-                            {{ item }}
-                        </q-item-section>
-                    </q-item>
-                </q-list>
-            </q-btn-dropdown>
+        <div class="col-4">
+            <div class="row no-wrap">
+                <q-select
+                    v-model="selectedTopics"
+                    label="Select Topics"
+                    use-input
+                    input-debounce="20"
+                    outlined
+                    dense
+                    clearable
+                    multiple
+                    use-chips
+                    :options="displayedTopics"
+                    emit-value
+                    map-options
+                    class="col"
+                    bg-color="white"
+                    @filter="filterFunction"
+                    @popup-show="refetchTopics"
+                />
+                <q-btn-dropdown
+                    dense
+                    flat
+                    class="custom-input-btn q-ml-sm"
+                    style="width: 80px;"
+                    no-caps
+                >
+                    <template #label>
+                        {{ matchAllTopics ? 'And' : 'Or' }}
+                    </template>
+                    <q-list>
+                        <q-item
+                            v-for="(item, index) in ['And', 'Or']"
+                            :key="index"
+                            clickable
+                            @click="() => (matchAllTopics = item === 'And')"
+                        >
+                            <q-item-section>
+                                {{ item }}
+                            </q-item-section>
+                        </q-item>
+                    </q-list>
+                </q-btn-dropdown>
+            </div>
         </div>
 
-        <div class="col-3 q-pa-sm">
+        <div class="col-3">
             <q-btn
                 v-if="tagFilter"
                 flat
@@ -203,37 +199,33 @@
                 color="primary"
                 label="Tags"
                 icon="sym_o_sell"
-                class="full-width button-border full-height"
+                class="full-width custom-input-btn"
+                align="left"
+                no-caps
                 @click="openTagFilterDialog"
             >
                 <q-chip
                     v-for="value in Object.values(tagFilter)"
-                    :key="
-                        // @ts-ignore
-                        value?.name
-                    "
+                    :key="value?.name"
                     dense
+                    class="q-ma-none q-mr-xs"
+                    size="sm"
                 >
-                    {{
-                        // @ts-ignore
-                        value?.name
-                    }}:
-                    {{
-                        // @ts-ignore
-                        value?.value
-                    }}
+                    {{ value?.name }}: {{ value?.value }}
                 </q-chip>
             </q-btn>
         </div>
-        <div class="col-1 q-pa-sm">
+
+        <div class="col-1">
             <q-btn
                 flat
                 text-color="black"
-                label="Reset"
                 icon="sym_o_clear"
-                class="full-width button-border full-height"
+                class="full-width custom-input-btn"
                 @click="resetFilter"
-            />
+            >
+                <q-tooltip>Reset</q-tooltip>
+            </q-btn>
         </div>
     </div>
 
@@ -270,14 +262,6 @@
                 >
                     <q-tooltip>{{ getTooltip(props.row.state) }}</q-tooltip>
                 </q-icon>
-                <link
-                    rel="stylesheet"
-                    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
-                />
-                <link
-                    rel="stylesheet"
-                    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-                />
             </q-td>
         </template>
         <template #body-cell-action="props">
@@ -323,6 +307,7 @@
         </template>
     </q-table>
 </template>
+
 <script setup lang="ts">
 import { useQuery, UseQueryReturnType } from '@tanstack/vue-query';
 import { QTable, useQuasar } from 'quasar';
@@ -404,19 +389,25 @@ const projects = computed(() =>
 
 // Fetch missions
 const { data: _missions } = useMissionsOfProjectMinimal(
-    (handler.value.projectUuid && '') as string,
+    (handler.value.projectUuid || '') as string,
     500,
     0,
 );
 const missions = computed(() => (_missions.value ? _missions.value.data : []));
 
 // Fetch topics
-const { data: allTopics } = useQuery<string[]>({
+// BURADA DEĞİŞİKLİK YAPILDI: refetchTopics eklendi
+const { data: allTopics, refetch: refetchTopics } = useQuery<string[]>({
     queryKey: ['topics'],
     queryFn: allTopicsNames,
 });
 const displayedTopics = ref(allTopics.value);
 const selectedTopics = ref([]);
+
+// Watcher ensures displayedTopics is updated when allTopics changes (e.g. after refetch)
+watch(allTopics, (newVal) => {
+    if (newVal) displayedTopics.value = newVal;
+}, { immediate: true });
 
 const matchAllTopics = ref(false);
 const tagFilter: Ref<Record<string, { name: string; value: string }>> = ref({});
@@ -671,4 +662,13 @@ function resetFilter() {
     resetEndDate();
 }
 </script>
-<style scoped></style>
+
+<style scoped>
+/* BU CSS SINIFI TÜM BUTONLARI INPUT GİBİ GÖSTERİR */
+.custom-input-btn {
+    height: 40px; /* Standart Dense Input Yüksekliği */
+    border: 1px solid rgba(0, 0, 0, 0.24); /* Quasar Outlined Rengi */
+    border-radius: 4px; /* Quasar Radius */
+    background: white;
+}
+</style>

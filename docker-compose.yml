@@ -110,23 +110,15 @@ services:
         env_file:
             - .env
 
-        develop:
-            watch:
-                - action: sync
-                  path: ./frontend
-                  target: /app/frontend
-                  ignore:
-                      - node_modules/
-                      - dist/
-                - action: sync
-                  path: ./common
-                  target: /app/common
-                  ignore:
-                      - node_modules/
-                      - dist/
-                - action: sync
-                  path: ./common/frontend_shared
-                  target: /app/common/frontend_shared
+        # 👇 CANLI YENİDEN YÜKLEMEYİ ETKİNLEŞTİREN AYARLAR
+        environment:
+            - CHOKIDAR_USEPOLLING=true # Polling'i (düzenli kontrolü) açar
+
+        volumes:
+            - ./frontend:/app/frontend
+            - ./common:/app/common
+            - ./common/frontend_shared:/app/common/frontend_shared
+            - /app/frontend/node_modules
 
         depends_on:
             - api-server
