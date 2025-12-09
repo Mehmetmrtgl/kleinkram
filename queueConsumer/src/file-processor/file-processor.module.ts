@@ -23,6 +23,8 @@ import { RosBagHandler } from './handlers/bag.hander';
 import { METRIC_PROVIDERS } from './handlers/file-processor.metrics';
 import { McapMetadataService } from './handlers/mcap-metadata.service';
 import { RosBagMetadataService } from './handlers/rosbag-metadata.service';
+import { Db3MetadataService } from './handlers/db3-metadata.service';
+import { Db3Handler } from './handlers/db3.handler';
 
 @Module({
     imports: [
@@ -48,8 +50,15 @@ import { RosBagMetadataService } from './handlers/rosbag-metadata.service';
 
         RosBagMetadataService,
         McapMetadataService,
+        
+
+        Db3MetadataService, 
+
         McapHandler,
         RosBagHandler,
+        
+
+        Db3Handler,
 
         ...METRIC_PROVIDERS,
 
@@ -58,8 +67,9 @@ import { RosBagMetadataService } from './handlers/rosbag-metadata.service';
             useFactory: (
                 bag: RosBagHandler,
                 mcap: McapHandler,
-            ): FileHandler[] => [bag, mcap],
-            inject: [McapHandler, RosBagHandler],
+                db3: Db3Handler,
+            ): FileHandler[] => [bag, mcap, db3],
+            inject: [McapHandler, RosBagHandler, Db3Handler],
         },
     ],
 })
