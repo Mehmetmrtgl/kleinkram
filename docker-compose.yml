@@ -64,8 +64,8 @@ services:
         container_name: kleinkram-minio
 
         volumes:
-            - /media/mehmet/Elements/kleinkram_data:/data
-
+            - db_data:/var/lib/postgresql/data
+        #- /your/folder/path/kleinkram_data:/data   #delete minio_data: in 292
         environment:
             MINIO_ROOT_USER: ${MINIO_USER}
             MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
@@ -110,9 +110,9 @@ services:
         env_file:
             - .env
 
-        # 👇 CANLI YENİDEN YÜKLEMEYİ ETKİNLEŞTİREN AYARLAR
+
         environment:
-            - CHOKIDAR_USEPOLLING=true # Polling'i (düzenli kontrolü) açar
+            - CHOKIDAR_USEPOLLING=true
 
         volumes:
             - ./frontend:/app/frontend
@@ -289,6 +289,7 @@ services:
             - public-network
 volumes:
     db_data:
+    minio_data:
     logging-prometheus-storage:
     logging-grafana-storage:
     logging-tempo-data:
