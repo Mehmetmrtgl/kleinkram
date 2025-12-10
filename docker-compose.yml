@@ -64,7 +64,11 @@ services:
         container_name: kleinkram-minio
 
         volumes:
+<<<<<<< HEAD
             - minio_data:/data
+=======
+            - db_data:/var/lib/postgresql/data
+>>>>>>> c7f2159e (fix: Implemented correct tag-based search structure)
 
         environment:
             MINIO_ROOT_USER: ${MINIO_USER}
@@ -110,9 +114,8 @@ services:
         env_file:
             - .env
 
-        # 👇 CANLI YENİDEN YÜKLEMEYİ ETKİNLEŞTİREN AYARLAR
         environment:
-            - CHOKIDAR_USEPOLLING=true # Polling'i (düzenli kontrolü) açar
+            - CHOKIDAR_USEPOLLING=true
 
         volumes:
             - ./frontend:/app/frontend
