@@ -104,8 +104,14 @@ const metadataMatchesKeyValuePair = (
     }
 
     const valueBracket = new Brackets((qb) => {
-        qb.orWhere(`tags.STRING = :stringValue_${tok}`, {
-            [`stringValue_${tok}`]: value,
+        // Use LIKE for partial matching on STRING type to support comma-separated values
+        // Escape special LIKE characters (% and _) in the search value
+        const escapedStringValue = value
+            .replaceAll('\\', '\\\\')
+            .replaceAll('%', '\\%')
+            .replaceAll('_', '\\_');
+        qb.orWhere(`tags.STRING LIKE :stringValue_${tok}`, {
+            [`stringValue_${tok}`]: `%${escapedStringValue}%`,
         });
         const numberValue = stringToNumber(value);
         if (numberValue !== undefined) {
@@ -127,8 +133,13 @@ const metadataMatchesKeyValuePair = (
         }
         const locationValue = stringToLocation(value);
         if (locationValue !== undefined) {
-            qb.orWhere(`tags.LOCATION = :locationValue_${tok}`, {
-                [`locationValue_${tok}`]: locationValue,
+            // Use LIKE for partial matching on LOCATION type as well
+            const escapedLocationValue = locationValue
+                .replaceAll('\\', '\\\\')
+                .replaceAll('%', '\\%')
+                .replaceAll('_', '\\_');
+            qb.orWhere(`tags.LOCATION LIKE :locationValue_${tok}`, {
+                [`locationValue_${tok}`]: `%${escapedLocationValue}%`,
             });
         }
     });

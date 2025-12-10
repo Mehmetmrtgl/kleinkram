@@ -464,12 +464,28 @@ export class FileService implements OnModuleInit {
             const uuidParameter = `tagtype${validTagCount}`;
             const valueParameter = `tagval${validTagCount}`;
 
-            // Build the clause: (tagtype.uuid = :uuid AND tag.VALUE_COLUMN = :value)
+            // Use LIKE for STRING and LOCATION types to support partial matching
+            // (e.g., searching "IMU" in "3D LiDAR, 2D LiDAR, STEREO CAMERA, GPS, IMU, FOG, ENCODER, ALTIMETER")
+            // For other types, use exact match
+            const useLike = column === 'STRING' || column === 'LOCATION';
+            const comparisonOperator = useLike ? 'LIKE' : '=';
+            let finalValue = processedValue;
+
+            if (useLike && typeof processedValue === 'string') {
+                // Escape special LIKE characters (% and _) in the search value
+                const escapedValue = processedValue
+                    .replaceAll('\\', '\\\\')
+                    .replaceAll('%', '\\%')
+                    .replaceAll('_', '\\_');
+                finalValue = `%${escapedValue}%`;
+            }
+
+            // Build the clause: (tagtype.uuid = :uuid AND tag.VALUE_COLUMN [= | LIKE] :value)
             tagWhereClauses.push(
-                `(tagtype.uuid = :${uuidParameter} AND tag.${column} = :${valueParameter})`,
+                `(tagtype.uuid = :${uuidParameter} AND tag.${column} ${comparisonOperator} :${valueParameter})`,
             );
             tagParameters[uuidParameter] = uuid;
-            tagParameters[valueParameter] = processedValue;
+            tagParameters[valueParameter] = finalValue;
 
             validTagCount++;
         }

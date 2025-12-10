@@ -193,7 +193,7 @@
 
         <div class="col-3">
             <q-btn
-                v-if="tagFilter"
+                v-if="hasActiveTagFilters"
                 flat
                 text-color="black"
                 color="primary"
@@ -205,15 +205,27 @@
                 @click="openTagFilterDialog"
             >
                 <q-chip
-                    v-for="value in Object.values(tagFilter)"
-                    :key="value?.name"
+                    v-for="(value, index) in activeTagFilters"
+                    :key="`${value.name}-${index}`"
                     dense
                     class="q-ma-none q-mr-xs"
                     size="sm"
                 >
-                    {{ value?.name }}: {{ value?.value }}
+                    {{ value.name }}: {{ formatTagValue(value.value) }}
                 </q-chip>
             </q-btn>
+            <q-btn
+                v-else
+                flat
+                text-color="black"
+                color="primary"
+                label="Tags"
+                icon="sym_o_sell"
+                class="full-width custom-input-btn"
+                align="left"
+                no-caps
+                @click="openTagFilterDialog"
+            />
         </div>
 
         <div class="col-1">
@@ -405,12 +417,21 @@ const displayedTopics = ref(allTopics.value);
 const selectedTopics = ref([]);
 
 // Watcher ensures displayedTopics is updated when allTopics changes (e.g. after refetch)
-watch(allTopics, (newVal) => {
+watch(allTopics, (newVal: string[] | undefined) => {
     if (newVal) displayedTopics.value = newVal;
 }, { immediate: true });
 
 const matchAllTopics = ref(false);
-const tagFilter: Ref<Record<string, { name: string; value: string }>> = ref({});
+
+// Modern type-safe tag filter structure
+interface TagFilterValue {
+    name: string;
+    value: string | number | boolean | Date | undefined;
+}
+
+type TagFilter = Record<string, TagFilterValue>;
+
+const tagFilter: Ref<TagFilter> = ref({});
 
 end.setHours(23, 59, 59, 999);
 
@@ -420,8 +441,8 @@ const endDate = computed(() => parseDate(endDates.value));
 const selectedFileTypesFilter = computed<FileType[]>(() => {
     const list = fileTypeFilter.value ?? [];
     return list
-        .filter((option) => option.value)
-        .map((option) => option.name) as FileType[];
+        .filter((option: FileTypeOption) => option.value)
+        .map((option: FileTypeOption) => option.name) as FileType[];
 });
 
 const pagination = computed(() => {
@@ -464,11 +485,20 @@ const queryKeyFiles = computed(() => [
     handler.value.queryKey,
 ]);
 
+// Modern, type-safe tag filter query builder
 const tagFilterQuery = computed(() => {
     const query: Record<string, any> = {};
-    for (const key of Object.keys(tagFilter.value)) {
-        query[key] = tagFilter.value[key] ?? '';
-    }
+    
+    Object.entries(tagFilter.value).forEach(([key, filterValue]) => {
+        // Only include entries with valid values - type guard ensures filterValue is TagFilterValue
+        if (filterValue && typeof filterValue === 'object' && 'value' in filterValue) {
+            const value = filterValue.value;
+            if (value !== undefined && value !== null && value !== '') {
+                query[key] = value;
+            }
+        }
+    });
+    
     return query;
 });
 
@@ -591,15 +621,44 @@ const columns = [
     },
 ];
 
+// Computed properties for better reactivity and type safety
+const hasActiveTagFilters = computed(() => {
+    const values = Object.values(tagFilter.value) as TagFilterValue[];
+    return values.length > 0 && 
+           values.some((v) => 
+               v && typeof v === 'object' && 'value' in v && v.value !== undefined && v.value !== null && v.value !== ''
+           );
+});
+
+const activeTagFilters = computed(() => {
+    const values = Object.values(tagFilter.value) as TagFilterValue[];
+    return values.filter((v): v is TagFilterValue => 
+        v !== undefined && typeof v === 'object' && 'value' in v && v.value !== undefined && v.value !== null && v.value !== ''
+    );
+});
+
+// Helper function to format tag values for display
+function formatTagValue(value: string | number | boolean | Date | undefined): string {
+    if (value === undefined || value === null) return '';
+    if (value instanceof Date) return formatDate(value);
+    if (typeof value === 'boolean') return value ? 'True' : 'False';
+    return String(value);
+}
+
 function openTagFilterDialog() {
     $q.dialog({
         title: 'Filter by Metadata',
         component: TagFilter,
         componentProps: {
-            tagValues: tagFilter.value,
+            tagValues: { ...tagFilter.value }, // Create a copy to avoid mutations
         },
-    }).onOk((_tagFilter) => {
-        tagFilter.value = _tagFilter;
+    }).onOk((newTagFilter: TagFilter) => {
+        // Validate and set the new filter
+        if (newTagFilter && typeof newTagFilter === 'object') {
+            tagFilter.value = newTagFilter;
+        }
+    }).onCancel(() => {
+        // Dialog was cancelled, no changes needed
     });
 }
 
@@ -613,7 +672,7 @@ function filterFunction(value: string, update: any) {
     update(() => {
         if (!allTopics.value) return;
         const needle = value.toLowerCase();
-        displayedTopics.value = allTopics.value.filter((v) =>
+        displayedTopics.value = allTopics.value.filter((v: string) =>
             v.toLowerCase().includes(needle),
         );
     });
@@ -652,12 +711,12 @@ function resetFilter() {
     ) {
         fileTypeSelectorReference.value.setAll(true);
     } else if (fileTypeFilter.value) {
-        fileTypeFilter.value = fileTypeFilter.value.map((it) => ({
+        fileTypeFilter.value = fileTypeFilter.value.map((it: FileTypeOption) => ({
             ...it,
             value: true,
         }));
     }
-    tagFilter.value = {};
+    tagFilter.value = {} as TagFilter;
     resetStartDate();
     resetEndDate();
 }
