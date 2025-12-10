@@ -52,69 +52,105 @@ import { TagTypeDto } from '@api/types/tags/tags.dto';
 import { DataType } from '@common/enum';
 import MetadataFilterInput from 'components/metadata-filter-input.vue';
 import MetadataTypeTable from 'components/metadata-type-table.vue';
-import { useDialogPluginComponent } from 'quasar';
+import { useDialogPluginComponent, useQuasar } from 'quasar';
 import { useAllTags } from 'src/hooks/query-hooks';
 import { computed, ref } from 'vue';
 
 const { dialogRef, onDialogOK, onDialogHide } = useDialogPluginComponent();
+const $q = useQuasar();
+
+// Modern type-safe interface for tag filter values
+interface TagFilterValue {
+    name: string;
+    value: string | number | boolean | Date | undefined;
+}
+
+type TagFilter = Record<string, TagFilterValue>;
 
 const properties = defineProps<{
-    tagValues?: Record<string, { value: any; name: string }>;
+    tagValues?: TagFilter;
 }>();
 
 const tagtype = ref<string>('');
-const tagValues = ref<Record<string, any>>({ ...properties.tagValues });
+const tagValues = ref<TagFilter>(properties.tagValues ? { ...properties.tagValues } : {});
 
-const convertedTagValues = computed(() => {
-    const converted: Record<string, any> = {};
-    for (const key of Object.keys(tagValues.value)) {
+// Modern, type-safe conversion with proper error handling
+const convertedTagValues = computed((): TagFilter => {
+    const converted: TagFilter = {};
+    
+    Object.entries(tagValues.value).forEach(([key, filterValue]) => {
         const tagType = tagLookup.value[key];
-
-        switch (tagType?.datatype) {
-            case DataType.BOOLEAN: {
-                if (tagValues.value[key].value === undefined) {
-                    break;
-                }
-                converted[key] = {
-                    value: tagValues.value[key].value,
-                    name: tagValues.value[key].name,
-                };
-
-                break;
-            }
-            case DataType.NUMBER: {
-                if (
-                    Number.isNaN(Number.parseFloat(tagValues.value[key].value))
-                ) {
-                    break;
-                }
-                converted[key] = {
-                    value: Number.parseFloat(tagValues.value[key].value),
-                    name: tagValues.value[key].name,
-                };
-                break;
-            }
-            case DataType.DATE: {
-                if (!tagValues.value[key].value) {
-                    break;
-                }
-                converted[key] = {
-                    value: new Date(tagValues.value[key].value),
-                    name: tagValues.value[key].name,
-                };
-                break;
-            }
-            default: {
-                if (!tagValues.value[key].value) {
-                    break;
-                }
-                converted[key] = {
-                    value: tagValues.value[key].value,
-                    name: tagValues.value[key].name,
-                };
-            }
+        
+        // Skip if tag type not found or value is invalid
+        if (!tagType || !filterValue) {
+            return;
         }
-    }
+        
+        const { value, name } = filterValue;
+        
+        // Skip empty values
+        if (value === undefined || value === null || value === '') {
+            return;
+        }
+        
+        let convertedValue: string | number | boolean | Date | undefined;
+        
+        try {
+            switch (tagType.datatype) {
+                case DataType.BOOLEAN: {
+                    // Boolean values should already be boolean type
+                    if (typeof value === 'boolean') {
+                        convertedValue = value;
+                    } else if (typeof value === 'string') {
+                        convertedValue = value.toLowerCase() === 'true';
+                    } else {
+                        return; // Invalid boolean value
+                    }
+                    break;
+                }
+                case DataType.NUMBER: {
+                    const numValue = typeof value === 'number' 
+                        ? value 
+                        : Number.parseFloat(String(value));
+                    
+                    if (Number.isNaN(numValue)) {
+                        return; // Invalid number, skip this filter
+                    }
+                    convertedValue = numValue;
+                    break;
+                }
+                case DataType.DATE: {
+                    // Handle both Date objects and date strings
+                    if (value instanceof Date) {
+                        convertedValue = value;
+                    } else {
+                        const dateValue = new Date(String(value));
+                        if (isNaN(dateValue.getTime())) {
+                            return; // Invalid date, skip this filter
+                        }
+                        convertedValue = dateValue;
+                    }
+                    break;
+                }
+                default: {
+                    // STRING, LOCATION, LINK, ANY - keep as string
+                    convertedValue = String(value);
+                }
+            }
+            
+            // Only add if we have a valid converted value
+            if (convertedValue !== undefined && convertedValue !== null) {
+                converted[key] = {
+                    value: convertedValue,
+                    name: name || tagType.name,
+                };
+            }
+        } catch (error) {
+            // Silently skip invalid conversions to prevent errors
+            console.warn(`Failed to convert tag filter value for ${name}:`, error);
+        }
+    });
+    
     return converted;
 });
 
@@ -145,17 +181,42 @@ const columns = [
     },
 ];
 
+// Modern, type-safe tag selection handler
 const tagTypeSelected = (row: TagTypeDto): void => {
-    if (!tagValues.value.hasOwnProperty(row.uuid)) {
-        tagValues.value[row.uuid] = { value: undefined, name: row.name };
+    if (!row?.uuid) {
+        return;
+    }
+    
+    // Use modern object property check instead of hasOwnProperty
+    if (!(row.uuid in tagValues.value)) {
+        tagValues.value[row.uuid] = { 
+            value: undefined, 
+            name: row.name 
+        };
     }
 };
 
-const updateTagValues = (newTagValues: Record<string, any>): void => {
-    tagValues.value = newTagValues;
+// Type-safe tag values update handler
+const updateTagValues = (newTagValues: TagFilter): void => {
+    if (newTagValues && typeof newTagValues === 'object') {
+        tagValues.value = { ...newTagValues };
+    }
 };
 
+// Apply action with validation
 const applyAction = (): void => {
-    onDialogOK(convertedTagValues);
+    const converted = convertedTagValues.value;
+    
+    // Only apply if there are valid filters
+    if (Object.keys(converted).length > 0 || Object.keys(tagValues.value).length === 0) {
+        onDialogOK(converted);
+    } else {
+        // If conversion resulted in empty but we had inputs, show warning
+        $q.notify({
+            type: 'warning',
+            message: 'Please enter valid filter values',
+            position: 'top',
+        });
+    }
 };
 </script>
